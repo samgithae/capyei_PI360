@@ -18,6 +18,7 @@ import {
   type Template,
 } from './shared';
 
+const DEFAULTABLE = ['programme_code', 'cohort_code', 'course_code'];
 const IGNORE = '';
 const NEW = 'new';
 
@@ -30,6 +31,7 @@ export function ImportNewPage() {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [choice, setChoice] = useState<string>(NEW); // a saved template id, or NEW
   const [source, setSource] = useState('');
+  const [defaults, setDefaults] = useState<Record<string, string>>({});
 
   const templates = useQuery({
     queryKey: ['import-templates'],
@@ -60,9 +62,25 @@ export function ImportNewPage() {
     if (!seen) return [];
     const used = new Set(Object.values(mapping));
     return seen.fields
-      .filter((f) => f.required && !used.has(f.field))
+      .filter(
+        (f) =>
+          f.required &&
+          !used.has(f.field) &&
+          !(DEFAULTABLE.includes(f.field) && defaults[f.field]?.trim()),
+      )
       .map((f) => f.field);
-  }, [seen, mapping]);
+  }, [seen, mapping, defaults]);
+
+  // A saved mapping that leaves out programme/cohort/course needs a default for each.
+  const savedTemplate = fitting.find((t) => t.id === choice);
+  const defaultsNeeded =
+    choice === NEW || !savedTemplate
+      ? []
+      : DEFAULTABLE.filter(
+          (f) =>
+            !Object.values(savedTemplate.columns).includes(f) &&
+            !defaults[f]?.trim(),
+        );
 
   const start = useMutation({
     mutationFn: async () => {
@@ -79,6 +97,11 @@ export function ImportNewPage() {
       return upload<Batch>('/imports/batches', {
         template: templateId,
         file: file!,
+        defaults: JSON.stringify(
+          Object.fromEntries(
+            Object.entries(defaults).filter(([, v]) => v.trim()),
+          ),
+        ),
       });
     },
     onSuccess: (b) => nav(`/imports/${b.id}`),
@@ -237,10 +260,40 @@ export function ImportNewPage() {
               )}
             </section>
 
+            <section className="rounded-lg border p-4 space-y-2">
+              <h2 className="font-medium">Cohort defaults (optional)</h2>
+              <p className="text-sm text-muted-foreground">
+                Set programme, cohort and course once for the whole file. A
+                default fills empty cells only and never replaces a value that
+                is in the file. Use the codes from reference data.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {DEFAULTABLE.map((f) => (
+                  <Input
+                    key={f}
+                    className="max-w-48"
+                    placeholder={f.replace('_code', '')}
+                    aria-label={`Default ${f.replace('_', ' ')}`}
+                    value={defaults[f] ?? ''}
+                    onChange={(e) =>
+                      setDefaults({ ...defaults, [f]: e.target.value })
+                    }
+                  />
+                ))}
+              </div>
+              {defaultsNeeded.length > 0 && (
+                <Notice tone="warning" title="This mapping needs defaults">
+                  {defaultsNeeded.join(', ')} are not columns in the saved
+                  mapping.
+                </Notice>
+              )}
+            </section>
+
             <div className="flex gap-2">
               <Button
                 disabled={
                   start.isPending ||
+                  defaultsNeeded.length > 0 ||
                   (choice === NEW &&
                     (missingRequired.length > 0 || !source.trim()))
                 }

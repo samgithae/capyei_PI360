@@ -42,6 +42,10 @@ class ImportFailure(Exception):
 # names the fields an import may change.
 ALLOW_UPDATES = False
 
+# Fields a file may leave out of the mapping if the user sets them once for the whole file
+# (doc 15 §3 step 4). A default fills only empty cells, never a value in the file.
+DEFAULTABLE = ("programme_code", "cohort_code", "course_code")
+
 
 def create_template(*, actor, source, columns, target="participants") -> MappingTemplate:
     if target != "participants":
@@ -51,7 +55,11 @@ def create_template(*, actor, source, columns, target="participants") -> Mapping
     unknown = sorted(set(columns.values()) - set(participants.FIELDS))
     if unknown:
         raise ImportFailure(f"Unknown target field(s): {', '.join(unknown)}.", "columns")
-    missing = [f for f, req in participants.FIELDS.items() if req and f not in columns.values()]
+    missing = [
+        f
+        for f, req in participants.FIELDS.items()
+        if req and f not in columns.values() and f not in DEFAULTABLE
+    ]
     if missing:
         raise ImportFailure(f"Required field(s) not mapped: {', '.join(missing)}.", "columns")
     with transaction.atomic():
@@ -140,8 +148,18 @@ def _row_hash(raw: dict) -> str:
     return hashlib.sha256(json.dumps(raw, sort_keys=True).encode()).hexdigest()
 
 
-def upload(*, actor, template, file_name, data: bytes) -> ImportBatch:
-    """Parse and validate. Changes no participant data (the dry run)."""
+def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportBatch:
+    """Parse and validate. Changes no participant data (the dry run). ``defaults`` sets
+    programme, cohort and course once for the file; they fill empty cells only."""
+    defaults = {k: str(v).strip() for k, v in (defaults or {}).items() if str(v).strip()}
+    bad = sorted(set(defaults) - set(DEFAULTABLE))
+    if bad:
+        raise ImportFailure(f"Cannot set a default for: {', '.join(bad)}.", "defaults")
+    unset = [f for f in DEFAULTABLE if f not in template.columns.values() and f not in defaults]
+    if unset:
+        raise ImportFailure(
+            f"{', '.join(unset)}: not mapped from a column and no default given.", "defaults"
+        )
     limit_mb = runtime.setting("import.max_upload_mb", 20)
     if len(data) > limit_mb * 1024 * 1024:
         raise ImportFailure(f"The file is larger than {limit_mb} MB.")
@@ -162,12 +180,16 @@ def upload(*, actor, template, file_name, data: bytes) -> ImportBatch:
             template=template,
             file_name=file_name[:255],
             file_hash=file_hash,
+            defaults=defaults,
             uploaded_by=actor,
             duplicate_of=same,
         )
         objs = []
         for n, raw in enumerate(rows, start=1):
             mapped = {template.columns[h]: raw.get(h, "") for h in template.columns}
+            for f, value in defaults.items():
+                if not str(mapped.get(f, "") or "").strip():
+                    mapped[f] = value
             checked = participants.check_row(mapped)
             rh = _row_hash(raw)
             outcome = ImportRow.UPDATE if checked.match == "exact" else ImportRow.CREATE

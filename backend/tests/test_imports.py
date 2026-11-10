@@ -422,3 +422,47 @@ def test_signoff_endpoint_roundtrip(template, steward):
     assert r.status_code == 201 and r.json()["signer_role"] == "MIS owner"
     assert c.get(url).json()["signer_name"] == "A. Owner"
     assert c.post(url, body, content_type="application/json").status_code == 400
+
+
+@pytest.mark.django_db
+def test_cohort_defaults_fill_empty_cells_only(template, steward):
+    rows = ["Has Codes,P1,K1,C1,E-020,F,20,01", "Empty Codes,,,,E-021,F,20,01"]
+    b = services.upload(
+        actor=steward,
+        template=template,
+        file_name="d.csv",
+        data=csv_bytes(*rows),
+        defaults={"programme_code": "P1", "cohort_code": "K1", "course_code": "C1"},
+    )
+    assert b.counts["create"] == 2 and b.counts["held"] == 0
+    assert b.defaults["cohort_code"] == "K1"
+    # Without defaults the empty row is held, as before.
+    assert (
+        services.upload(
+            actor=steward, template=template, file_name="e.csv", data=csv_bytes(*rows)
+        ).counts["held"]
+        == 1
+    )
+
+
+@pytest.mark.django_db
+def test_template_may_omit_defaultable_columns_but_upload_then_needs_defaults(world, steward):
+    cols = {"Name": "full_name", "EnrolNo": "enrollment_no"}
+    t = services.create_template(actor=steward, source="no-codes", columns=cols)
+    data = b"Name,EnrolNo\nAn Person,E-030\n"
+    with pytest.raises(services.ImportFailure, match="no default"):
+        services.upload(actor=steward, template=t, file_name="n.csv", data=data)
+    b = services.upload(
+        actor=steward,
+        template=t,
+        file_name="n.csv",
+        data=data,
+        defaults={"programme_code": "P1", "cohort_code": "K1", "course_code": "C1"},
+    )
+    assert b.counts["create"] == 1
+    with pytest.raises(services.ImportFailure, match="Cannot set a default"):
+        services.upload(
+            actor=steward, template=t, file_name="n.csv", data=data, defaults={"full_name": "x"}
+        )
+    with pytest.raises(services.ImportFailure, match="full_name"):
+        services.create_template(actor=steward, source="bad", columns={"EnrolNo": "enrollment_no"})

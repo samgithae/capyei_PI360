@@ -217,3 +217,7 @@ The older pages (participants, employers, opportunities, admin users, overview, 
 ## Reconciliation sign-off (T-053)
 
 A loaded import batch can be signed off once by the data owner (`POST /api/v1/imports/batches/<id>/signoff`, needs `imports.commit`). The signer's name and role are stored as text because the MIS owner may not have a PI360 account; who recorded it, the date and a snapshot of the reconciliation are kept. It is refused unless the buckets balance and cohort control totals match. A signed batch cannot be rolled back. Model: `ReconciliationSignoff` in `backend/apps/imports/models.py`; UI: sign-off panel on the batch page.
+
+## Cohort defaults (wizard step 4)
+
+Programme, cohort and course may be left out of a mapping and set once per file instead (`defaults` on `POST /imports/batches`, stored on the batch). A default fills empty cells only, never a value in the file. A mapping that omits one of them needs a default at upload time. Everything else required (name, enrollment number) must still be a mapped column.

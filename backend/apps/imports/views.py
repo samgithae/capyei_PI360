@@ -50,6 +50,7 @@ def _batch_out(b):
         "status": b.status,
         "template": str(b.template),
         "counts": b.counts,
+        "defaults": b.defaults,
         "duplicate_of": str(b.duplicate_of_id) if b.duplicate_of_id else None,
         "created_at": b.created_at.isoformat(),
         "committed_at": b.committed_at.isoformat() if b.committed_at else None,
@@ -65,6 +66,7 @@ class TemplateInputSerializer(serializers.Serializer):
 class UploadSerializer(serializers.Serializer):
     template = serializers.UUIDField()
     file = serializers.FileField()
+    defaults = serializers.JSONField(required=False, default=dict)
 
 
 class InspectSerializer(serializers.Serializer):
@@ -133,6 +135,7 @@ class BatchListView(APIView):
             template=template,
             file_name=f.name,
             data=f.read(),
+            defaults=s.validated_data.get("defaults"),
         )
         return Response(_batch_out(batch), status=status.HTTP_201_CREATED)
 

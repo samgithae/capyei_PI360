@@ -51,6 +51,7 @@ class ImportBatch(models.Model):
     file_hash = models.CharField(max_length=64, db_index=True)  # sha-256 of the uploaded bytes
     status = models.CharField(max_length=20, choices=STATUSES, default=UPLOADED)
     counts = models.JSONField(default=dict)
+    defaults = models.JSONField(default=dict)  # cohort defaults used for empty cells (doc 15 §3)
     duplicate_of = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
