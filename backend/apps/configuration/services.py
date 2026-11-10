@@ -393,7 +393,7 @@ def county_id_by_code(code):
 
 def filter_options():
     """Programmes, cohorts and counties for filter drop-downs (names only, active first)."""
-    from .models import Cohort, County, Programme
+    from .models import Cohort, County, Programme, Sector
 
     def rows(qs, extra=()):
         return [
@@ -413,4 +413,10 @@ def filter_options():
             extra=("programme_id",),
         ),
         "counties": rows(County.objects.order_by("code")),
+        "sectors": rows(Sector.objects.filter(active=True).order_by("name")),
     }
+
+
+def normalise(text):
+    """Public form of the name normaliser, for modules that match names (e.g. employers)."""
+    return norm(text)

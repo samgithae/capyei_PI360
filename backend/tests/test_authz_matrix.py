@@ -49,6 +49,16 @@ MATRIX = {
     "participants/filters": {"GET": "participants.view"},
     "participants": {"GET": "participants.view"},
     "participants/<uuid:pk>": {"GET": "participants.view", "PATCH": "participants.edit"},
+    "employers": {"GET": "employers.view", "POST": "employers.edit"},
+    "employers/filters": {"GET": "employers.view"},
+    "employers/check-name": {"GET": "employers.edit"},
+    "employers/<uuid:pk>": {"GET": "employers.view", "PATCH": "employers.edit"},
+    "employers/<uuid:pk>/history": {"GET": "employers.view"},
+    "employers/<uuid:pk>/contacts": {"POST": "employers.edit"},
+    "employers/<uuid:pk>/contacts/<uuid:cpk>": {
+        "PATCH": "employers.edit",
+        "DELETE": "employers.edit",
+    },
     "imports/templates": {"GET": "imports.run", "POST": "imports.run"},
     "imports/batches": {"GET": "imports.run", "POST": "imports.run"},
     "imports/batches/<uuid:pk>": {"GET": "imports.run"},
@@ -81,7 +91,8 @@ def test_every_route_is_in_the_matrix():
 
 def concrete(route):
     return "/api/v1/" + (
-        route.replace("<int:pk>", "999999")
+        route.replace("<uuid:cpk>", "00000000-0000-0000-0000-000000000001")
+        .replace("<int:pk>", "999999")
         .replace("<uuid:pk>", "00000000-0000-0000-0000-000000000000")
         .replace("<str:kind>", "sectors")
         .replace("<str:key>", "x")

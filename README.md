@@ -151,3 +151,17 @@ API (all record-scoped; out-of-scope ids return 404):
 UI: `/youth` (directory and roster via the cohort filter, filters kept in the URL) and `/youth/:id` (profile).
 
 Deferred: extended profile (education, skills, experience; D-004, D-010), placement history tab (needs placements), residence and contact editing.
+
+## Employer management (T-044)
+
+API (`employers.view` reads, `employers.edit` changes):
+- `GET/POST /api/v1/employers` - list (filters `q`, `status`, `sector`, `county`, `offset`) and create.
+- `GET/PATCH /api/v1/employers/<id>`; `GET /api/v1/employers/<id>/history` (from the audit trail).
+- `POST /api/v1/employers/<id>/contacts`, `PATCH/DELETE .../contacts/<cid>`; one primary contact per employer.
+- `GET /api/v1/employers/check-name?name=` and `GET /api/v1/employers/filters`.
+
+Duplicate-name warning: names are compared after normalising case, spacing and punctuation, plus a similarity score (0.88). A create or rename that matches returns 409 `duplicate_name` with the matches; resend with `confirm_duplicate: true` to proceed. Nothing is ever merged automatically (merge belongs to T-041/T-087).
+
+UI: `/employers` (list, filters, add form with the warning) and `/employers/:id` (edit, contacts, history).
+
+Not built: employer scope rules, contact-detail restriction, bulk employer import (T-087), opportunities (T-045).

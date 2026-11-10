@@ -83,3 +83,19 @@ def verify_chain(*, batch_size: int = 2000) -> ChainResult:
             expected_prev = ev.hash
             checked += 1
             last_id = ev.pk
+
+
+def history(object_type: str, object_id, limit: int = 200) -> list[dict]:
+    """Newest-first change history of one object, for record history panels."""
+    events = AuditEvent.objects.filter(object_type=object_type, object_id=str(object_id))
+    return [
+        {
+            "at": e.at.isoformat(),
+            "actor": e.actor_label,
+            "action": e.action,
+            "before": e.before,
+            "after": e.after,
+            "reason": e.reason,
+        }
+        for e in events.order_by("-at", "-pk")[:limit]
+    ]

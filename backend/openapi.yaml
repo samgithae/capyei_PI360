@@ -524,6 +524,293 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/employers:
+    get:
+      operationId: employers_list
+      parameters:
+      - in: query
+        name: county
+        schema:
+          type: string
+      - in: query
+        name: offset
+        schema:
+          type: string
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: sector
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: employers_create
+      tags:
+      - employers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Employer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Employer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Employer'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employers/{id}:
+    get:
+      operationId: employers_detail
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: employers_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEmployer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEmployer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEmployer'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employers/{id}/contacts:
+    post:
+      operationId: employers_contacts_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Contact'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Contact'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Contact'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employers/{id}/contacts/{cpk}:
+    patch:
+      operationId: employers_contacts_partial_update
+      parameters:
+      - in: path
+        name: cpk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedContact'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedContact'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedContact'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: employers_contacts_destroy
+      parameters:
+      - in: path
+        name: cpk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/employers/{id}/history:
+    get:
+      operationId: employers_history
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+  /api/v1/employers/check-name:
+    get:
+      operationId: employers_check_name
+      description: Duplicate-name check the form calls while typing.
+      parameters:
+      - in: query
+        name: exclude
+        schema:
+          type: string
+      - in: query
+        name: name
+        schema:
+          type: string
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employers/filters:
+    get:
+      operationId: employers_filters
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/health:
     get:
       operationId: health_retrieve
@@ -1376,6 +1663,30 @@ components:
       - object_type
       - reason
       - request_id
+    Contact:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        role:
+          type: string
+          maxLength: 100
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 200
+          - type: string
+            maxLength: 0
+        phone:
+          type: string
+          maxLength: 50
+        is_primary:
+          type: boolean
+          default: false
+      required:
+      - name
     DatabaseEnum:
       enum:
       - ok
@@ -1384,6 +1695,48 @@ components:
       description: |-
         * `ok` - ok
         * `unavailable` - unavailable
+    Employer:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        sector_id:
+          type: string
+          format: uuid
+          nullable: true
+        county_id:
+          type: string
+          format: uuid
+          nullable: true
+        sub_county:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+          maxLength: 200
+        website:
+          type: string
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/EmployerStatusEnum'
+        notes:
+          type: string
+        confirm_duplicate:
+          type: boolean
+          default: false
+      required:
+      - name
+    EmployerStatusEnum:
+      enum:
+      - active
+      - inactive
+      - prospect
+      type: string
+      description: |-
+        * `active` - Active
+        * `inactive` - Inactive
+        * `prospect` - Prospect
     Flag:
       type: object
       properties:
@@ -1581,6 +1934,58 @@ components:
           format: email
       required:
       - email
+    PatchedContact:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        role:
+          type: string
+          maxLength: 100
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 200
+          - type: string
+            maxLength: 0
+        phone:
+          type: string
+          maxLength: 50
+        is_primary:
+          type: boolean
+          default: false
+    PatchedEmployer:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        sector_id:
+          type: string
+          format: uuid
+          nullable: true
+        county_id:
+          type: string
+          format: uuid
+          nullable: true
+        sub_county:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+          maxLength: 200
+        website:
+          type: string
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/EmployerStatusEnum'
+        notes:
+          type: string
+        confirm_duplicate:
+          type: boolean
+          default: false
     PatchedFlag:
       type: object
       properties:
