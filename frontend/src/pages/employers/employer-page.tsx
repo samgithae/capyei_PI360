@@ -12,6 +12,7 @@ import {
   ToolbarHeading,
   ToolbarPageTitle,
 } from '@/components/layouts/layout-1/components/toolbar';
+import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EmployerForm, EmployerValues, Options } from './employer-form';
 
 interface Contact {
@@ -99,9 +100,14 @@ export function EmployerPage() {
     const missing = q.error instanceof ApiError && q.error.status === 404;
     return (
       <div className="container-fluid space-y-3">
-        <p role="alert">
-          {missing ? 'Employer not found.' : 'Could not load employer.'}
-        </p>
+        {missing ? (
+          <EmptyState
+            title="Employer not found"
+            hint="It may have been removed or the link is wrong."
+          />
+        ) : (
+          <ErrorState error={q.error} onRetry={() => q.refetch()} />
+        )}
         <Link className="text-primary" to="/employers">
           Back to employers
         </Link>
@@ -109,7 +115,7 @@ export function EmployerPage() {
     );
   }
   const e = q.data;
-  if (!e) return null;
+  if (!e) return <LoadingState />;
 
   const onAdd = (ev: FormEvent) => {
     ev.preventDefault();

@@ -12,6 +12,7 @@ import {
   ToolbarHeading,
   ToolbarPageTitle,
 } from '@/components/layouts/layout-1/components/toolbar';
+import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EmployerForm, EmployerValues, EMPTY, Options } from './employer-form';
 
 interface Row {
@@ -125,7 +126,10 @@ export function EmployersPage() {
         </select>
       </div>
 
-      {page.isError && <p role="alert">Could not load employers.</p>}
+      {page.isError && (
+        <ErrorState error={page.error} onRetry={() => page.refetch()} />
+      )}
+      {page.isPending && <LoadingState />}
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-muted-foreground">
@@ -152,11 +156,11 @@ export function EmployersPage() {
           ))}
           {data && data.results.length === 0 && (
             <tr>
-              <td
-                colSpan={4}
-                className="py-6 text-center text-muted-foreground"
-              >
-                No employers match.
+              <td colSpan={4}>
+                <EmptyState
+                  title="No employers match"
+                  hint="Try changing or clearing the filters."
+                />
               </td>
             </tr>
           )}

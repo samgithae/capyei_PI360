@@ -11,6 +11,7 @@ import {
   ToolbarHeading,
   ToolbarPageTitle,
 } from '@/components/layouts/layout-1/components/toolbar';
+import { ErrorState, LoadingState } from '@/components/states';
 
 interface StaffUser {
   id: number;
@@ -153,10 +154,9 @@ export function UsersPage() {
         </tbody>
       </table>
       {users.isError && (
-        <p className="text-sm text-destructive">
-          Could not load staff accounts.
-        </p>
+        <ErrorState error={users.error} onRetry={() => users.refetch()} />
       )}
+      {users.isPending && <LoadingState />}
 
       {pending && (
         <form

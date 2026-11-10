@@ -209,3 +209,7 @@ which need backend support and wait on D-059 (update vs add) and D-050 (mandator
 - `src/components/states.tsx`: `LoadingState`, `EmptyState`, `ErrorState`, `Notice`, the shared
   data-region states from doc 20 §2. Other pages still use their own wording (to retrofit).
 - `lib/api.ts` now sends `FormData` without forcing a JSON content type (needed for uploads).
+
+## State retrofit (T-142)
+
+The older pages (participants, employers, opportunities, admin users, overview, placeholder) now use `frontend/src/components/states.tsx`: `LoadingState`, `EmptyState`, `ErrorState` (with "Try again") and `Notice`. Detail pages show "not found" as an empty state on 404 and an error state otherwise.

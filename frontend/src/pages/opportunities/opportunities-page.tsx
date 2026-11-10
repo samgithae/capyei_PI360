@@ -12,6 +12,7 @@ import {
   ToolbarHeading,
   ToolbarPageTitle,
 } from '@/components/layouts/layout-1/components/toolbar';
+import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 
 interface Row {
   id: string;
@@ -192,7 +193,10 @@ export function OpportunitiesPage() {
         {sel('status', 'Any status', STATUSES)}
         {sel('kind', 'Any type', KINDS)}
       </div>
-      {page.isError && <p role="alert">Could not load opportunities.</p>}
+      {page.isError && (
+        <ErrorState error={page.error} onRetry={() => page.refetch()} />
+      )}
+      {page.isPending && <LoadingState />}
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-muted-foreground">
@@ -223,11 +227,11 @@ export function OpportunitiesPage() {
           ))}
           {data && data.results.length === 0 && (
             <tr>
-              <td
-                colSpan={6}
-                className="py-6 text-center text-muted-foreground"
-              >
-                No opportunities match.
+              <td colSpan={6}>
+                <EmptyState
+                  title="No opportunities match"
+                  hint="Try changing or clearing the filters."
+                />
               </td>
             </tr>
           )}

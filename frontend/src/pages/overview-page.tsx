@@ -7,6 +7,7 @@ import {
   ToolbarHeading,
   ToolbarPageTitle,
 } from '@/components/layouts/layout-1/components/toolbar';
+import { ErrorState, LoadingState, Notice } from '@/components/states';
 
 export function OverviewPage() {
   const health = useQuery({
@@ -28,14 +29,15 @@ export function OverviewPage() {
           </ToolbarDescription>
         </ToolbarHeading>
       </Toolbar>
-      <p className="text-sm" role="status">
-        API:{' '}
-        {health.isPending
-          ? 'checking…'
-          : health.isError
-            ? 'not reachable'
-            : `${health.data.status} (version ${health.data.version})`}
-      </p>
+      {health.isPending && <LoadingState rows={1} />}
+      {health.isError && (
+        <ErrorState error={health.error} onRetry={() => health.refetch()} />
+      )}
+      {health.data && (
+        <Notice tone="info" title="API reachable">
+          Status {health.data.status}, version {health.data.version}.
+        </Notice>
+      )}
     </div>
   );
 }

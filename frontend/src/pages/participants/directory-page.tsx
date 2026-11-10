@@ -1,6 +1,6 @@
-import { Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
+import { Link, useSearchParams } from 'react-router';
 import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import {
   ToolbarHeading,
   ToolbarPageTitle,
 } from '@/components/layouts/layout-1/components/toolbar';
+import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 
 interface Row {
   id: string;
@@ -67,7 +68,8 @@ export function DirectoryPage() {
     setParams(next);
   };
   const cohorts = (options.data?.cohorts ?? []).filter(
-    (c) => !params.get('programme') || c.programme_id === params.get('programme'),
+    (c) =>
+      !params.get('programme') || c.programme_id === params.get('programme'),
   );
   const select = (key: string, label: string, items: Option[]) => (
     <select
@@ -122,7 +124,10 @@ export function DirectoryPage() {
         )}
       </div>
 
-      {page.isError && <p role="alert">Could not load participants.</p>}
+      {page.isError && (
+        <ErrorState error={page.error} onRetry={() => page.refetch()} />
+      )}
+      {page.isPending && <LoadingState />}
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-muted-foreground">
@@ -151,8 +156,11 @@ export function DirectoryPage() {
           ))}
           {data && data.results.length === 0 && (
             <tr>
-              <td colSpan={5} className="py-6 text-center text-muted-foreground">
-                No participants match.
+              <td colSpan={5}>
+                <EmptyState
+                  title="No participants match"
+                  hint="Try changing or clearing the filters."
+                />
               </td>
             </tr>
           )}

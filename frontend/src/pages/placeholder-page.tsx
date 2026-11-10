@@ -5,6 +5,7 @@ import {
   ToolbarHeading,
   ToolbarPageTitle,
 } from '@/components/layouts/layout-1/components/toolbar';
+import { EmptyState } from '@/components/states';
 
 export function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -20,6 +21,10 @@ export function PlaceholderPage({ title }: { title: string }) {
           </ToolbarDescription>
         </ToolbarHeading>
       </Toolbar>
+      <EmptyState
+        title="Not built yet"
+        hint="This screen is planned; see the work breakdown."
+      />
     </div>
   );
 }

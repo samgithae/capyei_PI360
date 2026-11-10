@@ -12,6 +12,7 @@ import {
   ToolbarHeading,
   ToolbarPageTitle,
 } from '@/components/layouts/layout-1/components/toolbar';
+import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 
 interface Requirement {
   id: string;
@@ -124,9 +125,14 @@ export function OpportunityPage() {
     const missing = q.error instanceof ApiError && q.error.status === 404;
     return (
       <div className="container-fluid space-y-3">
-        <p role="alert">
-          {missing ? 'Opportunity not found.' : 'Could not load opportunity.'}
-        </p>
+        {missing ? (
+          <EmptyState
+            title="Opportunity not found"
+            hint="It may have been removed or the link is wrong."
+          />
+        ) : (
+          <ErrorState error={q.error} onRetry={() => q.refetch()} />
+        )}
         <Link className="text-primary" to="/opportunities">
           Back to opportunities
         </Link>
@@ -134,7 +140,7 @@ export function OpportunityPage() {
     );
   }
   const o = q.data;
-  if (!o) return null;
+  if (!o) return <LoadingState />;
   const locked = o.status === 'closed' || o.status === 'expired';
 
   return (

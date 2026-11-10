@@ -1,6 +1,6 @@
-import { Link, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
+import { Link, useParams } from 'react-router';
 import { api, ApiError } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -8,6 +8,7 @@ import {
   ToolbarHeading,
   ToolbarPageTitle,
 } from '@/components/layouts/layout-1/components/toolbar';
+import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 
 interface Enrollment {
   id: string;
@@ -28,7 +29,12 @@ interface Detail {
   status: string;
   county: string;
   enrollments: Enrollment[];
-  residences: { county: string; sub_county: string; ward: string; current: boolean }[];
+  residences: {
+    county: string;
+    sub_county: string;
+    ward: string;
+    current: boolean;
+  }[];
   contacts?: { kind: string; value: string; primary: boolean }[];
 }
 
@@ -44,9 +50,14 @@ export function ProfilePage() {
     const missing = q.error instanceof ApiError && q.error.status === 404;
     return (
       <div className="container-fluid space-y-3">
-        <p role="alert">
-          {missing ? 'Participant not found.' : 'Could not load participant.'}
-        </p>
+        {missing ? (
+          <EmptyState
+            title="Participant not found"
+            hint="It may have been removed or the link is wrong."
+          />
+        ) : (
+          <ErrorState error={q.error} onRetry={() => q.refetch()} />
+        )}
         <Link className="text-primary" to="/youth">
           Back to directory
         </Link>
@@ -54,7 +65,7 @@ export function ProfilePage() {
     );
   }
   const p = q.data;
-  if (!p) return null;
+  if (!p) return <LoadingState />;
 
   return (
     <div className="container-fluid space-y-6">

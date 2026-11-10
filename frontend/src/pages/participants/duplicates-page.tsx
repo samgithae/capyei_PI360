@@ -11,6 +11,7 @@ import {
   ToolbarHeading,
   ToolbarPageTitle,
 } from '@/components/layouts/layout-1/components/toolbar';
+import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 
 interface Person {
   id: string;
@@ -218,9 +219,11 @@ function History({ canMerge }: { canMerge: boolean }) {
   const rows = merges.data?.results ?? [];
   return (
     <div className="space-y-2">
-      {rows.length === 0 && (
-        <p className="py-6 text-center text-muted-foreground">No merges yet.</p>
+      {merges.isError && (
+        <ErrorState error={merges.error} onRetry={() => merges.refetch()} />
       )}
+      {merges.isPending && <LoadingState />}
+      {merges.data && rows.length === 0 && <EmptyState title="No merges yet" />}
       {rows.map((m) => (
         <div key={m.id} className="rounded-lg border p-3 text-sm space-y-2">
           <div>
@@ -331,11 +334,14 @@ export function DuplicatesPage() {
         <History canMerge={canMerge} />
       ) : (
         <div className="space-y-4">
-          {queue.isError && <p role="alert">Could not load the queue.</p>}
+          {queue.isError && (
+            <ErrorState error={queue.error} onRetry={() => queue.refetch()} />
+          )}
+          {queue.isPending && <LoadingState />}
           {queue.data?.results.length === 0 && (
-            <p className="py-6 text-center text-muted-foreground">
-              {tab === 'open' ? 'Nothing to review.' : 'Nothing dismissed.'}
-            </p>
+            <EmptyState
+              title={tab === 'open' ? 'Nothing to review' : 'Nothing dismissed'}
+            />
           )}
           {queue.data?.results.map((c) => (
             <CandidateCard
