@@ -30,6 +30,13 @@ MATRIX = {
         "PATCH": "identity.manage_roles",
         "DELETE": "identity.manage_roles",
     },
+    "identity/users": {"GET": "identity.view_users", "POST": "identity.manage_users"},
+    "identity/users/<int:pk>": {"GET": "identity.view_users", "PATCH": "identity.manage_users"},
+    "identity/users/<int:pk>/suspend": {"POST": "identity.manage_users"},
+    "identity/users/<int:pk>/reactivate": {"POST": "identity.manage_users"},
+    "identity/users/<int:pk>/reset-mfa": {"POST": "identity.manage_users"},
+    "identity/users/<int:pk>/roles": {"PUT": "identity.manage_roles"},
+    "identity/users/<int:pk>/scopes": {"PUT": "identity.manage_roles"},
     "audit/events": {"GET": "audit.view"},
 }
 

@@ -8,7 +8,7 @@ gate (G3, G4).
 |---|---|---|---|
 | Authentication | `auth.login`, `auth.login_failed`, `auth.lockout`, `auth.logout`, `auth.mfa_enrolled`, `auth.mfa_failed`, `auth.password_changed`, `auth.password_reset_requested`, `auth.password_reset` | T-034 | done |
 | Permissions, roles, users | `role.created`, `role.changed`, `role.deleted`, `user.role_assigned`, `user.role_removed`, `scope.assigned`, `permission.granted`, `permission.revoked` | T-035 | done, tested in test_rbac.py |
-| User lifecycle | `user.created`, `user.suspended` | T-036 | pending |
+| User lifecycle | `user.created`, `user.changed`, `user.suspended`, `user.reactivated`, `user.mfa_reset` | T-036 | done, tested in test_users.py |
 | Profiles | `participant.edited`, `participant.merged`, `participant.unmerged` | T-043, T-041 | pending |
 | Assessments | `assessment.submitted`, `assessment.amended` | T-049 | pending |
 | Import jobs | `import.approved`, `import.committed`, `import.rolled_back` | T-040 | pending |

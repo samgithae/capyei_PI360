@@ -374,6 +374,264 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/identity/users:
+    get:
+      operationId: identity_users_list
+      parameters:
+      - in: query
+        name: active
+        schema:
+          type: boolean
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: Matches username, name or email.
+      tags:
+      - identity
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+          description: ''
+    post:
+      operationId: identity_users_create
+      tags:
+      - identity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/identity/users/{id}:
+    get:
+      operationId: identity_users_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - identity
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: identity_users_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - identity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/identity/users/{id}/reactivate:
+    post:
+      operationId: identity_users_reactivate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - identity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Reason'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Reason'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/identity/users/{id}/reset-mfa:
+    post:
+      operationId: identity_users_reset_mfa_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - identity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Reason'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Reason'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/identity/users/{id}/roles:
+    put:
+      operationId: identity_users_roles_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - identity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoles'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRoles'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRoles'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/identity/users/{id}/scopes:
+    put:
+      operationId: identity_users_scopes_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - identity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserScopes'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserScopes'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserScopes'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/identity/users/{id}/suspend:
+    post:
+      operationId: identity_users_suspend_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - identity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Reason'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Reason'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
   /api/v1/me:
     get:
       operationId: me_retrieve
@@ -482,6 +740,18 @@ components:
       description: |-
         * `ok` - ok
         * `degraded` - degraded
+    KindEnum:
+      enum:
+      - programme
+      - cohort
+      - region
+      - officer
+      type: string
+      description: |-
+        * `programme` - programme
+        * `cohort` - cohort
+        * `region` - region
+        * `officer` - officer
     Login:
       type: object
       properties:
@@ -625,6 +895,18 @@ components:
         user_count:
           type: integer
           readOnly: true
+    PatchedUserUpdate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
     Permission:
       type: object
       properties:
@@ -641,6 +923,13 @@ components:
       - grant_only
       - group
       - label
+    Reason:
+      type: object
+      properties:
+        reason:
+          type: string
+          default: ''
+          maxLength: 300
     Role:
       type: object
       properties:
@@ -672,6 +961,17 @@ components:
       - is_system
       - name
       - user_count
+    ScopeItem:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        value:
+          type: string
+          maxLength: 64
+      required:
+      - kind
+      - value
     ScopeModeEnum:
       enum:
       - all
@@ -680,6 +980,121 @@ components:
       description: |-
         * `all` - all
         * `assigned` - assigned
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+          readOnly: true
+        mfa_enrolled:
+          type: boolean
+          readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        roles:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        scopes:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+      required:
+      - email
+      - id
+      - is_active
+      - last_login
+      - mfa_enrolled
+      - roles
+      - scopes
+      - username
+    UserCreate:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+          readOnly: true
+        mfa_enrolled:
+          type: boolean
+          readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        roles:
+          type: array
+          items:
+            type: integer
+        scopes:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+      required:
+      - email
+      - id
+      - is_active
+      - last_login
+      - mfa_enrolled
+      - scopes
+      - username
+    UserRoles:
+      type: object
+      properties:
+        roles:
+          type: array
+          items:
+            type: integer
+      required:
+      - roles
+    UserScopes:
+      type: object
+      properties:
+        scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScopeItem'
+      required:
+      - scopes
   securitySchemes:
     cookieAuth:
       type: apiKey

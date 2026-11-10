@@ -58,3 +58,43 @@ class RoleSerializer(serializers.Serializer):
     active = serializers.BooleanField(required=False)
     is_system = serializers.BooleanField(read_only=True)
     user_count = serializers.IntegerField(read_only=True)
+
+
+class UserSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    username = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    first_name = serializers.CharField(max_length=150, allow_blank=True, required=False)
+    last_name = serializers.CharField(max_length=150, allow_blank=True, required=False)
+    is_active = serializers.BooleanField(read_only=True)
+    mfa_enrolled = serializers.BooleanField(read_only=True)
+    last_login = serializers.DateTimeField(read_only=True, allow_null=True)
+    roles = serializers.ListField(child=serializers.DictField(), read_only=True)
+    scopes = serializers.ListField(child=serializers.DictField(), read_only=True)
+
+
+class UserCreateSerializer(UserSerializer):
+    roles = serializers.ListField(child=serializers.IntegerField(), required=False)
+
+
+class UserUpdateSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+    first_name = serializers.CharField(max_length=150, allow_blank=True, required=False)
+    last_name = serializers.CharField(max_length=150, allow_blank=True, required=False)
+
+
+class ReasonSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=300, allow_blank=True, required=False, default="")
+
+
+class UserRolesSerializer(serializers.Serializer):
+    roles = serializers.ListField(child=serializers.IntegerField())
+
+
+class ScopeItemSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=["programme", "cohort", "region", "officer"])
+    value = serializers.CharField(max_length=64)
+
+
+class UserScopesSerializer(serializers.Serializer):
+    scopes = ScopeItemSerializer(many=True)
