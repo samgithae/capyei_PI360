@@ -32,6 +32,11 @@ class ImportFailure(Exception):
 # --- templates -------------------------------------------------------------
 
 
+# D-059 (working decision): imports add new people only. Flip to allow updates once CAP-YEI
+# names the fields an import may change.
+ALLOW_UPDATES = False
+
+
 def create_template(*, actor, source, columns, target="participants") -> MappingTemplate:
     if target != "participants":
         raise ImportFailure("Only the participants target exists so far.", "target")
@@ -174,6 +179,11 @@ def upload(*, actor, template, file_name, data: bytes) -> ImportBatch:
                     seen_keys[checked.source_key] = n
             if errors:
                 outcome = ImportRow.HELD
+            elif checked.match == "exact" and not ALLOW_UPDATES:
+                outcome = ImportRow.SKIP
+                checked.warnings.append(
+                    {"field": "", "message": "Already in PI360; imports add new people only."}
+                )
             elif _already_loaded(template.source, checked.source_key, rh):
                 outcome = ImportRow.SKIP
                 checked.warnings.append({"field": "", "message": "Already loaded; skipped."})

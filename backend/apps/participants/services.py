@@ -19,7 +19,7 @@ FIELDS = {
     "programme_code": True,
     "cohort_code": True,
     "course_code": True,
-    "enrollment_no": False,
+    "enrollment_no": True,  # D-050: blocks with the name; match key for D-059
     "gender": False,
     "age": False,
     "county_code": False,
@@ -30,9 +30,11 @@ FIELDS = {
 }
 GENDERS = {"f": "female", "female": "female", "m": "male", "male": "male", "other": "other"}
 IMPORT_RULES = [
-    "A row is held (not loaded) if programme, cohort, course or full name is missing, or the "
-    "programme/cohort/course combination is not in the reference data.",
-    "A row matches an existing record on programme + enrollment number; matched rows update it.",
+    "A row is held (not loaded) if full name or enrollment number is missing (D-050), or if "
+    "programme, cohort or course is missing or not in the reference data (an enrollment cannot "
+    "exist without them).",
+    "A row matches an existing record on programme + enrollment number; matched rows are "
+    "skipped, never updated (D-059: imports add new people only).",
     "Unknown county, gender or age become blank/unknown with a warning; they never block a row.",
     "Rows already loaded from an earlier file (same key and content) are skipped.",
     "Possible duplicates found after a load are queued for a steward and are never merged "
@@ -97,8 +99,6 @@ def check_row(raw: dict) -> Checked:
     else:
         c["age"] = None
     c["status"] = STATUSES.get(c["status"].lower(), "unknown")
-    if not (c["enrollment_no"] or c["source_id"]):
-        warn("enrollment_no", "No enrollment number: cannot be matched on a re-import.")
 
     if prog_id and c["enrollment_no"]:
         out.source_key = f"{c['programme_code'].upper()}|{c['enrollment_no']}"

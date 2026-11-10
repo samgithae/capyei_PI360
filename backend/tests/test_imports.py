@@ -125,12 +125,24 @@ def test_bad_rows_are_held_and_the_rest_load(template, steward):
 
 
 @pytest.mark.django_db
-def test_changed_row_updates_by_enrollment_number(template, steward):
+def test_existing_person_is_skipped_not_updated(template, steward):  # D-059
+    load(steward, upload(steward, template, *GOOD))
+    b = upload(steward, template, "Test One Renamed,P1,K1,C1,E-001,F,22,01")
+    assert b.counts["update"] == 0 and b.counts["skip"] == 1
+    load(steward, b)
+    assert (
+        ParticipantEnrollment.objects.get(source_enrollment_no="E-001").participant.full_name_source
+        == "Test One"
+    )
+
+
+@pytest.mark.django_db
+def test_update_path_still_works_when_enabled(template, steward, monkeypatch):
+    monkeypatch.setattr(services, "ALLOW_UPDATES", True)
     load(steward, upload(steward, template, *GOOD))
     b = upload(steward, template, "Test One Renamed,P1,K1,C1,E-001,F,22,01")
     assert b.counts["update"] == 1
     load(steward, b)
-    assert Participant.objects.count() == 3
     assert (
         ParticipantEnrollment.objects.get(source_enrollment_no="E-001").participant.full_name_source
         == "Test One Renamed"
@@ -138,7 +150,15 @@ def test_changed_row_updates_by_enrollment_number(template, steward):
 
 
 @pytest.mark.django_db
-def test_rollback_restores_and_blocks_after_later_change(template, steward):
+def test_missing_enrollment_number_blocks_the_row(template, steward):  # D-050
+    b = upload(steward, template, "No Number,P1,K1,C1,,F,20,01")
+    assert b.counts["held"] == 1
+    assert b.rows.get().errors[0]["field"] == "enrollment_no"
+
+
+@pytest.mark.django_db
+def test_rollback_restores_and_blocks_after_later_change(template, steward, monkeypatch):
+    monkeypatch.setattr(services, "ALLOW_UPDATES", True)
     first = load(steward, upload(steward, template, *GOOD))
     upd = load(steward, upload(steward, template, "Renamed,P1,K1,C1,E-001,F,22,01"))
     with pytest.raises(services.ImportFailure):  # the later batch touched E-001
