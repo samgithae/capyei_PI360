@@ -238,3 +238,104 @@ def test_api_flow(template, steward):
     assert r.json()["status"] == "rolled_back"
     assert c.get(f"/api/v1/imports/batches/{bid}/errors").status_code == 200
     assert ImportRow.objects.filter(batch_id=bid).count() == 3
+
+
+# --- T-042 reconciliation and contract; T-041 quarantine after load ---------------------------
+
+
+@pytest.mark.django_db
+def test_reconciliation_balances_before_and_after_load(template, steward):
+    batch = upload(steward, template, *GOOD, ",P1,K1,C1,E-009,F,20,01")  # last row: no name
+    before = services.reconciliation(batch)
+    assert before["source_rows"] == 4 and before["balanced"]
+    assert before["pending"] == 3 and before["held"] == 1 and before["created"] == 0
+    load(steward, batch)
+    after = services.reconciliation(batch)
+    assert after["created"] == 3 and after["held"] == 1 and after["pending"] == 0
+    assert after["balanced"] and after["controls_match"]
+    assert after["controls"] == [{"cohort": "K1", "source": 3, "pi360": 3, "matches": True}]
+    assert after["held_rows"][0]["row"] == 4
+    assert "Test One" not in str(after)  # reasons only, never values
+
+
+@pytest.mark.django_db
+def test_reconciliation_after_rollback_and_reimport(template, steward):
+    batch = upload(steward, template, *GOOD)
+    load(steward, batch)
+    services.rollback(actor=steward, batch=batch, reason="test")
+    r = services.reconciliation(batch)
+    assert r["rolled_back"] == 3 and r["created"] == 0 and r["balanced"]
+    again = upload(steward, template, *GOOD)
+    assert services.reconciliation(again)["skipped"] == 0  # rolled-back rows are loadable again
+
+
+@pytest.mark.django_db
+def test_reconciliation_csv_is_safe(template, steward):
+    batch = upload(steward, template, "=cmd,P1,K1,C1,E-1,F,20,01", ",P1,K1,C1,E-2,F,20,01")
+    text = services.reconciliation_csv(batch)
+    assert "section,item,source,pi360,detail" in text
+    assert "balanced" in text
+    assert "\n=" not in text and ",=" not in text
+
+
+@pytest.mark.django_db
+def test_contract_lists_columns_rules_and_gaps(world, steward):
+    from apps.imports.models import MappingTemplate
+
+    t = MappingTemplate(source="gap", version=1, columns={"N": "full_name"})  # not saved
+    c = services.contract(t)
+    assert c["columns"] == [{"source_column": "N", "field": "full_name", "required": True}]
+    assert "programme_code" in c["required_fields_not_mapped"]
+    assert c["rules"]
+
+
+@pytest.mark.django_db
+def test_commit_queues_possible_duplicates_without_merging(template, steward):
+    from apps.participants.models import DuplicateCandidate
+
+    batch = upload(
+        steward,
+        template,
+        "Jane Wanjiru,P1,K1,C1,E-1,F,20,01",
+        "Jane Wanjiru,P1,K1,C1,E-2,F,20,01",
+    )
+    load(steward, batch)
+    assert DuplicateCandidate.objects.filter(status="open").count() == 1
+    assert Participant.objects.filter(merged_into__isnull=False).count() == 0
+    assert services.reconciliation(batch)["quarantined"] == 2
+
+
+@pytest.mark.django_db
+def test_rollback_blocked_after_a_merge(template, steward):
+    from apps.participants import services as pp
+    from apps.participants.models import DuplicateCandidate
+
+    k1 = Cohort.objects.get(code="K1")
+    k2 = Cohort.objects.create(
+        programme=k1.programme, institution=k1.institution, code="K2", name="Cohort 2",
+        intake_year=2025, batch_no=2, phase="1",
+    )  # fmt: skip
+    CohortCourse.objects.create(cohort=k2, course=Course.objects.get(code="C1"))
+    batch = upload(
+        steward,
+        template,
+        "Jane Wanjiru,P1,K1,C1,E-1,F,20,01",
+        "Jane Wanjiru,P1,K2,C1,E-2,F,20,01",
+    )
+    load(steward, batch)
+    cand = DuplicateCandidate.objects.get()
+    pp.merge(actor=steward, candidate=cand, survivor_id=cand.participant_a_id, reason="same")
+    with pytest.raises(services.ImportFailure):
+        services.rollback(actor=steward, batch=batch, reason="x")
+
+
+@pytest.mark.django_db
+def test_api_reconciliation_and_contract(template, steward):
+    c = Client()
+    c.force_login(steward)
+    batch = upload(steward, template, *GOOD)
+    body = c.get(f"/api/v1/imports/batches/{batch.pk}/reconciliation").json()
+    assert body["balanced"] and body["source_rows"] == 3
+    csv_resp = c.get(f"/api/v1/imports/batches/{batch.pk}/reconciliation?download=csv")
+    assert csv_resp["Content-Type"].startswith("text/csv")
+    assert c.get(f"/api/v1/imports/templates/{template.pk}/contract").json()["rules"]

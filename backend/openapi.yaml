@@ -1357,6 +1357,32 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/imports/batches/{id}/reconciliation:
+    get:
+      operationId: imports_batch_reconciliation
+      parameters:
+      - in: query
+        name: download
+        schema:
+          type: string
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/imports/batches/{id}/rollback:
     post:
       operationId: imports_batch_rollback
@@ -1456,6 +1482,28 @@ paths:
       - cookieAuth: []
       responses:
         '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/templates/{id}/contract:
+    get:
+      operationId: imports_template_contract
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
           content:
             application/json:
               schema:
@@ -1883,6 +1931,117 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/duplicates:
+    get:
+      operationId: participants_duplicates_retrieve
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/duplicates/{id}/dismiss:
+    post:
+      operationId: participants_duplicates_dismiss_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DuplicateReason'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DuplicateReason'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DuplicateReason'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/duplicates/{id}/merge:
+    post:
+      operationId: participants_duplicates_merge_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Merge'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Merge'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Merge'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/duplicates/scan:
+    post:
+      operationId: participants_duplicates_scan_create
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/filters:
     get:
       operationId: participants_filters
@@ -1892,6 +2051,61 @@ paths:
       - cookieAuth: []
       responses:
         '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/merges:
+    get:
+      operationId: participants_merges_retrieve
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/merges/{id}/undo:
+    post:
+      operationId: participants_merges_undo_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DuplicateReason'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DuplicateReason'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DuplicateReason'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
           content:
             application/json:
               schema:
@@ -2004,6 +2218,13 @@ components:
       description: |-
         * `ok` - ok
         * `unavailable` - unavailable
+    DuplicateReason:
+      type: object
+      properties:
+        reason:
+          type: string
+          default: ''
+          maxLength: 500
     Employer:
       type: object
       properties:
@@ -2165,6 +2386,22 @@ components:
           additionalProperties: {}
       required:
       - authenticated
+    Merge:
+      type: object
+      properties:
+        survivor:
+          type: string
+          format: uuid
+        fields:
+          type: object
+          additionalProperties:
+            type: string
+        reason:
+          type: string
+          maxLength: 500
+      required:
+      - reason
+      - survivor
     MfaCode:
       type: object
       properties:

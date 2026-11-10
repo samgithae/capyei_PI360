@@ -29,6 +29,15 @@ FIELDS = {
     "source_id": False,
 }
 GENDERS = {"f": "female", "female": "female", "m": "male", "male": "male", "other": "other"}
+IMPORT_RULES = [
+    "A row is held (not loaded) if programme, cohort, course or full name is missing, or the "
+    "programme/cohort/course combination is not in the reference data.",
+    "A row matches an existing record on programme + enrollment number; matched rows update it.",
+    "Unknown county, gender or age become blank/unknown with a warning; they never block a row.",
+    "Rows already loaded from an earlier file (same key and content) are skipped.",
+    "Possible duplicates found after a load are queued for a steward and are never merged "
+    "automatically.",
+]  # Rules are proposals until D-004/D-005 are settled.
 STATUSES = {"active": "enrolled", "enrolled": "enrolled", "completed": "completed",
             "withdrawn": "withdrawn"}  # fmt: skip
 
@@ -196,3 +205,29 @@ def undo_import(*, action: str, participant_id: str, before: dict) -> None:
     if e:
         e.status = before["status"]
         e.save()
+
+
+# Duplicate detection and merge (T-041) live in duplicates.py; other modules import them from here.
+from .duplicates import (  # noqa: E402
+    DuplicateFailure,
+    cohort_counts,
+    dismiss,
+    find_pairs,
+    involved_in_merge,
+    merge,
+    quarantined,
+    scan,
+    unmerge,
+)
+
+__all__ = [
+    "DuplicateFailure",
+    "cohort_counts",
+    "dismiss",
+    "find_pairs",
+    "involved_in_merge",
+    "merge",
+    "quarantined",
+    "scan",
+    "unmerge",
+]

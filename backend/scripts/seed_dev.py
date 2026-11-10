@@ -60,6 +60,28 @@ for n in ("1", "2"):
             source_enrollment_no=f"E{n}{i}",
         )
         ParticipantContact.objects.create(
-            participant=p, kind="phone", value="0700000000", is_primary=True
+            participant=p, kind="phone", value=f"07000000{n}{i}", is_primary=True
         )
+
+# A deliberate duplicate pair (same person registered in both programmes) for T-041 testing.
+for n, age in (("1", 24), ("2", 25)):
+    if ParticipantEnrollment.objects.filter(source_enrollment_no=f"ED{n}").exists():
+        continue
+    cc = CohortCourse.objects.get(cohort__code=f"K{n}")
+    p = Participant.objects.create(
+        full_name_source="Grace Akinyi", gender="female", age_at_source=age
+    )
+    ParticipantEnrollment.objects.create(
+        participant=p,
+        cohort_course=cc,
+        programme=cc.cohort.programme,
+        institution=inst,
+        source_enrollment_no=f"ED{n}",
+    )
+    ParticipantContact.objects.create(
+        participant=p,
+        kind="phone",
+        value="0711 222 333" if n == "1" else "+254711222333",
+        is_primary=True,
+    )
 print("seeded")

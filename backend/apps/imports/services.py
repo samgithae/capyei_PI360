@@ -237,6 +237,11 @@ def commit(*, actor, batch) -> ImportBatch:
         object_id=batch.pk,
         after=batch.counts,
     )
+    # Quarantine (T-041): queue possible duplicates among the new records for a steward.
+    created = RecordLineage.objects.filter(row__batch=batch, action="create").values_list(
+        "record_id", flat=True
+    )
+    participants.scan(only=list(created))
     return batch
 
 
@@ -250,6 +255,10 @@ def rollback(*, actor, batch, reason):
     if not reason.strip():
         raise ImportFailure("Give a reason.", "reason")
     mine = RecordLineage.objects.filter(row__batch=batch, reverted=False).order_by("-pk")
+    if participants.involved_in_merge(mine.values_list("record_id", flat=True)):
+        raise ImportFailure(
+            "Some of these records were merged by a steward. Undo those merges first.", "status"
+        )
     first_pk = (
         RecordLineage.objects.filter(row__batch=batch)
         .order_by("pk")
@@ -308,3 +317,94 @@ def error_report(batch) -> str:
         for e in row.warnings:
             w.writerow([row.row_no, "warning", e["field"], _safe(e["message"])])
     return out.getvalue()
+
+
+# --- reconciliation and contract (T-042) ----------------------------------------------------
+
+
+def reconciliation(batch) -> dict:
+    """Prove every source row is accounted for: each lands in exactly one bucket, so the buckets
+    add up to the file's row count. Also compares per-cohort control totals with what PI360 now
+    holds, and lists held rows with their reasons (never their values)."""
+    lineage = RecordLineage.objects.filter(row__batch=batch)
+    created = lineage.filter(action="create", reverted=False).count()
+    updated = lineage.filter(action="update", reverted=False).count()
+    rolled_back = lineage.filter(reverted=True).count()
+    bare = batch.rows.filter(lineage__isnull=True)
+    held = bare.filter(outcome=ImportRow.HELD).count()
+    skipped = bare.filter(outcome=ImportRow.SKIP).count()
+    pending = bare.filter(outcome__in=[ImportRow.CREATE, ImportRow.UPDATE]).count()
+    total = batch.rows.count()
+    buckets = {
+        "created": created, "updated": updated, "skipped": skipped, "held": held,
+        "pending": pending, "rolled_back": rolled_back,
+    }  # fmt: skip
+
+    live = list(lineage.filter(reverted=False).values_list("row__clean", "record_id"))
+    by_cohort: dict[str, set] = {}
+    for clean, rid in live:
+        by_cohort.setdefault(str(clean.get("cohort_code", "")).upper(), set()).add(rid)
+    held_in_db = participants.cohort_counts({r for _, r in live})
+    controls = [
+        {"cohort": code, "source": len(ids), "pi360": held_in_db.get(code, 0),
+         "matches": len(ids) == held_in_db.get(code, 0)}
+        for code, ids in sorted(by_cohort.items())
+    ]  # fmt: skip
+
+    quarantined = participants.quarantined(
+        lineage.filter(action="create", reverted=False).values_list("record_id", flat=True)
+    )
+    held_rows = [
+        {"row": r.row_no, "reasons": [f"{e['field']}: {e['message']}" for e in r.errors]}
+        for r in batch.rows.filter(outcome=ImportRow.HELD).order_by("row_no")[:500]
+    ]
+    return {
+        "batch": str(batch.pk),
+        "status": batch.status,
+        "source_rows": total,
+        **buckets,
+        "accounted_for": sum(buckets.values()),
+        "balanced": total == sum(buckets.values()),
+        "quarantined": len(quarantined),
+        "controls": controls,
+        "controls_match": all(c["matches"] for c in controls),
+        "held_rows": held_rows,
+    }
+
+
+def reconciliation_csv(batch) -> str:
+    """The same report as a CSV for the file's owner. Counts and reasons only."""
+    r = reconciliation(batch)
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["section", "item", "source", "pi360", "detail"])
+    w.writerow(["summary", "source rows", r["source_rows"], r["accounted_for"], "balanced"
+                if r["balanced"] else "NOT BALANCED"])  # fmt: skip
+    for k in ("created", "updated", "skipped", "held", "pending", "rolled_back", "quarantined"):
+        w.writerow(["bucket", k, "", r[k], ""])
+    for c in r["controls"]:
+        w.writerow(["cohort", _safe(c["cohort"]), c["source"], c["pi360"],
+                    "ok" if c["matches"] else "MISMATCH"])  # fmt: skip
+    for h in r["held_rows"]:
+        w.writerow(["held", h["row"], "", "", _safe("; ".join(h["reasons"]))])
+    return out.getvalue()
+
+
+def contract(template) -> dict:
+    """What a file must look like for this mapping: columns, required fields, and the rules the
+    load applies. Published so the source owner can fix files before sending them (T-042)."""
+    mapped = set(template.columns.values())
+    return {
+        "template": str(template),
+        "source": template.source,
+        "version": template.version,
+        "target": template.target,
+        "columns": [
+            {"source_column": h, "field": f, "required": participants.FIELDS.get(f, False)}
+            for h, f in template.columns.items()
+        ],
+        "required_fields_not_mapped": [
+            f for f, req in participants.FIELDS.items() if req and f not in mapped
+        ],
+        "rules": participants.IMPORT_RULES,
+    }

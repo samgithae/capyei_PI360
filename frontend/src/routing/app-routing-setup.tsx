@@ -7,6 +7,7 @@ import { OpportunitiesPage } from '@/pages/opportunities/opportunities-page';
 import { OpportunityPage } from '@/pages/opportunities/opportunity-page';
 import { OverviewPage } from '@/pages/overview-page';
 import { DirectoryPage } from '@/pages/participants/directory-page';
+import { DuplicatesPage } from '@/pages/participants/duplicates-page';
 import { ProfilePage } from '@/pages/participants/profile-page';
 import { PlaceholderPage } from '@/pages/placeholder-page';
 import { Navigate, Route, Routes } from 'react-router';
@@ -36,6 +37,9 @@ export function AppRoutingSetup() {
           <Route element={<RequirePermission permission="participants.view" />}>
             <Route path="/youth" element={<DirectoryPage />} />
             <Route path="/youth/:id" element={<ProfilePage />} />
+          </Route>
+          <Route element={<RequirePermission permission="duplicates.review" />}>
+            <Route path="/duplicates" element={<DuplicatesPage />} />
           </Route>
           <Route element={<RequirePermission permission="employers.view" />}>
             <Route path="/employers" element={<EmployersPage />} />

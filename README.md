@@ -179,3 +179,19 @@ Expiry: `python manage.py expire_opportunities` marks open opportunities past th
 Requirements: typed by factor (skill, qualification, location, availability, other), each mandatory or preferred (FR-14).
 
 Assumptions pending D-008/D-010: the draft state, "closing date required to open", and the field list. Not built: matching against requirements (T-060), employer-facing portal, owner officer.
+
+## Duplicates, merge and reconciliation (T-041, T-042)
+
+Lives in `apps/participants` (`duplicates.py`, `duplicate_views.py`) and `apps/imports`. Permissions: `duplicates.review` (see the queue, scan, dismiss, history) and `duplicates.merge` (merge, undo).
+
+Detection (`participants.services.scan`): proposes pairs, never merges. Rules (proposals until D-004): same normalised name + same phone (0.95), nearly the same name (>= 0.88) + same phone (0.85), same name in the same programme with different enrollment numbers (0.80). Phones compare on their last 9 digits; a phone shared by more than 20 people is ignored. Scanning is repeatable and never reopens a dismissed pair. An import commit scans the records it created, so possible duplicates are queued for a steward right after a load (the lightweight quarantine; the full wizard is T-059).
+
+Merge: the steward picks the surviving record and, per field, whose value to keep. Enrollments, contacts, source identifiers and residences move to the survivor; the other record stays in the database, hidden (`merged_into`), with a full snapshot so **Undo** restores it exactly. Blocked when both people are enrolled in the same course offering, and an import rollback is blocked while merges touch its records. A reason is required and every merge and undo is audited.
+
+API: `GET /api/v1/participants/duplicates?status=open|dismissed`, `POST .../duplicates/scan`, `POST .../duplicates/<id>/dismiss`, `POST .../duplicates/<id>/merge` (`{survivor, fields: {field: "merged"}, reason}`), `GET /participants/merges`, `POST /participants/merges/<id>/undo`. Phones appear only with `participants.view_contact`.
+
+Reconciliation (T-042): `GET /api/v1/imports/batches/<id>/reconciliation` (add `?download=csv` for a file). Every source row lands in exactly one bucket (created, updated, skipped, held, pending, rolled back), so `balanced` is true only when the buckets add up to the file's row count. It also compares per-cohort control totals with what PI 360 holds and lists held rows with their reasons, never their values. `GET /api/v1/imports/templates/<id>/contract` publishes the columns, required fields and load rules for the file's owner.
+
+UI: **Duplicates** in the menu (`/duplicates`). Dev data: `scripts/seed_dev.py` includes one synthetic pair ("Grace Akinyi").
+
+Not built: reconciliation screen in the UI (T-059 wizard), un-merging a record whose survivor was merged again (blocked by design), the R-15 "don't overwrite officer corrections" rule, employer duplicates (T-087).

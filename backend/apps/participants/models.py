@@ -17,7 +17,8 @@ class ParticipantQuerySet(ScopedQuerySet):
     def visible_to(self, user):
         # Programme and cohort scope go through enrollments, a one-to-many join that can repeat a
         # participant, so the result is de-duplicated.
-        return super().visible_to(user).distinct()
+        # Records absorbed by a merge (T-041) are hidden; unmerging brings them back.
+        return super().visible_to(user).filter(merged_into__isnull=True).distinct()
 
 
 class Participant(models.Model):
@@ -42,6 +43,10 @@ class Participant(models.Model):
     status = models.CharField(max_length=10, choices=STATUSES, default=UNKNOWN)
     assigned_officer = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    # Set when a steward merges this record into another; kept so the merge can be undone.
+    merged_into = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -174,3 +179,63 @@ class SourceIdentifier(models.Model):
 
     def __str__(self):
         return f"{self.source}:{self.identifier}"
+
+
+class DuplicateCandidate(models.Model):
+    """A pair of records that may be the same person. Held for a steward: nothing here ever merges
+    on its own (DATA-05, D-064). ``participant_a`` always sorts before ``participant_b``."""
+
+    OPEN, DISMISSED, MERGED = "open", "dismissed", "merged"
+    STATUSES = [(s, s.capitalize()) for s in (OPEN, DISMISSED, MERGED)]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    participant_a = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="+")
+    participant_b = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="+")
+    score = models.FloatField()
+    reasons = models.JSONField(default=list)  # rule codes, see duplicates.RULES
+    status = models.CharField(max_length=10, choices=STATUSES, default=OPEN)
+    note = models.CharField(max_length=500, blank=True)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["participant_a", "participant_b"], name="uniq_duplicate_pair"
+            )
+        ]
+        indexes = [models.Index(fields=["status", "-score"])]
+
+    def __str__(self):
+        return f"{self.participant_a_id} ~ {self.participant_b_id}"
+
+
+class ParticipantMerge(models.Model):
+    """One merge, with everything needed to undo it."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    survivor = models.ForeignKey(Participant, on_delete=models.PROTECT, related_name="+")
+    absorbed = models.ForeignKey(Participant, on_delete=models.PROTECT, related_name="+")
+    candidate = models.ForeignKey(
+        DuplicateCandidate, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    snapshot = models.JSONField()
+    reason = models.CharField(max_length=500)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    undone_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    undone_at = models.DateTimeField(null=True, blank=True)
+    undo_reason = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.absorbed_id} -> {self.survivor_id}"

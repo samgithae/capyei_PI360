@@ -2,6 +2,7 @@
 back need imports.commit."""
 
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound
@@ -206,3 +207,31 @@ BatchApproveView = _action("approve", COMMIT, "approve")
 BatchCommitView = _action("commit", COMMIT, "commit")
 BatchRollbackView = _action("rollback", COMMIT, "rollback", with_reason=True)
 BatchCancelView = _action("cancel", RUN, "cancel")
+
+
+class BatchReconciliationView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"GET": RUN}
+
+    @extend_schema(
+        operation_id="imports_batch_reconciliation",
+        parameters=[OpenApiParameter("download", str)],
+        responses={200: dict},
+    )
+    def get(self, request, pk):
+        batch = _batch(pk)
+        if request.query_params.get("download") == "csv":
+            resp = HttpResponse(services.reconciliation_csv(batch), content_type="text/csv")
+            resp["Content-Disposition"] = f'attachment; filename="import-{pk}-reconciliation.csv"'
+            return resp
+        return Response(services.reconciliation(batch))
+
+
+class TemplateContractView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"GET": RUN}
+
+    @extend_schema(operation_id="imports_template_contract", responses={200: dict})
+    def get(self, request, pk):
+        template = get_object_or_404(MappingTemplate, pk=pk)
+        return Response(services.contract(template))
