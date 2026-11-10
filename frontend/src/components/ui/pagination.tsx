@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { cn } from '@/lib/utils';
 import { MoreHorizontal } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const Pagination = ({ className, ...props }: React.ComponentProps<'nav'>) => (
   <nav
@@ -14,15 +14,29 @@ const Pagination = ({ className, ...props }: React.ComponentProps<'nav'>) => (
   />
 );
 
-function PaginationContent({ className, ...props }: React.ComponentProps<'ul'>) {
-  return <ul data-slot="pagination-content" className={cn('flex flex-row items-center gap-1', className)} {...props} />;
+function PaginationContent({
+  className,
+  ...props
+}: React.ComponentProps<'ul'>) {
+  return (
+    <ul
+      data-slot="pagination-content"
+      className={cn('flex flex-row items-center gap-1', className)}
+      {...props}
+    />
+  );
 }
 
 function PaginationItem({ className, ...props }: React.ComponentProps<'li'>) {
-  return <li data-slot="pagination-item" className={cn('', className)} {...props} />;
+  return (
+    <li data-slot="pagination-item" className={cn('', className)} {...props} />
+  );
 }
 
-const PaginationEllipsis = ({ className, ...props }: React.ComponentProps<'span'>) => (
+const PaginationEllipsis = ({
+  className,
+  ...props
+}: React.ComponentProps<'span'>) => (
   <span
     data-slot="pagination-ellipsis"
     aria-hidden

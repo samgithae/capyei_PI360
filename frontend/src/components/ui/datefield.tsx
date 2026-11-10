@@ -1,7 +1,5 @@
 'use client';
 
-import { cn } from '@/lib/utils';
-import { inputVariants } from '@/components/ui/input';
 import type { VariantProps } from 'class-variance-authority';
 import {
   composeRenderProps,
@@ -16,8 +14,14 @@ import {
   TimeField as TimeFieldRa,
   TimeValue as TimeValueRa,
 } from 'react-aria-components';
+import { cn } from '@/lib/utils';
+import { inputVariants } from '@/components/ui/input';
 
-function DateField<T extends DateValueRa>({ className, children, ...props }: DateFieldProps<T>) {
+function DateField<T extends DateValueRa>({
+  className,
+  children,
+  ...props
+}: DateFieldProps<T>) {
   return (
     <DateFieldRa
       className={composeRenderProps(className, (className) => cn(className))}
@@ -29,7 +33,11 @@ function DateField<T extends DateValueRa>({ className, children, ...props }: Dat
   );
 }
 
-function TimeField<T extends TimeValueRa>({ className, children, ...props }: TimeFieldProps<T>) {
+function TimeField<T extends TimeValueRa>({
+  className,
+  children,
+  ...props
+}: TimeFieldProps<T>) {
   return (
     <TimeFieldRa
       className={composeRenderProps(className, (className) => cn(className))}
@@ -68,12 +76,17 @@ const dateInputStyles = `
   data-focus-within:has-aria-invalid:ring-destructive/20 dark:data-focus-within:has-aria-invalid:ring-destructive/40 data-focus-within:has-aria-invalid:border-destructive
 `;
 
-interface DateInputProps extends DateInputPropsRa, VariantProps<typeof inputVariants> {
+interface DateInputProps
+  extends DateInputPropsRa, VariantProps<typeof inputVariants> {
   className?: string;
   variant?: VariantProps<typeof inputVariants>['variant'];
 }
 
-function DateInput({ className, variant = 'md', ...props }: Omit<DateInputProps, 'children'>) {
+function DateInput({
+  className,
+  variant = 'md',
+  ...props
+}: Omit<DateInputProps, 'children'>) {
   return (
     <DateInputRa
       data-slot="input"

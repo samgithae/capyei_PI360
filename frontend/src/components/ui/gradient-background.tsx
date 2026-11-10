@@ -21,7 +21,15 @@ function GradientBackground({
         className,
       )}
       animate={{
-        backgroundPosition: ['0% 0%', '50% 50%', '100% 0%', '50% 100%', '0% 50%', '100% 100%', '0% 0%'],
+        backgroundPosition: [
+          '0% 0%',
+          '50% 50%',
+          '100% 0%',
+          '50% 100%',
+          '0% 50%',
+          '100% 100%',
+          '0% 0%',
+        ],
       }}
       whileTap={{
         scale: 0.98,

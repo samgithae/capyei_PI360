@@ -112,3 +112,14 @@ CAP-YEI organisation with branch protection and required CI checks.
   when they have an authenticator, and a reason. Failures are audited as `auth.step_up_failed`.
 - **Participants** (`apps.participants`): officer-visible tables only. Scope is applied through
   `Participant.objects.visible_to(user)`. Restricted identity/background tables wait on D-063.
+
+## Frontend auth and permission navigation (T-143)
+
+- `frontend/src/lib/api.ts`: one fetch wrapper. Sends the session cookie, adds `X-CSRFToken` on unsafe methods,
+  parses the `{"errors": [...]}` shape into `ApiError`, and fires `pi360:unauthenticated` on a 401.
+- `frontend/src/auth/`: `AuthProvider` (state from `GET /api/v1/me`: roles, permissions, scope), `useAuth().can(permission)`,
+  and the `RequireAuth` / `RequirePermission` route guards. The server remains the authority; the UI only hides what you cannot use.
+- Login (`/login`): password, then MFA verify, or first-time enrolment (shows the `otpauth://` key, confirms with a code).
+- Sidebar: each menu item carries a `permission`; `filterMenu` hides items and orphaned headings.
+- Staff accounts: `/administration/users` (not `/admin`, which the dev proxy sends to Django's admin).
+- Dev: the Vite server proxies `/api` and `^/admin/` to Django; with `DJANGO_DEBUG=1` Django trusts the `:5173` origin for CSRF.

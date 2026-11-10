@@ -2,7 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import { cn } from '@/lib/utils';
 import {
   defaultDropAnimation,
   defaultDropAnimationSideEffects,
@@ -30,6 +29,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Slot } from '@radix-ui/react-slot';
+import { cn } from '@/lib/utils';
 
 interface KanbanContextProps<T> {
   columns: Record<string, T[]>;
@@ -103,7 +103,14 @@ export interface KanbanRootProps<T> {
   onMove?: (event: KanbanMoveEvent) => void;
 }
 
-function Kanban<T>({ value, onValueChange, getItemValue, children, className, onMove }: KanbanRootProps<T>) {
+function Kanban<T>({
+  value,
+  onValueChange,
+  getItemValue,
+  children,
+  className,
+  onMove,
+}: KanbanRootProps<T>) {
   const columns = value;
   const setColumns = onValueChange;
   const [activeId, setActiveId] = React.useState<UniqueIdentifier | null>(null);
@@ -121,12 +128,17 @@ function Kanban<T>({ value, onValueChange, getItemValue, children, className, on
 
   const columnIds = React.useMemo(() => Object.keys(columns), [columns]);
 
-  const isColumn = React.useCallback((id: UniqueIdentifier) => columnIds.includes(id as string), [columnIds]);
+  const isColumn = React.useCallback(
+    (id: UniqueIdentifier) => columnIds.includes(id as string),
+    [columnIds],
+  );
 
   const findContainer = React.useCallback(
     (id: UniqueIdentifier) => {
       if (isColumn(id)) return id as string;
-      return columnIds.find((key) => columns[key].some((item) => getItemValue(item) === id));
+      return columnIds.find((key) =>
+        columns[key].some((item) => getItemValue(item) === id),
+      );
     },
     [columns, columnIds, getItemValue, isColumn],
   );
@@ -150,15 +162,23 @@ function Kanban<T>({ value, onValueChange, getItemValue, children, className, on
       const overContainer = findContainer(over.id);
 
       // Only handle moving items between different columns
-      if (!activeContainer || !overContainer || activeContainer === overContainer) {
+      if (
+        !activeContainer ||
+        !overContainer ||
+        activeContainer === overContainer
+      ) {
         return;
       }
 
       const activeItems = columns[activeContainer];
       const overItems = columns[overContainer];
 
-      const activeIndex = activeItems.findIndex((item: T) => getItemValue(item) === active.id);
-      let overIndex = overItems.findIndex((item: T) => getItemValue(item) === over.id);
+      const activeIndex = activeItems.findIndex(
+        (item: T) => getItemValue(item) === active.id,
+      );
+      let overIndex = overItems.findIndex(
+        (item: T) => getItemValue(item) === over.id,
+      );
 
       // If dropping on the column itself, not an item
       if (isColumn(over.id)) {
@@ -191,10 +211,14 @@ function Kanban<T>({ value, onValueChange, getItemValue, children, className, on
         const overContainer = findContainer(over.id);
 
         if (activeContainer && overContainer) {
-          const activeIndex = columns[activeContainer].findIndex((item: T) => getItemValue(item) === active.id);
+          const activeIndex = columns[activeContainer].findIndex(
+            (item: T) => getItemValue(item) === active.id,
+          );
           const overIndex = isColumn(over.id)
             ? columns[overContainer].length
-            : columns[overContainer].findIndex((item: T) => getItemValue(item) === over.id);
+            : columns[overContainer].findIndex(
+                (item: T) => getItemValue(item) === over.id,
+              );
 
           onMove({
             event,
@@ -212,7 +236,11 @@ function Kanban<T>({ value, onValueChange, getItemValue, children, className, on
         const activeIndex = columnIds.indexOf(active.id as string);
         const overIndex = columnIds.indexOf(over.id as string);
         if (activeIndex !== overIndex) {
-          const newOrder = arrayMove(Object.keys(columns), activeIndex, overIndex);
+          const newOrder = arrayMove(
+            Object.keys(columns),
+            activeIndex,
+            overIndex,
+          );
           const newColumns: Record<string, T[]> = {};
           newOrder.forEach((key) => {
             newColumns[key] = columns[key];
@@ -226,10 +254,18 @@ function Kanban<T>({ value, onValueChange, getItemValue, children, className, on
       const overContainer = findContainer(over.id);
 
       // Handle item reordering within the same column
-      if (activeContainer && overContainer && activeContainer === overContainer) {
+      if (
+        activeContainer &&
+        overContainer &&
+        activeContainer === overContainer
+      ) {
         const container = activeContainer;
-        const activeIndex = columns[container].findIndex((item: T) => getItemValue(item) === active.id);
-        const overIndex = columns[container].findIndex((item: T) => getItemValue(item) === over.id);
+        const activeIndex = columns[container].findIndex(
+          (item: T) => getItemValue(item) === active.id,
+        );
+        const overIndex = columns[container].findIndex(
+          (item: T) => getItemValue(item) === over.id,
+        );
 
         if (activeIndex !== overIndex) {
           setColumns({
@@ -239,7 +275,15 @@ function Kanban<T>({ value, onValueChange, getItemValue, children, className, on
         }
       }
     },
-    [columnIds, columns, findContainer, getItemValue, isColumn, setColumns, onMove],
+    [
+      columnIds,
+      columns,
+      findContainer,
+      getItemValue,
+      isColumn,
+      setColumns,
+      onMove,
+    ],
   );
 
   const contextValue = React.useMemo(
@@ -253,13 +297,30 @@ function Kanban<T>({ value, onValueChange, getItemValue, children, className, on
       findContainer,
       isColumn,
     }),
-    [columns, setColumns, getItemValue, columnIds, activeId, findContainer, isColumn],
+    [
+      columns,
+      setColumns,
+      getItemValue,
+      columnIds,
+      activeId,
+      findContainer,
+      isColumn,
+    ],
   );
 
   return (
     <KanbanContext.Provider value={contextValue}>
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-        <div data-slot="kanban" data-dragging={activeId !== null} className={cn(className)}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <div
+          data-slot="kanban"
+          data-dragging={activeId !== null}
+          className={cn(className)}
+        >
           {children}
         </div>
       </DndContext>
@@ -277,7 +338,10 @@ function KanbanBoard({ children, className }: KanbanBoardProps) {
 
   return (
     <SortableContext items={columnIds} strategy={rectSortingStrategy}>
-      <div data-slot="kanban-board" className={cn('grid auto-rows-fr sm:grid-cols-3 gap-4', className)}>
+      <div
+        data-slot="kanban-board"
+        className={cn('grid auto-rows-fr sm:grid-cols-3 gap-4', className)}
+      >
         {children}
       </div>
     </SortableContext>
@@ -291,7 +355,12 @@ export interface KanbanColumnProps {
   disabled?: boolean;
 }
 
-function KanbanColumn({ value, className, children, disabled }: KanbanColumnProps) {
+function KanbanColumn({
+  value,
+  className,
+  children,
+  disabled,
+}: KanbanColumnProps) {
   const {
     setNodeRef,
     transform,
@@ -313,7 +382,9 @@ function KanbanColumn({ value, className, children, disabled }: KanbanColumnProp
   } as React.CSSProperties;
 
   return (
-    <ColumnContext.Provider value={{ attributes, listeners, isDragging: isColumnDragging, disabled }}>
+    <ColumnContext.Provider
+      value={{ attributes, listeners, isDragging: isColumnDragging, disabled }}
+    >
       <div
         data-slot="kanban-column"
         data-value={value}
@@ -341,8 +412,14 @@ export interface KanbanColumnHandleProps {
   cursor?: boolean;
 }
 
-function KanbanColumnHandle({ asChild, className, children, cursor = true }: KanbanColumnHandleProps) {
-  const { attributes, listeners, isDragging, disabled } = React.useContext(ColumnContext);
+function KanbanColumnHandle({
+  asChild,
+  className,
+  children,
+  cursor = true,
+}: KanbanColumnHandleProps) {
+  const { attributes, listeners, isDragging, disabled } =
+    React.useContext(ColumnContext);
 
   const Comp = asChild ? Slot : 'div';
 
@@ -372,7 +449,13 @@ export interface KanbanItemProps {
   disabled?: boolean;
 }
 
-function KanbanItem({ value, asChild = false, className, children, disabled }: KanbanItemProps) {
+function KanbanItem({
+  value,
+  asChild = false,
+  className,
+  children,
+  disabled,
+}: KanbanItemProps) {
   const {
     setNodeRef,
     transform,
@@ -396,7 +479,9 @@ function KanbanItem({ value, asChild = false, className, children, disabled }: K
   const Comp = asChild ? Slot : 'div';
 
   return (
-    <ItemContext.Provider value={{ listeners, isDragging: isItemDragging, disabled }}>
+    <ItemContext.Provider
+      value={{ listeners, isDragging: isItemDragging, disabled }}
+    >
       <Comp
         data-slot="kanban-item"
         data-value={value}
@@ -405,7 +490,11 @@ function KanbanItem({ value, asChild = false, className, children, disabled }: K
         ref={setNodeRef}
         style={style}
         {...attributes}
-        className={cn(isSortableDragging && 'opacity-50', disabled && 'opacity-50', className)}
+        className={cn(
+          isSortableDragging && 'opacity-50',
+          disabled && 'opacity-50',
+          className,
+        )}
       >
         {children}
       </Comp>
@@ -420,7 +509,12 @@ export interface KanbanItemHandleProps {
   cursor?: boolean;
 }
 
-function KanbanItemHandle({ asChild, className, children, cursor = true }: KanbanItemHandleProps) {
+function KanbanItemHandle({
+  asChild,
+  className,
+  children,
+  cursor = true,
+}: KanbanItemHandleProps) {
   const { listeners, isDragging, disabled } = React.useContext(ItemContext);
 
   const Comp = asChild ? Slot : 'div';
@@ -431,7 +525,10 @@ function KanbanItemHandle({ asChild, className, children, cursor = true }: Kanba
       data-dragging={isDragging}
       data-disabled={disabled}
       {...listeners}
-      className={cn(cursor && (isDragging ? '!cursor-grabbing' : '!cursor-grab'), className)}
+      className={cn(
+        cursor && (isDragging ? '!cursor-grabbing' : '!cursor-grab'),
+        className,
+      )}
     >
       {children}
     </Comp>
@@ -444,14 +541,24 @@ export interface KanbanColumnContentProps {
   children: React.ReactNode;
 }
 
-function KanbanColumnContent({ value, className, children }: KanbanColumnContentProps) {
+function KanbanColumnContent({
+  value,
+  className,
+  children,
+}: KanbanColumnContentProps) {
   const { columns, getItemId } = React.useContext(KanbanContext);
 
-  const itemIds = React.useMemo(() => columns[value].map(getItemId), [columns, getItemId, value]);
+  const itemIds = React.useMemo(
+    () => columns[value].map(getItemId),
+    [columns, getItemId, value],
+  );
 
   return (
     <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-      <div data-slot="kanban-column-content" className={cn('flex flex-col gap-2', className)}>
+      <div
+        data-slot="kanban-column-content"
+        className={cn('flex flex-col gap-2', className)}
+      >
         {children}
       </div>
     </SortableContext>
@@ -460,12 +567,20 @@ function KanbanColumnContent({ value, className, children }: KanbanColumnContent
 
 export interface KanbanOverlayProps {
   className?: string;
-  children?: React.ReactNode | ((params: { value: UniqueIdentifier; variant: 'column' | 'item' }) => React.ReactNode);
+  children?:
+    | React.ReactNode
+    | ((params: {
+        value: UniqueIdentifier;
+        variant: 'column' | 'item';
+      }) => React.ReactNode);
 }
 
 function KanbanOverlay({ children, className }: KanbanOverlayProps) {
   const { activeId, isColumn } = React.useContext(KanbanContext);
-  const [dimensions, setDimensions] = React.useState<{ width: number; height: number } | null>(null);
+  const [dimensions, setDimensions] = React.useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   React.useEffect(() => {
     if (activeId) {
@@ -503,7 +618,11 @@ function KanbanOverlay({ children, className }: KanbanOverlayProps) {
         data-slot="kanban-overlay"
         data-dragging={true}
         style={style}
-        className={cn('pointer-events-none', className, activeId ? '!cursor-grabbing' : '')}
+        className={cn(
+          'pointer-events-none',
+          className,
+          activeId ? '!cursor-grabbing' : '',
+        )}
       >
         {content}
       </div>

@@ -1,7 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { HTMLMotionProps, motion, useMotionValue, useSpring } from 'motion/react';
+import {
+  HTMLMotionProps,
+  motion,
+  useMotionValue,
+  useSpring,
+} from 'motion/react';
 import { cn } from '@/lib/utils';
 
 type HoverBackgroundProps = HTMLMotionProps<'div'> & {
@@ -14,7 +19,13 @@ type HoverBackgroundProps = HTMLMotionProps<'div'> & {
   };
 };
 
-function HoverBackground({ className, objectCount = 12, children, colors = {}, ...props }: HoverBackgroundProps) {
+function HoverBackground({
+  className,
+  objectCount = 12,
+  children,
+  colors = {},
+  ...props
+}: HoverBackgroundProps) {
   const {
     background = 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900',
     objects = [
@@ -99,7 +110,11 @@ function HoverBackground({ className, objectCount = 12, children, colors = {}, .
   return (
     <motion.div
       data-slot="hover-background"
-      className={cn('relative size-full overflow-hidden', background, className)}
+      className={cn(
+        'relative size-full overflow-hidden',
+        background,
+        className,
+      )}
       onHoverStart={handleHoverStart}
       onHoverEnd={handleHoverEnd}
       onMouseMove={handleMouseMove}

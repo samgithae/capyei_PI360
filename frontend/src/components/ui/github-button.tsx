@@ -3,7 +3,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Star } from 'lucide-react';
-import { motion, useInView, type SpringOptions, type UseInViewOptions } from 'motion/react';
+import {
+  motion,
+  useInView,
+  type SpringOptions,
+  type UseInViewOptions,
+} from 'motion/react';
 import { cn } from '@/lib/utils';
 
 const githubButtonVariants = cva(
@@ -13,10 +18,12 @@ const githubButtonVariants = cva(
       variant: {
         default:
           'bg-zinc-950 hover:bg-zinc-900 text-white border-gray-700 dark:bg-zinc-50 dark:border-gray-300 dark:text-zinc-950 dark:hover:bg-zinc-50',
-        outline: 'bg-background text-accent-foreground border border-input hover:bg-accent',
+        outline:
+          'bg-background text-accent-foreground border border-input hover:bg-accent',
       },
       size: {
-        default: 'h-8.5 rounded-md px-3 gap-2 text-[0.8125rem] leading-none [&_svg]:size-4 gap-2',
+        default:
+          'h-8.5 rounded-md px-3 gap-2 text-[0.8125rem] leading-none [&_svg]:size-4 gap-2',
         sm: 'h-7 rounded-md px-2.5 gap-1.5 text-xs leading-none [&_svg]:size-3.5 gap-1.5',
         lg: 'h-10 rounded-md px-4 gap-2.5 text-sm leading-none [&_svg]:size-5 gap-2.5',
       },
@@ -28,7 +35,10 @@ const githubButtonVariants = cva(
   },
 );
 
-interface GithubButtonProps extends React.ComponentProps<'button'>, VariantProps<typeof githubButtonVariants> {
+interface GithubButtonProps
+  extends
+    React.ComponentProps<'button'>,
+    VariantProps<typeof githubButtonVariants> {
   /** Whether to round stars */
   roundStars?: boolean;
   /** Whether to show Github icon */
@@ -135,7 +145,9 @@ function GithubButton({
       const easeOutQuart = 1 - Math.pow(1 - progress, 4);
 
       // Update star count from 0 to target with more frequent updates
-      const newStars = Math.round(startValue + (endValue - startValue) * easeOutQuart);
+      const newStars = Math.round(
+        startValue + (endValue - startValue) * easeOutQuart,
+      );
       setCurrentStars(newStars);
 
       // Update star fill progress (0 to 100)
@@ -154,7 +166,13 @@ function GithubButton({
     setTimeout(() => {
       requestAnimationFrame(animate);
     }, animationDelay * 1000);
-  }, [isAnimating, hasAnimated, targetStars, animationDuration, animationDelay]);
+  }, [
+    isAnimating,
+    hasAnimated,
+    targetStars,
+    animationDuration,
+    animationDelay,
+  ]);
 
   // Use in-view detection if enabled
   const ref = React.useRef(null);
@@ -234,7 +252,10 @@ function GithubButton({
   return (
     <button
       ref={ref}
-      className={cn(githubButtonVariants({ variant, size, className }), separator && 'ps-0')}
+      className={cn(
+        githubButtonVariants({ variant, size, className }),
+        separator && 'ps-0',
+      )}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role="button"
@@ -260,7 +281,10 @@ function GithubButton({
       {/* Animated Star Icon */}
       {showStarIcon && (
         <div className="relative inline-flex shrink-0">
-          <Star className="fill-muted-foreground text-muted-foreground" aria-hidden="true" />
+          <Star
+            className="fill-muted-foreground text-muted-foreground"
+            aria-hidden="true"
+          />
           <Star
             className="absolute top-0 start-0 text-yellow-400 fill-yellow-400"
             size={18}
@@ -273,7 +297,12 @@ function GithubButton({
       )}
 
       {/* Animated Number Counter with Ticker Effect */}
-      <div className={cn('flex flex-col font-semibold relative overflow-hidden', starsClass)}>
+      <div
+        className={cn(
+          'flex flex-col font-semibold relative overflow-hidden',
+          starsClass,
+        )}
+      >
         <motion.div
           animate={{ opacity: 1 }}
           transition={{
@@ -286,7 +315,11 @@ function GithubButton({
         >
           <span>{currentStars > 0 && formatNumber(currentStars)}</span>
         </motion.div>
-        {fixedWidth && <span className="opacity-0 h-0 overflow-hidden tabular-nums">{formatNumber(targetStars)}</span>}
+        {fixedWidth && (
+          <span className="opacity-0 h-0 overflow-hidden tabular-nums">
+            {formatNumber(targetStars)}
+          </span>
+        )}
       </div>
     </button>
   );

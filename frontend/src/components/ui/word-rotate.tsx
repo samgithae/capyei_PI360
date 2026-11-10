@@ -1,7 +1,13 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, MotionProps, useInView, UseInViewOptions, Variants } from 'motion/react';
+import {
+  motion,
+  MotionProps,
+  useInView,
+  UseInViewOptions,
+  Variants,
+} from 'motion/react';
 import { cn } from '@/lib/utils';
 
 interface WordRotateProps extends Omit<MotionProps, 'children'> {
@@ -31,7 +37,10 @@ export function WordRotate({
   ...props
 }: WordRotateProps) {
   const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once, margin: inViewMargin as UseInViewOptions['margin'] });
+  const isInView = useInView(ref, {
+    once,
+    margin: inViewMargin as UseInViewOptions['margin'],
+  });
   const [hasAnimated, setHasAnimated] = useState(false);
   const [currentWord, setCurrentWord] = useState(0);
   const [show, setShow] = useState(true);
@@ -164,7 +173,11 @@ export function WordRotate({
   }, [shouldStart, duration, pauseDuration, words.length, loop]);
 
   return (
-    <motion.span ref={ref} className={cn('inline-block overflow-hidden', containerClassName)} {...props}>
+    <motion.span
+      ref={ref}
+      className={cn('inline-block overflow-hidden', containerClassName)}
+      {...props}
+    >
       <motion.span
         key={currentWord}
         initial="initial"

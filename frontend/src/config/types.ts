@@ -16,6 +16,8 @@ export interface MenuItem {
   expandTitle?: string;
   badge?: string;
   separator?: boolean;
+  /** Permission code needed to see this item (server still enforces it). */
+  permission?: string;
 }
 
 export type MenuConfig = MenuItem[];

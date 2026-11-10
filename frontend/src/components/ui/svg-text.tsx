@@ -111,7 +111,8 @@ export function SvgText({
               dominantBaseline="central"
               fill="white"
               style={{
-                fontSize: typeof fontSize === 'number' ? `${fontSize}px` : fontSize,
+                fontSize:
+                  typeof fontSize === 'number' ? `${fontSize}px` : fontSize,
                 fontWeight,
                 fontFamily: 'system-ui, -apple-system, sans-serif',
               }}

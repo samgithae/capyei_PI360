@@ -1,3 +1,4 @@
+import { AuthProvider } from '@/auth/auth-context';
 import { AppRouting } from '@/routing/app-routing';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
@@ -24,7 +25,9 @@ export function App() {
           <LoadingBarContainer>
             <BrowserRouter basename={BASE_URL}>
               <Toaster />
-              <AppRouting />
+              <AuthProvider>
+                <AppRouting />
+              </AuthProvider>
             </BrowserRouter>
           </LoadingBarContainer>
         </HelmetProvider>

@@ -15,7 +15,7 @@ export default defineConfig({
     // Same-origin API in development so the session cookie and CSRF work.
     proxy: {
       '/api': process.env.VITE_API_PROXY || 'http://localhost:8000',
-      '/admin': process.env.VITE_API_PROXY || 'http://localhost:8000',
+      '^/admin/': process.env.VITE_API_PROXY || 'http://localhost:8000',
     },
   },
   build: {

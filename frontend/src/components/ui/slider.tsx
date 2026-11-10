@@ -1,14 +1,21 @@
 'use client';
 
 import * as React from 'react';
-import { cn } from '@/lib/utils';
 import { Slider as SliderPrimitive } from 'radix-ui';
+import { cn } from '@/lib/utils';
 
-function Slider({ className, children, ...props }: React.ComponentProps<typeof SliderPrimitive.Root>) {
+function Slider({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof SliderPrimitive.Root>) {
   return (
     <SliderPrimitive.Root
       data-slot="slider"
-      className={cn('relative flex h-4 w-full touch-none select-none items-center', className)}
+      className={cn(
+        'relative flex h-4 w-full touch-none select-none items-center',
+        className,
+      )}
       {...props}
     >
       <SliderPrimitive.Track className="relative h-1.5 w-full overflow-hidden rounded-full bg-accent">
@@ -19,7 +26,10 @@ function Slider({ className, children, ...props }: React.ComponentProps<typeof S
   );
 }
 
-function SliderThumb({ className, ...props }: React.ComponentProps<typeof SliderPrimitive.Thumb>) {
+function SliderThumb({
+  className,
+  ...props
+}: React.ComponentProps<typeof SliderPrimitive.Thumb>) {
   return (
     <SliderPrimitive.Thumb
       data-slot="slider-thumb"

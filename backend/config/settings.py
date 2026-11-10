@@ -25,7 +25,12 @@ if not SECRET_KEY:
     SECRET_KEY = "insecure-local-development-key"  # noqa: S105
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
-CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
+# In development the browser talks to the Vite dev server (:5173), which proxies /api to
+# Django; the browser's Origin is then the Vite origin, so trust it (DEBUG only).
+CSRF_TRUSTED_ORIGINS = env_list(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173" if DEBUG else "",
+)
 
 # Which deployment this is; feature flags can target environments (T-039).
 APP_ENV = os.environ.get("APP_ENV", "development")

@@ -238,7 +238,9 @@ export function TextReveal({
 
   // Split text into words or characters
   const elements = wordLevel
-    ? children.split(' ').map((word, i, arr) => (i < arr.length - 1 ? `${word} ` : word))
+    ? children
+        .split(' ')
+        .map((word, i, arr) => (i < arr.length - 1 ? `${word} ` : word))
     : children.split('');
 
   // Update container variants with custom stagger delay
@@ -262,7 +264,8 @@ export function TextReveal({
           visible: {
             ...originalVariant.visible,
             transition: {
-              ...((originalVariant.visible as Record<string, unknown>).transition as Record<string, unknown>),
+              ...((originalVariant.visible as Record<string, unknown>)
+                .transition as Record<string, unknown>),
               duration,
             },
           },
@@ -315,7 +318,8 @@ export function TextReveal({
             variants={customItemVariants}
             style={{
               display: 'inline-block',
-              transformOrigin: variant === 'rotate' ? 'center center' : undefined,
+              transformOrigin:
+                variant === 'rotate' ? 'center center' : undefined,
               willChange: 'transform, opacity',
               WebkitBackfaceVisibility: 'hidden',
               backfaceVisibility: 'hidden',

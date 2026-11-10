@@ -87,7 +87,9 @@ export function Marquee({
               <div
                 key={i}
                 className={cn(
-                  !vertical ? 'flex-row [gap:var(--gap)]' : 'flex-col [gap:var(--gap)]',
+                  !vertical
+                    ? 'flex-row [gap:var(--gap)]'
+                    : 'flex-col [gap:var(--gap)]',
                   'flex shrink-0 justify-around',
                   !vertical && 'animate-marquee flex-row',
                   vertical && 'animate-marquee-vertical flex-col',

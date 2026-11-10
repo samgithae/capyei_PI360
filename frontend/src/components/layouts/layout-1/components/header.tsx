@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/auth/auth-context';
 import { Menu } from 'lucide-react';
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { generalSettings } from '@/config/general.config';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -19,12 +20,14 @@ import { SidebarMenu } from './sidebar-menu';
 
 // The kit's search, notifications, chat, apps and user menus are not shipped
 // in v9.5.0 and are not in the PI 360 design. The user menu arrives with the
-// auth adapter (T-142).
+// auth adapter (T-143).
 export function Header() {
   const [isSidebarSheetOpen, setIsSidebarSheetOpen] = useState(false);
   const { pathname } = useLocation();
   const mobileMode = useIsMobile();
   const headerSticky = useScrollPosition() > 0;
+  const { me, logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     setIsSidebarSheetOpen(false);
@@ -70,6 +73,21 @@ export function Header() {
 
         <div className="hidden lg:flex items-center">
           <Breadcrumb />
+        </div>
+
+        <div className="flex items-center gap-3 text-sm">
+          <span className="text-muted-foreground" title={me?.roles?.join(', ')}>
+            {me?.username}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              void logout().then(() => navigate('/login', { replace: true }))
+            }
+          >
+            Sign out
+          </Button>
         </div>
       </div>
     </header>

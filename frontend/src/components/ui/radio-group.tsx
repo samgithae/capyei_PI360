@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { cn } from '@/lib/utils';
 import { cva, VariantProps } from 'class-variance-authority';
 import { Circle } from 'lucide-react';
 import { RadioGroup as RadioGroupPrimitive } from 'radix-ui';
+import { cn } from '@/lib/utils';
 
 type RadioVariant = 'primary' | 'mono';
 type RadioSize = 'sm' | 'md' | 'lg';
@@ -39,9 +39,12 @@ function RadioGroup({
   variant,
   size,
   ...props
-}: React.ComponentProps<typeof RadioGroupPrimitive.Root> & VariantProps<typeof radioGroupVariants>) {
+}: React.ComponentProps<typeof RadioGroupPrimitive.Root> &
+  VariantProps<typeof radioGroupVariants>) {
   return (
-    <RadioGroupContext.Provider value={{ variant: variant ?? 'primary', size: size ?? 'md' }}>
+    <RadioGroupContext.Provider
+      value={{ variant: variant ?? 'primary', size: size ?? 'md' }}
+    >
       <RadioGroupPrimitive.Root
         data-slot="radio-group"
         className={cn(radioGroupVariants({ variant, size }), className)}
@@ -78,7 +81,8 @@ function RadioGroupItem({
   className,
   size,
   ...props
-}: React.ComponentProps<typeof RadioGroupPrimitive.Item> & VariantProps<typeof radioItemVariants>) {
+}: React.ComponentProps<typeof RadioGroupPrimitive.Item> &
+  VariantProps<typeof radioItemVariants>) {
   // Use the variant and size from context if not provided at the item level.
   const { size: contextSize } = React.useContext(RadioGroupContext);
   const effectiveSize = size ?? contextSize;
@@ -89,7 +93,10 @@ function RadioGroupItem({
       className={cn(radioItemVariants({ size: effectiveSize }), className)}
       {...props}
     >
-      <RadioGroupPrimitive.Indicator data-slot="radio-group-indicator" className="flex items-center justify-center">
+      <RadioGroupPrimitive.Indicator
+        data-slot="radio-group-indicator"
+        className="flex items-center justify-center"
+      >
         <Circle className="fill-current text-current" />
       </RadioGroupPrimitive.Indicator>
     </RadioGroupPrimitive.Item>

@@ -109,7 +109,10 @@ export function VideoText({
       ctx.font = `${fontWeight} ${typeof fontSize === 'number' ? `${fontSize}px` : fontSize} system-ui, -apple-system, sans-serif`;
       const textMetrics = ctx.measureText(text);
       const textWidth = textMetrics.width;
-      const textHeight = typeof fontSize === 'number' ? fontSize : parseFloat(fontSize.replace(/[^\d.]/g, '')) || 100;
+      const textHeight =
+        typeof fontSize === 'number'
+          ? fontSize
+          : parseFloat(fontSize.replace(/[^\d.]/g, '')) || 100;
 
       // Set canvas size to accommodate full text with padding
       const padding = 40;
@@ -165,7 +168,10 @@ export function VideoText({
   const content = React.Children.toArray(children).join('');
 
   return (
-    <Component ref={containerRef} className={cn('relative inline-block overflow-hidden', className)}>
+    <Component
+      ref={containerRef}
+      className={cn('relative inline-block overflow-hidden', className)}
+    >
       {/* Hidden video element */}
       <video
         ref={videoRef}

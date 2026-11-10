@@ -1,6 +1,7 @@
 import { JSX, useCallback } from 'react';
+import { useAuth } from '@/auth/auth-context';
 import { Link, useLocation } from 'react-router';
-import { MENU_SIDEBAR } from '@/config/layout-1.config';
+import { filterMenu, MENU_SIDEBAR } from '@/config/layout-1.config';
 import { MenuConfig, MenuItem } from '@/config/types';
 import { cn } from '@/lib/utils';
 import {
@@ -18,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function SidebarMenu() {
   const pathname = useLocation().pathname;
+  const { can } = useAuth();
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
@@ -81,10 +83,7 @@ export function SidebarMenu() {
           value={item.path || ''}
           className="text-sm font-medium"
         >
-          <Link
-            to={item.path || '#'}
-            className="flex items-center grow gap-2"
-          >
+          <Link to={item.path || '#'} className="flex items-center grow gap-2">
             {item.icon && <item.icon data-slot="accordion-menu-icon" />}
             <span data-slot="accordion-menu-title">{item.title}</span>
           </Link>
@@ -218,7 +217,7 @@ export function SidebarMenu() {
         collapsible
         classNames={classNames}
       >
-        {buildMenu(MENU_SIDEBAR)}
+        {buildMenu(filterMenu(MENU_SIDEBAR, can))}
       </AccordionMenu>
     </ScrollArea>
   );
