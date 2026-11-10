@@ -1,0 +1,14 @@
+.env
+.DS_Store
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.sqlite3
+staticfiles/
+.pytest_cache/
+.ruff_cache/
+# Real trainee data never enters this repository.
+*.xlsx
+*.xls
+*.csv
