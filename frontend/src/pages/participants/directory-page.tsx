@@ -1,3 +1,4 @@
+import { useAuth } from '@/auth/auth-context';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { Link, useSearchParams } from 'react-router';
@@ -43,6 +44,7 @@ const FILTERS = ['q', 'programme', 'cohort', 'county', 'status'] as const;
 
 /** Youth directory. With a cohort chosen it doubles as the cohort roster (T-058). */
 export function DirectoryPage() {
+  const { can } = useAuth();
   const [params, setParams] = useSearchParams();
   const offset = Number(params.get('offset') ?? 0);
 
@@ -98,6 +100,11 @@ export function DirectoryPage() {
         <ToolbarHeading>
           <ToolbarPageTitle>Youth</ToolbarPageTitle>
         </ToolbarHeading>
+        {can('imports.run') && (
+          <Button asChild>
+            <Link to="/imports/new">Import participants</Link>
+          </Button>
+        )}
       </Toolbar>
 
       <div className="flex flex-wrap gap-2">
