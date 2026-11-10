@@ -118,3 +118,9 @@ def server_error(request):
         "server_error",
         "Something went wrong. Quote the request ID when reporting it.",
     )
+
+
+def csrf_failure(request, reason=""):
+    return _django_problem(
+        request, status.HTTP_403_FORBIDDEN, "csrf_failed", "CSRF token missing or incorrect."
+    )

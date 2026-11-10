@@ -197,6 +197,18 @@ wheels = [
 ]
 
 [[package]]
+name = "django-otp"
+version = "1.7.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d0/e9/db4349d7a866e6d5153b31fa740b17f5893723715edf7d1673615d9f462c/django_otp-1.7.5.tar.gz", hash = "sha256:7f554d21dcd035550c3b8e3f154b1f422fee71fdc75c8a3bf96e42a2ea6dafcc", size = 79637, upload-time = "2026-10-16T14:48:48.98Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a3/bc/bda771669006e7e112bed31a330636ff0b3c3407b053c10c492368c35f6f/django_otp-1.7.5-py3-none-any.whl", hash = "sha256:475d4111e07d61616996f098d08d29884da6397273a11f53c1b8e8c75d27e1dc", size = 73805, upload-time = "2026-10-16T14:48:47.793Z" },
+]
+
+[[package]]
 name = "djangorestframework"
 version = "3.18.3"
 source = { registry = "https://pypi.org/simple" }
@@ -400,6 +412,7 @@ dependencies = [
     { name = "argon2-cffi" },
     { name = "dj-database-url" },
     { name = "django" },
+    { name = "django-otp" },
     { name = "djangorestframework" },
     { name = "drf-spectacular" },
     { name = "gunicorn" },
@@ -419,6 +432,7 @@ requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "dj-database-url", specifier = ">=3.1.2" },
     { name = "django", specifier = ">=5.2,<6" },
+    { name = "django-otp", specifier = ">=1.7.5" },
     { name = "djangorestframework", specifier = ">=3.18.3" },
     { name = "drf-spectacular", specifier = ">=0.30.0" },
     { name = "gunicorn", specifier = ">=27.0.0" },

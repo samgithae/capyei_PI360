@@ -6,7 +6,7 @@ gate (G3, G4).
 
 | Area (SEC-09) | Example actions | Wired by | Status |
 |---|---|---|---|
-| Authentication | `auth.login`, `auth.login_failed`, `auth.lockout`, `auth.mfa_enrolled` | T-034 | pending |
+| Authentication | `auth.login`, `auth.login_failed`, `auth.lockout`, `auth.logout`, `auth.mfa_enrolled`, `auth.mfa_failed`, `auth.password_changed`, `auth.password_reset_requested`, `auth.password_reset` | T-034 | done |
 | Permissions, roles, users | `user.created`, `user.suspended`, `role.changed`, `scope.assigned` | T-035, T-036 | pending |
 | Profiles | `participant.edited`, `participant.merged`, `participant.unmerged` | T-043, T-041 | pending |
 | Assessments | `assessment.submitted`, `assessment.amended` | T-049 | pending |

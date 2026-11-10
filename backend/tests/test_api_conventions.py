@@ -86,7 +86,7 @@ def test_validation_error_is_a_problem_with_field_errors(client):
 
 @pytest.mark.urls(__name__)
 def test_unauthenticated_is_a_problem(client):
-    body = assert_problem(client.get("/api/v1/_private"), 403)
+    body = assert_problem(client.get("/api/v1/_private"), 401)
     assert body["type"].endswith("/not-authenticated")
 
 

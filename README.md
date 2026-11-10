@@ -59,6 +59,20 @@ cd backend && DJANGO_DEBUG=1 uv run python manage.py spectacular --validate --fi
   Every response carries `X-Request-ID`; logs are JSON lines with the same ID
   (`LOG_FORMAT=text` for plain local logs).
 
+## Staff authentication (CMP-03, T-034)
+
+Local accounts, session cookie, CSRF token (ADR-023). Endpoints under `/api/v1/auth/`: `login`,
+`logout`, `mfa/setup|confirm|verify`, `password/change`, `password/reset[/confirm]`.
+Unauthenticated requests get 401; a signed-in user without permission gets 403.
+
+- Lockout: `AUTH_MAX_FAILURES` (5) failures lock a username for `AUTH_LOCKOUT_SECONDS` (900).
+- Sessions: idle `SESSION_IDLE_SECONDS` (1800), absolute `SESSION_ABSOLUTE_SECONDS` (28800).
+- MFA (TOTP) is required for superusers, Django staff and the groups in `AUTH_MFA_GROUPS`
+  (default `Administrator`). `AUTH_MFA_ALL_STAFF=1` extends it to everyone (open decision D-031).
+- Reset emails use `EMAIL_BACKEND` (console until D-016/D-042) and link to `FRONTEND_URL`.
+- `/admin/` is mounted only when `DJANGO_ENABLE_ADMIN` is on (default: debug). It bypasses lockout
+  and MFA, so keep it off in staging and production.
+
 ## Audit trail (CMP-13)
 
 Other modules write events with `apps.audit.services.record(...)`, in the same transaction as the

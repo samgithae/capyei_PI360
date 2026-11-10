@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
     "apps.api",
     "apps.platform",
     "apps.audit",
@@ -58,6 +60,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.identity.middleware.SessionPolicyMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -107,7 +110,12 @@ AUTH_PASSWORD_VALIDATORS = [
 # Session cookie auth, no tokens in the browser (ADR-023).
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_AGE = int(os.environ.get("SESSION_COOKIE_AGE", 8 * 60 * 60))
+# Idle timeout: the cookie expires this long after the last request (SEC-11).
+# Absolute timeout: a session ends this long after sign-in however active it is.
+SESSION_COOKIE_AGE = int(os.environ.get("SESSION_IDLE_SECONDS", 30 * 60))
+SESSION_SAVE_EVERY_REQUEST = True
+CSRF_FAILURE_VIEW = "apps.api.problems.csrf_failure"
+SESSION_ABSOLUTE_SECONDS = int(os.environ.get("SESSION_ABSOLUTE_SECONDS", 8 * 60 * 60))
 CSRF_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -117,9 +125,27 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", True)
     SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", 0))
 
+# Staff authentication (T-034, FR-01, SEC-10). Defaults follow ADR-018 while D-031 is open.
+AUTH_MAX_FAILURES = int(os.environ.get("AUTH_MAX_FAILURES", 5))
+AUTH_LOCKOUT_SECONDS = int(os.environ.get("AUTH_LOCKOUT_SECONDS", 15 * 60))
+# MFA is required for superusers, Django staff and members of these groups. Set
+# AUTH_MFA_ALL_STAFF=1 if CAP-YEI decides every staff account needs it (D-031).
+AUTH_MFA_GROUPS = env_list("AUTH_MFA_GROUPS", "Administrator")
+AUTH_MFA_ALL_STAFF = env_bool("AUTH_MFA_ALL_STAFF", False)
+AUTH_MFA_PENDING_SECONDS = 5 * 60
+OTP_TOTP_ISSUER = "CAP-YEI PI 360"
+PASSWORD_RESET_TIMEOUT = int(os.environ.get("PASSWORD_RESET_TIMEOUT", 60 * 60))
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+# Email is gated by D-016/D-042. Until a provider is chosen, messages go to the log.
+EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "pi360@localhost")
+# The Django admin signs in with a password only, so it stays off outside local development.
+# Staff are managed through the application (T-036).
+ENABLE_ADMIN = env_bool("DJANGO_ENABLE_ADMIN", DEBUG)
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
+        "apps.identity.authentication.SessionAuthentication401",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -136,6 +162,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": os.environ.get("API_THROTTLE_ANON", "60/min"),
         "user": os.environ.get("API_THROTTLE_USER", "600/min"),
+        "login": os.environ.get("API_THROTTLE_LOGIN", "10/min"),
     },
 }
 
