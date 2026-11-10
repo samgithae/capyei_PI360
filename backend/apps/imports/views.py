@@ -67,6 +67,10 @@ class UploadSerializer(serializers.Serializer):
     file = serializers.FileField()
 
 
+class InspectSerializer(serializers.Serializer):
+    file = serializers.FileField()
+
+
 class RollbackSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500)
 
@@ -87,6 +91,21 @@ class TemplateListView(APIView):
         s.is_valid(raise_exception=True)
         t = _run(services.create_template, actor=request.user, **s.validated_data)
         return Response(_template_out(t), status=status.HTTP_201_CREATED)
+
+
+class InspectView(APIView):
+    """Read-only look at a file's headers before any mapping exists. Stores nothing."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": RUN}
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(request={"multipart/form-data": InspectSerializer}, responses={200: dict})
+    def post(self, request):
+        s = InspectSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        f = s.validated_data["file"]
+        return Response(_run(services.inspect, file_name=f.name, data=f.read()))
 
 
 class BatchListView(APIView):

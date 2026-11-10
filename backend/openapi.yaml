@@ -1447,6 +1447,29 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/imports/inspect:
+    post:
+      operationId: imports_inspect_create
+      description: Read-only look at a file's headers before any mapping exists. Stores
+        nothing.
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Inspect'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/imports/templates:
     get:
       operationId: imports_templates_list
@@ -2337,6 +2360,14 @@ components:
       description: |-
         * `ok` - ok
         * `degraded` - degraded
+    Inspect:
+      type: object
+      properties:
+        file:
+          type: string
+          format: uri
+      required:
+      - file
     Login:
       type: object
       properties:

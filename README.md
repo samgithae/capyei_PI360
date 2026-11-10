@@ -195,3 +195,17 @@ Reconciliation (T-042): `GET /api/v1/imports/batches/<id>/reconciliation` (add `
 UI: **Duplicates** in the menu (`/duplicates`). Dev data: `scripts/seed_dev.py` includes one synthetic pair ("Grace Akinyi").
 
 Not built: reconciliation screen in the UI (T-059 wizard), un-merging a record whose survivor was merged again (blocked by design), the R-15 "don't overwrite officer corrections" rule, employer duplicates (T-087).
+
+## Import wizard and shared states (T-059, T-142 part)
+
+Pages `/imports` (history), `/imports/new` (steps 1-2) and `/imports/:id` (steps 3-6; the step
+comes from the batch's status, so leaving and coming back resumes where you were). Six of the
+eight steps in doc 15 §3 are built: Upload, Map columns, Validate and review, Approve, Load,
+Reconcile. **Not built:** cohort defaults (step 4) and field-by-field match review (step 6),
+which need backend support and wait on D-059 (update vs add) and D-050 (mandatory fields).
+
+- `POST /api/v1/imports/inspect` (`imports.run`): reads a file's headers, row count, empty
+  columns, suggested mapping and any saved template that fits. Stores nothing.
+- `src/components/states.tsx`: `LoadingState`, `EmptyState`, `ErrorState`, `Notice`, the shared
+  data-region states from doc 20 §2. Other pages still use their own wording (to retrofit).
+- `lib/api.ts` now sends `FormData` without forcing a JSON content type (needed for uploads).

@@ -75,6 +75,7 @@ MATRIX = {
         "DELETE": "employers.edit",
     },
     "imports/templates": {"GET": "imports.run", "POST": "imports.run"},
+    "imports/inspect": {"POST": "imports.run"},
     "imports/batches": {"GET": "imports.run", "POST": "imports.run"},
     "imports/batches/<uuid:pk>": {"GET": "imports.run"},
     "imports/batches/<uuid:pk>/rows": {"GET": "imports.run"},

@@ -3,6 +3,7 @@ import {
   Briefcase,
   Building2,
   ClipboardList,
+  FileUp,
   GitMerge,
   LayoutDashboard,
   LifeBuoy,
@@ -28,6 +29,12 @@ export const MENU_SIDEBAR: MenuConfig = [
     icon: GitMerge,
     path: '/duplicates',
     permission: 'duplicates.review',
+  },
+  {
+    title: 'Imports',
+    icon: FileUp,
+    path: '/imports',
+    permission: 'imports.run',
   },
   {
     title: 'Support priority',

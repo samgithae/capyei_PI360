@@ -37,7 +37,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(init.headers);
   headers.set('Accept', 'application/json');
-  if (init.body) headers.set('Content-Type', 'application/json');
+  // A FormData body (file upload) must set its own multipart boundary.
+  if (init.body && !(init.body instanceof FormData))
+    headers.set('Content-Type', 'application/json');
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     const token = readCookie('csrftoken');
     if (token) headers.set('X-CSRFToken', decodeURIComponent(token));
@@ -70,6 +72,16 @@ export const post = <T>(path: string, body?: unknown) =>
     method: 'POST',
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+
+/** Multipart upload: send a file plus text fields. */
+export const upload = <T>(
+  path: string,
+  fields: Record<string, string | Blob>,
+) => {
+  const body = new FormData();
+  for (const [k, v] of Object.entries(fields)) body.append(k, v);
+  return api<T>(path, { method: 'POST', body });
+};
 
 export interface Health {
   status: string;

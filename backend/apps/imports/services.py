@@ -67,6 +67,61 @@ def create_template(*, actor, source, columns, target="participants") -> Mapping
     return t
 
 
+# --- inspect (T-059) --------------------------------------------------------
+
+# Extra header spellings seen in source files (doc 15 §3 step 3). Proposals pending D-050/D-062.
+SYNONYMS = {
+    "name": "full_name", "fullname": "full_name", "traineename": "full_name",
+    "programme": "programme_code", "program": "programme_code", "prog": "programme_code",
+    "cohort": "cohort_code", "course": "course_code", "enrollmentnumber": "enrollment_no",
+    "enrolmentno": "enrollment_no", "enrolno": "enrollment_no", "enrollmentno": "enrollment_no",
+    "sex": "gender", "county": "county_code", "countycode": "county_code",
+    "phonenumber": "phone", "mobile": "phone", "telephone": "phone", "emailaddress": "email",
+    "id": "source_id", "sourceid": "source_id",
+}  # fmt: skip
+
+
+def _norm(h: str) -> str:
+    return "".join(c for c in h.lower() if c.isalnum())
+
+
+def inspect(*, file_name, data: bytes) -> dict:
+    """Read a file's shape without storing anything: headers, row count, empty columns, a
+    suggested column mapping and any saved template whose columns are all present. The wizard
+    uses this before a mapping exists (doc 15 §3 steps 2-3)."""
+    limit_mb = runtime.setting("import.max_upload_mb", 20)
+    if len(data) > limit_mb * 1024 * 1024:
+        raise ImportFailure(f"The file is larger than {limit_mb} MB.")
+    try:
+        headers, rows = read_rows(file_name, data)
+    except FileError as exc:
+        raise ImportFailure(str(exc)) from exc
+    headers = [h for h in headers if h]
+    by_norm = {_norm(f): f for f in participants.FIELDS} | SYNONYMS
+    taken: set[str] = set()
+    suggested: dict[str, str] = {}
+    for h in headers:
+        field = by_norm.get(_norm(h))
+        if field and field not in taken:
+            suggested[h] = field
+            taken.add(field)
+    fits = [
+        t for t in MappingTemplate.objects.filter(active=True).order_by("source", "-version")
+        if all(c in headers for c in t.columns)
+    ]  # fmt: skip
+    return {
+        "headers": headers,
+        "row_count": len(rows),
+        "empty_columns": [h for h in headers if not any(r.get(h) for r in rows)],
+        "suggested": suggested,
+        "fields": [{"field": f, "required": req} for f, req in participants.FIELDS.items()],
+        "matching_templates": [str(t.pk) for t in fits],
+        "already_loaded": ImportBatch.objects.filter(
+            file_hash=hashlib.sha256(data).hexdigest(), status__in=LOADED
+        ).exists(),
+    }
+
+
 # --- upload / dry run ------------------------------------------------------
 
 

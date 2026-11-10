@@ -339,3 +339,32 @@ def test_api_reconciliation_and_contract(template, steward):
     csv_resp = c.get(f"/api/v1/imports/batches/{batch.pk}/reconciliation?download=csv")
     assert csv_resp["Content-Type"].startswith("text/csv")
     assert c.get(f"/api/v1/imports/templates/{template.pk}/contract").json()["rules"]
+
+
+@pytest.mark.django_db
+def test_inspect_suggests_mapping_and_finds_fitting_template(template, steward):
+    head = "Full Name,Programme,Cohort,Course,Enrolment No,Notes\n"
+    data = (head + "Test One,P1,K1,C1,E-001,\nTest Two,P1,K1,C1,E-002,\n").encode()
+    seen = services.inspect(file_name="x.csv", data=data)
+    assert seen["row_count"] == 2
+    assert seen["empty_columns"] == ["Notes"]
+    assert seen["suggested"]["Full Name"] == "full_name"
+    assert seen["suggested"]["Enrolment No"] == "enrollment_no"
+    assert "Notes" not in seen["suggested"]
+    assert seen["matching_templates"] == []  # the saved one expects other headers
+    assert not seen["already_loaded"]
+    ok = services.inspect(file_name="f.csv", data=csv_bytes(*GOOD))
+    assert ok["matching_templates"] == [str(template.pk)]
+    assert Participant.objects.count() == 0 and ImportBatch.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_inspect_endpoint_needs_permission_and_stores_nothing(template, steward, make_user):
+    client = Client()
+    client.force_login(steward)
+    f = SimpleUploadedFile("f.csv", csv_bytes(*GOOD), content_type="text/csv")
+    res = client.post("/api/v1/imports/inspect", {"file": f})
+    assert res.status_code == 200 and res.json()["row_count"] == 3
+    assert ImportBatch.objects.count() == 0
+    bad = SimpleUploadedFile("f.txt", b"x", content_type="text/plain")
+    assert client.post("/api/v1/imports/inspect", {"file": bad}).status_code == 400

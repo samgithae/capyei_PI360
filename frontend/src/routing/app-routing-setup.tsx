@@ -2,6 +2,9 @@ import { RequireAuth, RequirePermission } from '@/auth/guards';
 import { UsersPage } from '@/pages/admin/users-page';
 import { EmployerPage } from '@/pages/employers/employer-page';
 import { EmployersPage } from '@/pages/employers/employers-page';
+import { ImportBatchPage } from '@/pages/imports/import-batch-page';
+import { ImportNewPage } from '@/pages/imports/import-new-page';
+import { ImportsPage } from '@/pages/imports/imports-page';
 import { LoginPage } from '@/pages/login-page';
 import { OpportunitiesPage } from '@/pages/opportunities/opportunities-page';
 import { OpportunityPage } from '@/pages/opportunities/opportunity-page';
@@ -37,6 +40,11 @@ export function AppRoutingSetup() {
           <Route element={<RequirePermission permission="participants.view" />}>
             <Route path="/youth" element={<DirectoryPage />} />
             <Route path="/youth/:id" element={<ProfilePage />} />
+          </Route>
+          <Route element={<RequirePermission permission="imports.run" />}>
+            <Route path="/imports" element={<ImportsPage />} />
+            <Route path="/imports/new" element={<ImportNewPage />} />
+            <Route path="/imports/:id" element={<ImportBatchPage />} />
           </Route>
           <Route element={<RequirePermission permission="duplicates.review" />}>
             <Route path="/duplicates" element={<DuplicatesPage />} />
