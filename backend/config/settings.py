@@ -178,6 +178,9 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "PI 360 API",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "OpportunityKindEnum": "apps.employers.models.Opportunity.TYPES",
+    },
 }
 
 LANGUAGE_CODE = "en-gb"

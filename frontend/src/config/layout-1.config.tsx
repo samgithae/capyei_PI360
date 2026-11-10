@@ -33,7 +33,7 @@ export const MENU_SIDEBAR: MenuConfig = [
     title: 'Opportunities',
     icon: Briefcase,
     path: '/opportunities',
-    permission: 'placements.view',
+    permission: 'employers.view',
   },
   {
     title: 'Employers',

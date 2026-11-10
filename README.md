@@ -165,3 +165,17 @@ Duplicate-name warning: names are compared after normalising case, spacing and p
 UI: `/employers` (list, filters, add form with the warning) and `/employers/:id` (edit, contacts, history).
 
 Not built: employer scope rules, contact-detail restriction, bulk employer import (T-087), opportunities (T-045).
+
+## Opportunities (T-045)
+
+Lives in `apps/employers` (CMP-05); same permissions as employers (`employers.view` / `employers.edit`).
+
+API: `/api/v1/opportunities` (list with `q`, `status`, `kind`, `employer`, `offset`; create), `/<id>` (get, patch), `/<id>/transition` (`{"to": "open"|"closed"}`), `/<id>/history`, `/<id>/requirements` and `/<id>/requirements/<rid>`.
+
+State machine: `draft -> open -> closed | expired`; `closed` and `expired` reopen to `open`. Opening needs a closing date today or later and an active employer. Closed and expired opportunities are locked (no edits to fields or requirements). Every transition is audited with the actor.
+
+Expiry: `python manage.py expire_opportunities` marks open opportunities past their closing date as expired (system actor, idempotent). **No scheduler exists yet**, so it must be run daily by cron or the platform scheduler until one is built. Independently, `services.accepts_referrals(id)` is false for anything not open or past its closing date, so referrals (T-046) are blocked even before the job runs.
+
+Requirements: typed by factor (skill, qualification, location, availability, other), each mandatory or preferred (FR-14).
+
+Assumptions pending D-008/D-010: the draft state, "closing date required to open", and the field list. Not built: matching against requirements (T-060), employer-facing portal, owner officer.
