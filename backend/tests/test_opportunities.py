@@ -120,3 +120,18 @@ def test_list_filters(c, employer):
     assert c.get(URL, {"kind": "internship"}).json()["results"][0]["id"] == other
     assert c.get(URL, {"employer": str(employer.pk)}).json()["total"] == 2
     assert c.get(URL, {"employer": "bad"}).status_code == 400
+
+
+def test_expiry_only_touches_open_opportunities_past_their_date(employer):
+    today = date.today()
+    mk = lambda status, closing: Opportunity.objects.create(  # noqa: E731
+        employer=employer, title=status, status=status, closing_date=closing
+    )
+    due = mk("open", today - timedelta(days=1))
+    last_day = mk("open", today)  # still open on its closing day
+    draft = mk("draft", today - timedelta(days=9))
+    closed = mk("closed", today - timedelta(days=9))
+    assert services.expire_due() == 1
+    assert services.expire_due(today=today + timedelta(days=1)) == 1  # closing day has passed
+    for o, want in ((due, "expired"), (last_day, "expired"), (draft, "draft"), (closed, "closed")):
+        assert Opportunity.objects.get(pk=o.pk).status == want

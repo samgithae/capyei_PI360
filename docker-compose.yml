@@ -27,6 +27,18 @@ services:
       postgres:
         condition: service_healthy
 
+  # Daily housekeeping (T-045 expiry). One small loop instead of a cron daemon; the job is
+  # idempotent, so a restart or a double run is harmless. Add further jobs to the loop.
+  scheduler:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://pi360:${POSTGRES_PASSWORD}@postgres:5432/pi360
+    command: >
+      sh -c "while true; do python manage.py expire_opportunities; sleep 86400; done"
+    depends_on:
+      - api
+
   web:
     build: ./frontend
     ports:

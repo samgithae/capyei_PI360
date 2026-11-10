@@ -174,7 +174,7 @@ API: `/api/v1/opportunities` (list with `q`, `status`, `kind`, `employer`, `offs
 
 State machine: `draft -> open -> closed | expired`; `closed` and `expired` reopen to `open`. Opening needs a closing date today or later and an active employer. Closed and expired opportunities are locked (no edits to fields or requirements). Every transition is audited with the actor.
 
-Expiry: `python manage.py expire_opportunities` marks open opportunities past their closing date as expired (system actor, idempotent). **No scheduler exists yet**, so it must be run daily by cron or the platform scheduler until one is built. Independently, `services.accepts_referrals(id)` is false for anything not open or past its closing date, so referrals (T-046) are blocked even before the job runs.
+Expiry: `python manage.py expire_opportunities` marks open opportunities past their closing date as expired (system actor, idempotent). The compose `scheduler` service runs it every 24 hours (and once at start-up); on other platforms run it daily from cron or the platform scheduler. A closing date is the last open day: an opportunity expires the day after. Independently, `services.accepts_referrals(id)` is false for anything not open or past its closing date, so referrals (T-046) are blocked even before the job runs.
 
 Requirements: typed by factor (skill, qualification, location, availability, other), each mandatory or preferred (FR-14).
 
