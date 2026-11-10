@@ -59,6 +59,20 @@ cd backend && DJANGO_DEBUG=1 uv run python manage.py spectacular --validate --fi
   Every response carries `X-Request-ID`; logs are JSON lines with the same ID
   (`LOG_FORMAT=text` for plain local logs).
 
+## Audit trail (CMP-13)
+
+Other modules write events with `apps.audit.services.record(...)`, in the same transaction as the
+change. Events are append-only: PostgreSQL triggers reject UPDATE, DELETE and TRUNCATE, and each
+row's hash covers the previous row's hash. Check the chain with:
+
+```bash
+cd backend && uv run python manage.py verify_audit_chain
+```
+
+In production run the app as a database role without UPDATE/DELETE on `audit_auditevent` and
+migrate as a different role. `backend/apps/audit/COVERAGE.md` lists what must be audited.
+Audit tests need PostgreSQL (CI has it); on SQLite they skip.
+
 ## Repository
 
 Kept local until repository ownership is decided (D-032). Then it moves to the

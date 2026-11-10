@@ -174,4 +174,7 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": os.environ.get("LOG_LEVEL", "INFO")},
 }
 
+# True only when every request arrives through our own nginx (docker-compose, staging).
+TRUST_X_FORWARDED_FOR = env_bool("TRUST_X_FORWARDED_FOR", False)
+
 APP_VERSION = os.environ.get("APP_VERSION", "0.1.0-dev")

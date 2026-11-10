@@ -10,19 +10,31 @@ import json
 import logging
 import re
 import uuid
-from contextvars import ContextVar
 from datetime import UTC, datetime
 
+from django.conf import settings
 from django.core.signals import request_finished
 from django.dispatch import receiver
 
+from apps.api import context
+
 HEADER = "X-Request-ID"
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
-_current: ContextVar[str | None] = ContextVar("request_id", default=None)
 
 
 def current_request_id() -> str | None:
-    return _current.get()
+    return context.request_id.get()
+
+
+def _client_ip(request):
+    """Behind our nginx the socket peer is the proxy, so the real address is the last
+    X-Forwarded-For hop (the one nginx appended). Only trusted when TRUST_X_FORWARDED_FOR is
+    on, because a client can send the header itself when there is no proxy."""
+    if getattr(settings, "TRUST_X_FORWARDED_FOR", False):
+        hops = [h.strip() for h in request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")]
+        if hops and hops[-1]:
+            return hops[-1]
+    return request.META.get("REMOTE_ADDR")
 
 
 class RequestIdMiddleware:
@@ -35,7 +47,8 @@ class RequestIdMiddleware:
         request.request_id = request_id
         # Cleared on request_finished, not here, so Django's own response log
         # line ("Bad Request: ...") still carries the ID.
-        _current.set(request_id)
+        context.request_id.set(request_id)
+        context.client_ip.set(_client_ip(request))
         response = self.get_response(request)
         response[HEADER] = request_id
         return response
@@ -43,12 +56,13 @@ class RequestIdMiddleware:
 
 @receiver(request_finished)
 def _clear_request_id(**kwargs):
-    _current.set(None)
+    context.request_id.set(None)
+    context.client_ip.set(None)
 
 
 class RequestIdFilter(logging.Filter):
     def filter(self, record):
-        record.request_id = _current.get()
+        record.request_id = context.request_id.get()
         return True
 
 

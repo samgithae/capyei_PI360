@@ -19,6 +19,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgres://pi360:${POSTGRES_PASSWORD}@postgres:5432/pi360
+      TRUST_X_FORWARDED_FOR: "1"  # requests arrive only via the web container's nginx
     command: >
       sh -c "python manage.py migrate --noinput &&
              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --access-logfile -"

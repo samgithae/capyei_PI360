@@ -3,6 +3,63 @@ info:
   title: PI 360 API
   version: 0.1.0
 paths:
+  /api/v1/audit/events:
+    get:
+      operationId: audit_events_list
+      description: 'Audit events, newest first. Read-only: there is no way to write
+        through the API.'
+      parameters:
+      - in: query
+        name: action
+        schema:
+          type: string
+      - in: query
+        name: actor_id
+        schema:
+          type: string
+      - name: cursor
+        required: false
+        in: query
+        description: The pagination cursor value.
+        schema:
+          type: string
+      - in: query
+        name: from
+        schema:
+          type: string
+      - in: query
+        name: object_id
+        schema:
+          type: string
+      - in: query
+        name: object_type
+        schema:
+          type: string
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: request_id
+        schema:
+          type: string
+      - in: query
+        name: to
+        schema:
+          type: string
+      tags:
+      - audit
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditEventList'
+          description: ''
   /api/v1/health:
     get:
       operationId: health_retrieve
@@ -44,6 +101,65 @@ paths:
           description: ''
 components:
   schemas:
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        at:
+          type: string
+          format: date-time
+          readOnly: true
+        actor_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        actor_label:
+          type: string
+          readOnly: true
+        action:
+          type: string
+          readOnly: true
+        object_type:
+          type: string
+          readOnly: true
+        object_id:
+          type: string
+          readOnly: true
+        before:
+          readOnly: true
+          nullable: true
+        after:
+          readOnly: true
+          nullable: true
+        reason:
+          type: string
+          readOnly: true
+        request_id:
+          type: string
+          readOnly: true
+        ip:
+          type: string
+          readOnly: true
+          nullable: true
+        hash:
+          type: string
+          readOnly: true
+      required:
+      - action
+      - actor_id
+      - actor_label
+      - after
+      - at
+      - before
+      - hash
+      - id
+      - ip
+      - object_id
+      - object_type
+      - reason
+      - request_id
     DatabaseEnum:
       enum:
       - ok
@@ -78,6 +194,25 @@ components:
             type: string
       required:
       - authenticated
+    PaginatedAuditEventList:
+      type: object
+      required:
+      - results
+      properties:
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?cursor=cD00ODY%3D"
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?cursor=cj0xJnA9NDg3
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
     StatusEnum:
       enum:
       - ok
