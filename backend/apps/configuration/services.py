@@ -389,3 +389,28 @@ def county_id_by_code(code):
 
     row = County.objects.filter(code=code).first()
     return str(row.pk) if row else None
+
+
+def filter_options():
+    """Programmes, cohorts and counties for filter drop-downs (names only, active first)."""
+    from .models import Cohort, County, Programme
+
+    def rows(qs, extra=()):
+        return [
+            {
+                "id": str(o.pk),
+                "code": o.code,
+                "name": o.name,
+                **{k: str(getattr(o, k)) for k in extra},
+            }
+            for o in qs
+        ]
+
+    return {
+        "programmes": rows(Programme.objects.filter(active=True).order_by("name")),
+        "cohorts": rows(
+            Cohort.objects.filter(active=True).order_by("-intake_year", "name"),
+            extra=("programme_id",),
+        ),
+        "counties": rows(County.objects.order_by("code")),
+    }

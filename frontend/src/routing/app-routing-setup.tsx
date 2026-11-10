@@ -1,5 +1,7 @@
 import { RequireAuth, RequirePermission } from '@/auth/guards';
 import { UsersPage } from '@/pages/admin/users-page';
+import { DirectoryPage } from '@/pages/participants/directory-page';
+import { ProfilePage } from '@/pages/participants/profile-page';
 import { LoginPage } from '@/pages/login-page';
 import { OverviewPage } from '@/pages/overview-page';
 import { PlaceholderPage } from '@/pages/placeholder-page';
@@ -7,7 +9,6 @@ import { Navigate, Route, Routes } from 'react-router';
 import { Layout1 } from '@/components/layouts/layout-1';
 
 const SECTIONS: [string, string, string][] = [
-  ['/youth', 'participants.view', 'Youth'],
   ['/support', 'ydm.view', 'Support priority'],
   ['/opportunities', 'placements.view', 'Opportunities'],
   ['/employers', 'employers.view', 'Employers'],
@@ -30,6 +31,10 @@ export function AppRoutingSetup() {
               <Route path={path} element={<PlaceholderPage title={title} />} />
             </Route>
           ))}
+          <Route element={<RequirePermission permission="participants.view" />}>
+            <Route path="/youth" element={<DirectoryPage />} />
+            <Route path="/youth/:id" element={<ProfilePage />} />
+          </Route>
           <Route
             element={<RequirePermission permission="identity.view_users" />}
           >

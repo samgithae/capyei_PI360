@@ -139,3 +139,15 @@ CAP-YEI organisation with branch protection and required CI checks.
 - Permissions: `imports.run` (templates, upload, read, cancel) and `imports.commit` (approve, commit, rollback).
 - Not yet: background jobs and progress (runs inside the request), file encryption at rest (the file itself is not stored,
   only its hash and rows), steward scope check per row, fuzzy duplicate matching (T-041), reconciliation report (T-042).
+
+## Participant directory (T-058, T-043 core)
+
+API (all record-scoped; out-of-scope ids return 404):
+- `GET /api/v1/participants` - directory; filters `q` (name or enrollment no.), `programme`, `cohort`, `county`, `status`, `offset` (page size 50). With `cohort` set it is the cohort roster.
+- `GET /api/v1/participants/<id>` - profile with enrollment history and residences; `contacts` only with `participants.view_contact`.
+- `PATCH /api/v1/participants/<id>` - edit names, gender, status (`participants.edit`, audited).
+- `GET /api/v1/participants/filters` - programme, cohort and county options.
+
+UI: `/youth` (directory and roster via the cohort filter, filters kept in the URL) and `/youth/:id` (profile).
+
+Deferred: extended profile (education, skills, experience; D-004, D-010), placement history tab (needs placements), residence and contact editing.
