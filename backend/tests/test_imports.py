@@ -1,6 +1,7 @@
 """Import pipeline (T-040). All data here is synthetic."""
 
 import io
+from datetime import date
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -388,3 +389,36 @@ def test_inspect_endpoint_needs_permission_and_stores_nothing(template, steward,
     assert ImportBatch.objects.count() == 0
     bad = SimpleUploadedFile("f.txt", b"x", content_type="text/plain")
     assert client.post("/api/v1/imports/inspect", {"file": bad}).status_code == 400
+
+
+SIGN = {"signer_name": "A. Owner", "signer_role": "MIS owner", "signed_on": date(2026, 11, 10)}
+
+
+@pytest.mark.django_db
+def test_signoff_needs_a_loaded_balanced_batch_and_locks_rollback(template, steward):
+    b = upload(steward, template, *GOOD)
+    with pytest.raises(services.ImportFailure):  # not loaded yet
+        services.sign_off(actor=steward, batch=b, **SIGN)
+    load(steward, b)
+    with pytest.raises(services.ImportFailure):  # the signer must be named
+        services.sign_off(actor=steward, batch=b, **{**SIGN, "signer_name": " "})
+    s = services.sign_off(actor=steward, batch=b, **SIGN)
+    assert s.snapshot["balanced"] is True and "held_rows" not in s.snapshot
+    with pytest.raises(services.ImportFailure):  # only once
+        services.sign_off(actor=steward, batch=b, **SIGN)
+    with pytest.raises(services.ImportFailure):  # signed batches stay
+        services.rollback(actor=steward, batch=b, reason="oops")
+
+
+@pytest.mark.django_db
+def test_signoff_endpoint_roundtrip(template, steward):
+    b = load(steward, upload(steward, template, *GOOD))
+    c = Client()
+    c.force_login(steward)
+    url = f"/api/v1/imports/batches/{b.pk}/signoff"
+    body = {**SIGN, "signed_on": "2026-11-10"}
+    assert c.get(url).json() == {"signed": False}
+    r = c.post(url, body, content_type="application/json")
+    assert r.status_code == 201 and r.json()["signer_role"] == "MIS owner"
+    assert c.get(url).json()["signer_name"] == "A. Owner"
+    assert c.post(url, body, content_type="application/json").status_code == 400

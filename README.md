@@ -213,3 +213,7 @@ which need backend support and wait on D-059 (update vs add) and D-050 (mandator
 ## State retrofit (T-142)
 
 The older pages (participants, employers, opportunities, admin users, overview, placeholder) now use `frontend/src/components/states.tsx`: `LoadingState`, `EmptyState`, `ErrorState` (with "Try again") and `Notice`. Detail pages show "not found" as an empty state on 404 and an error state otherwise.
+
+## Reconciliation sign-off (T-053)
+
+A loaded import batch can be signed off once by the data owner (`POST /api/v1/imports/batches/<id>/signoff`, needs `imports.commit`). The signer's name and role are stored as text because the MIS owner may not have a PI360 account; who recorded it, the date and a snapshot of the reconciliation are kept. It is refused unless the buckets balance and cohort control totals match. A signed batch cannot be rolled back. Model: `ReconciliationSignoff` in `backend/apps/imports/models.py`; UI: sign-off panel on the batch page.

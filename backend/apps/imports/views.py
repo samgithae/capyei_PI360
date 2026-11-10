@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from apps.api.access import HasPermission
 
 from . import services
-from .models import ImportBatch, MappingTemplate
+from .models import ImportBatch, MappingTemplate, ReconciliationSignoff
 
 RUN, COMMIT = "imports.run", "imports.commit"
 
@@ -244,6 +244,48 @@ class BatchReconciliationView(APIView):
             resp["Content-Disposition"] = f'attachment; filename="import-{pk}-reconciliation.csv"'
             return resp
         return Response(services.reconciliation(batch))
+
+
+def _signoff_out(s):
+    return {
+        "signer_name": s.signer_name,
+        "signer_role": s.signer_role,
+        "signed_on": s.signed_on.isoformat(),
+        "note": s.note,
+        "recorded_at": s.created_at.isoformat(),
+    }
+
+
+class SignoffInputSerializer(serializers.Serializer):
+    signer_name = serializers.CharField(max_length=120)
+    signer_role = serializers.CharField(max_length=120)
+    signed_on = serializers.DateField()
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class BatchSignoffView(APIView):
+    """GET reads the sign-off ({signed: false} until signed); POST records it (imports.commit)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": RUN, "POST": COMMIT}
+
+    @extend_schema(operation_id="imports_batch_signoff_read", responses={200: dict})
+    def get(self, request, pk):
+        batch = _batch(pk)
+        s = ReconciliationSignoff.objects.filter(batch=batch).first()
+        return Response({"signed": True, **_signoff_out(s)} if s else {"signed": False})
+
+    @extend_schema(
+        operation_id="imports_batch_signoff",
+        request=SignoffInputSerializer,
+        responses={201: dict},
+    )
+    def post(self, request, pk):
+        batch = _batch(pk)
+        s = SignoffInputSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        signed = _run(services.sign_off, actor=request.user, batch=batch, **s.validated_data)
+        return Response(_signoff_out(signed), status=status.HTTP_201_CREATED)
 
 
 class TemplateContractView(APIView):

@@ -116,3 +116,23 @@ class RecordLineage(models.Model):
 
     def __str__(self):
         return f"{self.action} {self.entity} {self.record_id}"
+
+
+class ReconciliationSignoff(models.Model):
+    """The data owner's sign-off on a loaded batch's reconciliation (T-053). One per batch; it is
+    never edited. The signer is a named person at CAP-YEI and need not have a PI360 account, so
+    we keep their name and role as text and who recorded it as a user."""
+
+    batch = models.OneToOneField(ImportBatch, on_delete=models.PROTECT, related_name="signoff")
+    signer_name = models.CharField(max_length=120)
+    signer_role = models.CharField(max_length=120)
+    signed_on = models.DateField()
+    note = models.TextField(blank=True)
+    snapshot = models.JSONField(default=dict)  # the reconciliation as it stood when signed
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"signed off by {self.signer_name}"

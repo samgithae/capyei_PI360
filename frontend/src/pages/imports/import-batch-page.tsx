@@ -201,6 +201,101 @@ function RowsTable({ id, loaded }: { id: string; loaded: boolean }) {
   );
 }
 
+type Signoff = {
+  signed: boolean;
+  signer_name?: string;
+  signer_role?: string;
+  signed_on?: string;
+  note?: string;
+};
+
+function useSignoff(id: string) {
+  return useQuery({
+    queryKey: ['import-signoff', id],
+    queryFn: () => api<Signoff>(`/imports/batches/${id}/signoff`),
+  });
+}
+
+/** The data owner's sign-off on the reconciliation (T-053). Recorded once, then locked. */
+function SignoffPanel({ id, canSign }: { id: string; canSign: boolean }) {
+  const qc = useQueryClient();
+  const q = useSignoff(id);
+  const [form, setForm] = useState({
+    signer_name: '',
+    signer_role: '',
+    signed_on: new Date().toISOString().slice(0, 10),
+    note: '',
+  });
+  const [error, setError] = useState('');
+  const sign = useMutation({
+    mutationFn: () => post(`/imports/batches/${id}/signoff`, form),
+    onSuccess: () => {
+      toast.success('Sign-off recorded.');
+      setError('');
+      qc.invalidateQueries({ queryKey: ['import-signoff', id] });
+    },
+    onError: (e) =>
+      setError(e instanceof ApiError ? e.message : 'Could not record.'),
+  });
+  if (q.isPending) return <LoadingState rows={2} />;
+  if (q.isError)
+    return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
+  const d = q.data;
+  if (d.signed)
+    return (
+      <Notice tone="info" title="Reconciliation signed off">
+        {d.signer_name} ({d.signer_role}) on {d.signed_on}.
+        {d.note ? ` ${d.note}` : ''} This batch can no longer be rolled back.
+      </Notice>
+    );
+  if (!canSign) return <Notice title="Not signed off yet" />;
+  const set = (k: keyof typeof form) => (e: { target: { value: string } }) =>
+    setForm({ ...form, [k]: e.target.value });
+  return (
+    <section className="rounded-lg border p-4 space-y-2 max-w-2xl">
+      <h2 className="font-medium">Sign off the reconciliation</h2>
+      <p className="text-sm text-muted-foreground">
+        Record that the data owner has reviewed the figures above. Needs a
+        balanced reconciliation. Once signed it cannot be changed or rolled
+        back.
+      </p>
+      <Input
+        placeholder="Signer's name"
+        aria-label="Signer's name"
+        value={form.signer_name}
+        onChange={set('signer_name')}
+      />
+      <Input
+        placeholder="Signer's role (e.g. MIS owner)"
+        aria-label="Signer's role"
+        value={form.signer_role}
+        onChange={set('signer_role')}
+      />
+      <Input
+        type="date"
+        aria-label="Date signed"
+        value={form.signed_on}
+        onChange={set('signed_on')}
+      />
+      <Input
+        placeholder="Note (optional)"
+        aria-label="Note"
+        value={form.note}
+        onChange={set('note')}
+      />
+      {error && <Notice tone="error" title={error} />}
+      <Button
+        disabled={
+          !form.signer_name.trim() || !form.signer_role.trim() || sign.isPending
+        }
+        onClick={() => sign.mutate()}
+      >
+        Record sign-off
+      </Button>
+    </section>
+  );
+}
+
 function ReconciliationPanel({ id }: { id: string }) {
   const rec = useQuery({
     queryKey: ['import-reconciliation', id],
@@ -323,6 +418,7 @@ export function ImportBatchPage() {
   });
 
   const canCommit = can('imports.commit');
+  const signoff = useSignoff(id);
   const b = batch.data;
   const status = b?.status ?? '';
   const loaded = status === 'committed' || status === 'partially_committed';
@@ -479,7 +575,8 @@ export function ImportBatchPage() {
             {(loaded || status === 'rolled_back') && (
               <>
                 <ReconciliationPanel id={id} />
-                {loaded && canCommit && (
+                {loaded && <SignoffPanel id={id} canSign={canCommit} />}
+                {loaded && canCommit && !signoff.data?.signed && (
                   <section className="rounded-lg border p-4 space-y-2 max-w-2xl">
                     <h2 className="font-medium">Roll back this import</h2>
                     <p className="text-sm text-muted-foreground">

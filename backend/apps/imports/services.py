@@ -16,7 +16,13 @@ from apps.api import runtime
 from apps.audit import services as audit
 from apps.participants import services as participants
 
-from .models import ImportBatch, ImportRow, MappingTemplate, RecordLineage
+from .models import (
+    ImportBatch,
+    ImportRow,
+    MappingTemplate,
+    ReconciliationSignoff,
+    RecordLineage,
+)
 from .parsing import FileError, read_rows
 
 CHUNK_SIZE = 500
@@ -319,6 +325,8 @@ def rollback(*, actor, batch, reason):
         raise ImportFailure("Only a committed batch can be rolled back.", "status")
     if not reason.strip():
         raise ImportFailure("Give a reason.", "reason")
+    if ReconciliationSignoff.objects.filter(batch=batch).exists():
+        raise ImportFailure("This batch is signed off, so it cannot be rolled back.", "status")
     mine = RecordLineage.objects.filter(row__batch=batch, reverted=False).order_by("-pk")
     if participants.involved_in_merge(mine.values_list("record_id", flat=True)):
         raise ImportFailure(
@@ -435,6 +443,41 @@ def reconciliation(batch) -> dict:
         "controls_match": all(c["matches"] for c in controls),
         "held_rows": held_rows,
     }
+
+
+def sign_off(*, actor, batch, signer_name, signer_role, signed_on, note=""):
+    """Record the data owner's sign-off. Only a loaded batch whose buckets balance and whose
+    cohort control totals match can be signed; a signed batch cannot be rolled back."""
+    if batch.status not in LOADED:
+        raise ImportFailure("Only a loaded batch can be signed off.", "status")
+    if ReconciliationSignoff.objects.filter(batch=batch).exists():
+        raise ImportFailure("This batch is already signed off.", "status")
+    if not (signer_name or "").strip() or not (signer_role or "").strip():
+        raise ImportFailure("Give the signer's name and role.", "signer_name")
+    report = reconciliation(batch)
+    if not (report["balanced"] and report["controls_match"]) or report["pending"]:
+        raise ImportFailure(
+            "The reconciliation does not balance, so it cannot be signed.", "status"
+        )
+    snapshot = {k: v for k, v in report.items() if k != "held_rows"}
+    with transaction.atomic():
+        s = ReconciliationSignoff.objects.create(
+            batch=batch,
+            signer_name=signer_name.strip(),
+            signer_role=signer_role.strip(),
+            signed_on=signed_on,
+            note=note.strip(),
+            snapshot=snapshot,
+            recorded_by=actor,
+        )
+        audit.record(
+            actor=actor,
+            action="import.signed_off",
+            object_type="import_batch",
+            object_id=batch.pk,
+            after={"signer": s.signer_name, "role": s.signer_role, "signed_on": str(signed_on)},
+        )
+    return s
 
 
 def reconciliation_csv(batch) -> str:

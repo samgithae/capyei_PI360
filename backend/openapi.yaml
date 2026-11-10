@@ -1447,6 +1447,65 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/imports/batches/{id}/signoff:
+    get:
+      operationId: imports_batch_signoff_read
+      description: 'GET reads the sign-off ({signed: false} until signed); POST records
+        it (imports.commit).'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: imports_batch_signoff
+      description: 'GET reads the sign-off ({signed: false} until signed); POST records
+        it (imports.commit).'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignoffInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SignoffInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SignoffInput'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/imports/inspect:
     post:
       operationId: imports_inspect_create
@@ -2891,6 +2950,25 @@ components:
       - password
       - reason
       - value
+    SignoffInput:
+      type: object
+      properties:
+        signer_name:
+          type: string
+          maxLength: 120
+        signer_role:
+          type: string
+          maxLength: 120
+        signed_on:
+          type: string
+          format: date
+        note:
+          type: string
+          default: ''
+      required:
+      - signed_on
+      - signer_name
+      - signer_role
     TemplateInput:
       type: object
       properties:

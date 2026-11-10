@@ -85,6 +85,7 @@ MATRIX = {
     "imports/batches/<uuid:pk>/approve": {"POST": "imports.commit"},
     "imports/batches/<uuid:pk>/commit": {"POST": "imports.commit"},
     "imports/batches/<uuid:pk>/rollback": {"POST": "imports.commit"},
+    "imports/batches/<uuid:pk>/signoff": {"GET": "imports.run", "POST": "imports.commit"},
     "imports/batches/<uuid:pk>/cancel": {"POST": "imports.run"},
 }
 

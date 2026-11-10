@@ -14,5 +14,6 @@ urlpatterns = [
     path("imports/batches/<uuid:pk>/approve", v.BatchApproveView.as_view()),
     path("imports/batches/<uuid:pk>/commit", v.BatchCommitView.as_view()),
     path("imports/batches/<uuid:pk>/rollback", v.BatchRollbackView.as_view()),
+    path("imports/batches/<uuid:pk>/signoff", v.BatchSignoffView.as_view()),
     path("imports/batches/<uuid:pk>/cancel", v.BatchCancelView.as_view()),
 ]
