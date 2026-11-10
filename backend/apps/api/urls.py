@@ -9,5 +9,6 @@ urlpatterns = [
     path("", include("apps.identity.urls")),
     path("", include("apps.audit.urls")),
     path("", include("apps.configuration.urls")),
+    path("", include("apps.imports.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
 ]

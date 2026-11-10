@@ -343,3 +343,49 @@ def change_setting(*, actor, key, value, reason, password, code=""):
         after={"value": value},
         reason=reason.strip(),
     )
+
+
+# --- lookups for other modules (the import pipeline) ------------------------
+
+
+def resolve_offering(programme_code, cohort_code, course_code):
+    """Find the active programme, cohort and course by code, and the offering joining cohort and
+    course. Returns ``(offering_id, programme_id, institution_id, errors)`` where errors is a list
+    of ``(field, message)``. Ids are strings (they go into JSON)."""
+    from .models import Cohort, Course, Programme
+
+    errors, offering = [], None
+    prog = cohort = course = None
+    if programme_code:
+        prog = Programme.objects.filter(code__iexact=programme_code, active=True).first()
+        if prog is None:
+            errors.append(("programme_code", f"Unknown programme '{programme_code}'."))
+    if prog and cohort_code:
+        cohort = Cohort.objects.filter(
+            programme=prog, code__iexact=cohort_code, active=True
+        ).first()
+        if cohort is None:
+            errors.append(("cohort_code", f"Unknown cohort '{cohort_code}' in this programme."))
+    if prog and course_code:
+        course = Course.objects.filter(
+            programme=prog, code__iexact=course_code, active=True
+        ).first()
+        if course is None:
+            errors.append(("course_code", f"Unknown course '{course_code}' in this programme."))
+    if cohort and course:
+        offering = cohort.offerings.filter(course=course).first()
+        if offering is None:
+            errors.append(("course_code", "This course is not offered in this cohort."))
+    return (
+        str(offering.pk) if offering else None,
+        str(prog.pk) if prog else None,
+        str(cohort.institution_id) if cohort else None,
+        errors,
+    )
+
+
+def county_id_by_code(code):
+    from .models import County
+
+    row = County.objects.filter(code=code).first()
+    return str(row.pk) if row else None

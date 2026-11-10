@@ -123,3 +123,19 @@ CAP-YEI organisation with branch protection and required CI checks.
 - Sidebar: each menu item carries a `permission`; `filterMenu` hides items and orphaned headings.
 - Staff accounts: `/administration/users` (not `/admin`, which the dev proxy sends to Django's admin).
 - Dev: the Vite server proxies `/api` and `^/admin/` to Django; with `DJANGO_DEBUG=1` Django trusts the `:5173` origin for CSRF.
+
+## Import pipeline (T-040)
+
+`apps/imports` (API under `/api/v1/imports/`). Flow: **template -> upload (dry run) -> approve -> commit -> rollback.**
+
+- **Templates** map source column headers to target fields and are versioned: a change is a new version.
+- **Upload** (`.csv` or `.xlsx`, up to the `import.max_upload_mb` setting) parses and validates only. It writes batch and row
+  records and changes no participant. Re-uploading a file with the same hash is flagged (`duplicate_of`) and loads nothing new.
+- **Rows** are `create`, `update` (same programme + enrollment number), `held` (with reasons) or `skip` (already loaded).
+- **Commit** needs approval first. It runs in chunks of 500, one transaction each; a failed chunk rolls back alone and the batch
+  is `partially_committed`; calling commit again resumes. Every change is written to `record_lineage` with before/after.
+- **Rollback** (with a reason) undoes a batch unless a later batch changed the same records.
+- `GET .../errors` downloads a CSV of held rows and warnings (row numbers and messages only, never the row's values).
+- Permissions: `imports.run` (templates, upload, read, cancel) and `imports.commit` (approve, commit, rollback).
+- Not yet: background jobs and progress (runs inside the request), file encryption at rest (the file itself is not stored,
+  only its hash and rows), steward scope check per row, fuzzy duplicate matching (T-041), reconciliation report (T-042).

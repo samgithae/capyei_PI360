@@ -1,0 +1,208 @@
+"""Import API (T-040). Uploading and reading need imports.run; approving, committing and rolling
+back need imports.commit."""
+
+from django.http import HttpResponse
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import serializers, status
+from rest_framework.exceptions import NotFound
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.api.access import HasPermission
+
+from . import services
+from .models import ImportBatch, MappingTemplate
+
+RUN, COMMIT = "imports.run", "imports.commit"
+
+
+def _run(fn, **kwargs):
+    try:
+        return fn(**kwargs)
+    except services.ImportFailure as exc:
+        raise serializers.ValidationError({exc.field: [exc.message]}) from exc
+
+
+def _batch(pk) -> ImportBatch:
+    try:
+        return ImportBatch.objects.select_related("template").get(pk=pk)
+    except ImportBatch.DoesNotExist:
+        raise NotFound from None
+
+
+def _template_out(t):
+    return {
+        "id": str(t.pk),
+        "source": t.source,
+        "version": t.version,
+        "target": t.target,
+        "columns": t.columns,
+        "active": t.active,
+    }
+
+
+def _batch_out(b):
+    return {
+        "id": str(b.pk),
+        "file_name": b.file_name,
+        "status": b.status,
+        "template": str(b.template),
+        "counts": b.counts,
+        "duplicate_of": str(b.duplicate_of_id) if b.duplicate_of_id else None,
+        "created_at": b.created_at.isoformat(),
+        "committed_at": b.committed_at.isoformat() if b.committed_at else None,
+    }
+
+
+class TemplateInputSerializer(serializers.Serializer):
+    source = serializers.CharField(max_length=60)
+    columns = serializers.DictField(child=serializers.CharField())
+    target = serializers.CharField(default="participants")
+
+
+class UploadSerializer(serializers.Serializer):
+    template = serializers.UUIDField()
+    file = serializers.FileField()
+
+
+class RollbackSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=500)
+
+
+class TemplateListView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"GET": RUN, "POST": RUN}
+
+    @extend_schema(operation_id="imports_templates_list", responses={200: dict})
+    def get(self, request):
+        return Response(
+            [_template_out(t) for t in MappingTemplate.objects.order_by("source", "-version")]
+        )
+
+    @extend_schema(request=TemplateInputSerializer, responses={201: dict})
+    def post(self, request):
+        s = TemplateInputSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        t = _run(services.create_template, actor=request.user, **s.validated_data)
+        return Response(_template_out(t), status=status.HTTP_201_CREATED)
+
+
+class BatchListView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"GET": RUN, "POST": RUN}
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    @extend_schema(operation_id="imports_batches_list", responses={200: dict})
+    def get(self, request):
+        qs = ImportBatch.objects.select_related("template")[:200]
+        return Response([_batch_out(b) for b in qs])
+
+    @extend_schema(request={"multipart/form-data": UploadSerializer}, responses={201: dict})
+    def post(self, request):
+        s = UploadSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            template = MappingTemplate.objects.get(pk=s.validated_data["template"], active=True)
+        except MappingTemplate.DoesNotExist:
+            raise serializers.ValidationError({"template": ["Unknown template."]}) from None
+        f = s.validated_data["file"]
+        batch = _run(
+            services.upload,
+            actor=request.user,
+            template=template,
+            file_name=f.name,
+            data=f.read(),
+        )
+        return Response(_batch_out(batch), status=status.HTTP_201_CREATED)
+
+
+class BatchDetailView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"GET": RUN}
+
+    @extend_schema(operation_id="imports_batch_detail", responses={200: dict})
+    def get(self, request, pk):
+        return Response(_batch_out(_batch(pk)))
+
+
+class BatchRowsView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"GET": RUN}
+
+    @extend_schema(
+        operation_id="imports_batch_rows",
+        parameters=[
+            OpenApiParameter("outcome", str),
+            OpenApiParameter("offset", int),
+        ],
+        responses={200: dict},
+    )
+    def get(self, request, pk):
+        rows = _batch(pk).rows.order_by("row_no")
+        if outcome := request.query_params.get("outcome"):
+            rows = rows.filter(outcome=outcome)
+        try:
+            offset = max(int(request.query_params.get("offset", 0)), 0)
+        except ValueError:
+            offset = 0
+        page = rows[offset : offset + 200]
+        return Response(
+            {
+                "total": rows.count(),
+                "rows": [
+                    {
+                        "row": r.row_no,
+                        "outcome": r.outcome,
+                        "match": r.match,
+                        "source_key": r.source_key,
+                        "errors": r.errors,
+                        "warnings": r.warnings,
+                        "committed": r.committed,
+                    }
+                    for r in page
+                ],
+            }
+        )
+
+
+class BatchErrorsView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"GET": RUN}
+
+    @extend_schema(operation_id="imports_batch_errors", responses={200: bytes})
+    def get(self, request, pk):
+        resp = HttpResponse(services.error_report(_batch(pk)), content_type="text/csv")
+        resp["Content-Disposition"] = f'attachment; filename="import-{pk}-errors.csv"'
+        return resp
+
+
+def _action(name, perm, fn_name, with_reason=False):
+    class View(APIView):
+        permission_classes = [HasPermission]
+        required_permission = {"POST": perm}
+
+        @extend_schema(
+            operation_id=f"imports_batch_{name}",
+            request=RollbackSerializer if with_reason else None,
+            responses={200: dict},
+        )
+        def post(self, request, pk):
+            batch = _batch(pk)
+            kwargs = {}
+            if with_reason:
+                s = RollbackSerializer(data=request.data)
+                s.is_valid(raise_exception=True)
+                kwargs["reason"] = s.validated_data["reason"]
+            _run(getattr(services, fn_name), actor=request.user, batch=batch, **kwargs)
+            batch.refresh_from_db()
+            return Response(_batch_out(batch))
+
+    View.__name__ = f"Batch{name.capitalize()}View"
+    return View
+
+
+BatchApproveView = _action("approve", COMMIT, "approve")
+BatchCommitView = _action("commit", COMMIT, "commit")
+BatchRollbackView = _action("rollback", COMMIT, "rollback", with_reason=True)
+BatchCancelView = _action("cancel", RUN, "cancel")

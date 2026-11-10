@@ -925,6 +925,256 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
           description: ''
+  /api/v1/imports/batches:
+    get:
+      operationId: imports_batches_list
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: imports_batches_create
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Upload'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/batches/{id}:
+    get:
+      operationId: imports_batch_detail
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/batches/{id}/approve:
+    post:
+      operationId: imports_batch_approve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/batches/{id}/cancel:
+    post:
+      operationId: imports_batch_cancel
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/batches/{id}/commit:
+    post:
+      operationId: imports_batch_commit
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/batches/{id}/errors:
+    get:
+      operationId: imports_batch_errors
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/imports/batches/{id}/rollback:
+    post:
+      operationId: imports_batch_rollback
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Rollback'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Rollback'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Rollback'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/batches/{id}/rows:
+    get:
+      operationId: imports_batch_rows
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: offset
+        schema:
+          type: integer
+      - in: query
+        name: outcome
+        schema:
+          type: string
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/templates:
+    get:
+      operationId: imports_templates_list
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: imports_templates_create
+      tags:
+      - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TemplateInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TemplateInput'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/me:
     get:
       operationId: me_retrieve
@@ -1317,6 +1567,14 @@ components:
       - is_system
       - name
       - user_count
+    Rollback:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+      required:
+      - reason
     ScopeItem:
       type: object
       properties:
@@ -1379,6 +1637,34 @@ components:
       - password
       - reason
       - value
+    TemplateInput:
+      type: object
+      properties:
+        source:
+          type: string
+          maxLength: 60
+        columns:
+          type: object
+          additionalProperties:
+            type: string
+        target:
+          type: string
+          default: participants
+      required:
+      - columns
+      - source
+    Upload:
+      type: object
+      properties:
+        template:
+          type: string
+          format: uuid
+        file:
+          type: string
+          format: uri
+      required:
+      - file
+      - template
     User:
       type: object
       properties:

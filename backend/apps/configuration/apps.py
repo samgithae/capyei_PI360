@@ -14,4 +14,9 @@ class ConfigurationConfig(AppConfig):
     verbose_name = "Configuration"
 
     def ready(self):
+        from apps.api import runtime
+
+        from .services import get_setting
+
+        runtime.register(get_setting)
         post_migrate.connect(_seed, sender=self)

@@ -46,6 +46,15 @@ MATRIX = {
     "config/flags": {"GET": "config.view"},
     "config/flags/<str:key>": {"PATCH": "config.manage"},
     "config/settings": {"GET": "config.view", "POST": "config.manage_protected"},
+    "imports/templates": {"GET": "imports.run", "POST": "imports.run"},
+    "imports/batches": {"GET": "imports.run", "POST": "imports.run"},
+    "imports/batches/<uuid:pk>": {"GET": "imports.run"},
+    "imports/batches/<uuid:pk>/rows": {"GET": "imports.run"},
+    "imports/batches/<uuid:pk>/errors": {"GET": "imports.run"},
+    "imports/batches/<uuid:pk>/approve": {"POST": "imports.commit"},
+    "imports/batches/<uuid:pk>/commit": {"POST": "imports.commit"},
+    "imports/batches/<uuid:pk>/rollback": {"POST": "imports.commit"},
+    "imports/batches/<uuid:pk>/cancel": {"POST": "imports.run"},
 }
 
 
