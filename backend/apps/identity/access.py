@@ -52,6 +52,11 @@ def scope_summary(user) -> dict:
 
 
 class IdentityAccess:
+    def roles(self, user) -> frozenset[str]:
+        if not user.is_active:
+            return frozenset()
+        return frozenset(_roles(user).values_list("name", flat=True))
+
     def permissions(self, user) -> frozenset[str]:
         return _state(user)["perms"]
 

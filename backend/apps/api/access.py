@@ -20,6 +20,8 @@ DENY = Q(pk__in=[])
 class AccessBackend(Protocol):
     def permissions(self, user) -> frozenset[str]: ...
 
+    def roles(self, user) -> frozenset[str]: ...
+
     def scope_q(self, user, mapping: dict[str, str]) -> Q: ...
 
 
@@ -35,6 +37,13 @@ def permissions_of(user) -> frozenset[str]:
     if _backend is None or not getattr(user, "is_authenticated", False):
         return frozenset()
     return _backend.permissions(user)
+
+
+def roles_of(user) -> frozenset[str]:
+    """Names of the user's active roles (used for feature-flag audiences)."""
+    if _backend is None or not getattr(user, "is_authenticated", False):
+        return frozenset()
+    return _backend.roles(user)
 
 
 def has_permission(user, code: str) -> bool:

@@ -231,6 +231,299 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/config/flags:
+    get:
+      operationId: config_flags_list
+      tags:
+      - config
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Flag'
+          description: ''
+  /api/v1/config/flags/{key}:
+    patch:
+      operationId: config_flags_partial_update
+      parameters:
+      - in: path
+        name: key
+        schema:
+          type: string
+        required: true
+      tags:
+      - config
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFlag'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFlag'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFlag'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flag'
+          description: ''
+  /api/v1/config/reference/{kind}:
+    get:
+      operationId: config_reference_list
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - config
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: config_reference_create
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - config
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/config/reference/{kind}/{id}:
+    get:
+      operationId: config_reference_detail
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - config
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: config_reference_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - config
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/config/reference/{kind}/{id}/aliases:
+    post:
+      operationId: config_reference_aliases_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - config
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Alias'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Alias'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Alias'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/config/reference/{kind}/{id}/deactivate:
+    post:
+      operationId: config_reference_deactivate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - config
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferenceReason'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReferenceReason'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReferenceReason'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/config/reference/{kind}/{id}/reactivate:
+    post:
+      operationId: config_reference_reactivate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - config
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferenceReason'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReferenceReason'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReferenceReason'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/config/settings:
+    get:
+      operationId: config_settings_list
+      tags:
+      - config
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Setting'
+          description: ''
+    post:
+      operationId: config_settings_create
+      tags:
+      - config
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingChange'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SettingChange'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SettingChange'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/health:
     get:
       operationId: health_retrieve
@@ -652,6 +945,19 @@ paths:
           description: ''
 components:
   schemas:
+    Alias:
+      type: object
+      properties:
+        alias:
+          type: string
+        source:
+          type: string
+          default: ''
+        scope:
+          type: string
+          default: ''
+      required:
+      - alias
     AuditEvent:
       type: object
       properties:
@@ -719,6 +1025,29 @@ components:
       description: |-
         * `ok` - ok
         * `unavailable` - unavailable
+    Flag:
+      type: object
+      properties:
+        key:
+          type: string
+          readOnly: true
+        description:
+          type: string
+        enabled:
+          type: boolean
+        environments:
+          type: array
+          items:
+            type: string
+        roles:
+          type: array
+          items:
+            type: string
+        reason:
+          type: string
+          writeOnly: true
+      required:
+      - key
     Health:
       type: object
       properties:
@@ -869,6 +1198,27 @@ components:
           format: email
       required:
       - email
+    PatchedFlag:
+      type: object
+      properties:
+        key:
+          type: string
+          readOnly: true
+        description:
+          type: string
+        enabled:
+          type: boolean
+        environments:
+          type: array
+          items:
+            type: string
+        roles:
+          type: array
+          items:
+            type: string
+        reason:
+          type: string
+          writeOnly: true
     PatchedRole:
       type: object
       properties:
@@ -930,6 +1280,12 @@ components:
           type: string
           default: ''
           maxLength: 300
+    ReferenceReason:
+      type: object
+      properties:
+        reason:
+          type: string
+          default: ''
     Role:
       type: object
       properties:
@@ -980,6 +1336,49 @@ components:
       description: |-
         * `all` - all
         * `assigned` - assigned
+    Setting:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        value:
+          type: integer
+        default:
+          type: integer
+        min:
+          type: integer
+        max:
+          type: integer
+      required:
+      - default
+      - key
+      - label
+      - max
+      - min
+      - value
+    SettingChange:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: integer
+        reason:
+          type: string
+        password:
+          type: string
+          writeOnly: true
+        code:
+          type: string
+          writeOnly: true
+          default: ''
+      required:
+      - key
+      - password
+      - reason
+      - value
     User:
       type: object
       properties:

@@ -27,6 +27,9 @@ if not SECRET_KEY:
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
+# Which deployment this is; feature flags can target environments (T-039).
+APP_ENV = os.environ.get("APP_ENV", "development")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

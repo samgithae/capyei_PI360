@@ -1,3 +1,2 @@
-"""Public interface of apps.participants. Other modules import only this module
-(doc 04 §4: modules talk through service interfaces, never through each
-other's models). Empty until the module's first story lands."""
+"""Public interface of apps.participants. Creation and the import pipeline arrive with T-040;
+this task delivers the schema and the scope rules."""

@@ -16,7 +16,8 @@ gate (G3, G4).
 | Referrals | `referral.stage_changed`, `referral.corrected` (FR-17) | T-046 | pending |
 | Overrides | `match.overridden` | T-144 | pending |
 | Outcomes | `placement.recorded`, `placement.corrected` | later M3 | pending |
-| Configuration | `setting.changed` (protected), `flag.changed` | T-039 | pending |
+| Configuration | `setting.changed` (protected), `flag.changed`, `auth.step_up_failed` | T-039 | done |
+| Reference data | `reference.created`, `reference.changed`, `reference.deactivated`, `reference.reactivated`, `reference.alias_added` | T-057 | done |
 | Exports | `export.requested`, `export.downloaded` | M4 | pending |
 
 Rules for callers: pass IDs and changed fields only; never secrets, passwords or whole records;

@@ -38,6 +38,14 @@ MATRIX = {
     "identity/users/<int:pk>/roles": {"PUT": "identity.manage_roles"},
     "identity/users/<int:pk>/scopes": {"PUT": "identity.manage_roles"},
     "audit/events": {"GET": "audit.view"},
+    "config/reference/<str:kind>": {"GET": "config.view", "POST": "reference.manage"},
+    "config/reference/<str:kind>/<uuid:pk>": {"GET": "config.view", "PATCH": "reference.manage"},
+    "config/reference/<str:kind>/<uuid:pk>/deactivate": {"POST": "reference.manage"},
+    "config/reference/<str:kind>/<uuid:pk>/reactivate": {"POST": "reference.manage"},
+    "config/reference/<str:kind>/<uuid:pk>/aliases": {"POST": "reference.manage"},
+    "config/flags": {"GET": "config.view"},
+    "config/flags/<str:key>": {"PATCH": "config.manage"},
+    "config/settings": {"GET": "config.view", "POST": "config.manage_protected"},
 }
 
 
@@ -60,7 +68,12 @@ def test_every_route_is_in_the_matrix():
 
 
 def concrete(route):
-    return "/api/v1/" + route.replace("<int:pk>", "999999")
+    return "/api/v1/" + (
+        route.replace("<int:pk>", "999999")
+        .replace("<uuid:pk>", "00000000-0000-0000-0000-000000000000")
+        .replace("<str:kind>", "sectors")
+        .replace("<str:key>", "x")
+    )
 
 
 ROLES = [r["name"] for r in DEFAULT_ROLES if r["active"]]

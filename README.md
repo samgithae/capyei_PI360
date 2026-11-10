@@ -98,3 +98,17 @@ CAP-YEI organisation with branch protection and required CI checks.
 - Restricted permissions (`restricted.*`, `exports.identifiable`) are never in a role; they are granted per user with a purpose and an expiry.
 - Record scope (all / assigned programme, cohort, region, officer) is applied through `apps.api.access`; out-of-scope records return 404.
 - API views are deny-by-default: declare `required_permission`. `tests/test_authz_matrix.py` fails if a route is not classified.
+
+## Reference data, flags and protected settings (T-038, T-057, T-039)
+
+- **Reference data** lives in `apps.configuration` (sectors, the 47 seeded counties, sub-counties,
+  wards, institutions, programmes, courses, cohorts, cohort-courses). Records are deactivated,
+  never deleted; a code never changes; a rename keeps history in `ReferenceLabel`; source
+  spellings resolve through approved `ReferenceAlias` rows. API: `/api/v1/config/reference/<kind>`.
+- **Feature flags** are off unless a row exists and the environment (`APP_ENV`) and role audience
+  match. Gate a view with `permission_classes = [HasPermission, FlagGate]` and `required_flag`;
+  an off flag makes the route 404.
+- **Protected settings** (`config.manage_protected`) need the caller's password, plus a TOTP code
+  when they have an authenticator, and a reason. Failures are audited as `auth.step_up_failed`.
+- **Participants** (`apps.participants`): officer-visible tables only. Scope is applied through
+  `Participant.objects.visible_to(user)`. Restricted identity/background tables wait on D-063.
