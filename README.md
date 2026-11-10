@@ -67,7 +67,7 @@ Unauthenticated requests get 401; a signed-in user without permission gets 403.
 
 - Lockout: `AUTH_MAX_FAILURES` (5) failures lock a username for `AUTH_LOCKOUT_SECONDS` (900).
 - Sessions: idle `SESSION_IDLE_SECONDS` (1800), absolute `SESSION_ABSOLUTE_SECONDS` (28800).
-- MFA (TOTP) is required for superusers, Django staff and the groups in `AUTH_MFA_GROUPS`
+- MFA (TOTP) is required for superusers, Django staff and the roles named in `AUTH_MFA_ROLES`
   (default `Administrator`). `AUTH_MFA_ALL_STAFF=1` extends it to everyone (open decision D-031).
 - Reset emails use `EMAIL_BACKEND` (console until D-016/D-042) and link to `FRONTEND_URL`.
 - `/admin/` is mounted only when `DJANGO_ENABLE_ADMIN` is on (default: debug). It bypasses lockout
@@ -91,3 +91,10 @@ Audit tests need PostgreSQL (CI has it); on SQLite they skip.
 
 Kept local until repository ownership is decided (D-032). Then it moves to the
 CAP-YEI organisation with branch protection and required CI checks.
+
+## Access control (T-035)
+
+- Roles are data (editable by an Administrator); the permission catalogue is in code (`apps/identity/catalogue.py`).
+- Restricted permissions (`restricted.*`, `exports.identifiable`) are never in a role; they are granted per user with a purpose and an expiry.
+- Record scope (all / assigned programme, cohort, region, officer) is applied through `apps.api.access`; out-of-scope records return 404.
+- API views are deny-by-default: declare `required_permission`. `tests/test_authz_matrix.py` fails if a route is not classified.

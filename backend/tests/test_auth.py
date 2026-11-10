@@ -3,7 +3,7 @@
 import time
 
 import pytest
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import User
 from django.core import mail
 from django.test import Client
 from django.utils.encoding import force_bytes
@@ -42,9 +42,10 @@ def staff(db):
 
 
 @pytest.fixture
-def admin(db):
-    u = User.objects.create_user("admin1", "admin1@example.org", PW)
-    u.groups.add(Group.objects.get_or_create(name="Administrator")[0])
+def admin(make_user):
+    u = make_user("admin1", "Administrator")
+    u.set_password(PW)
+    u.save()
     return u
 
 

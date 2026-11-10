@@ -1,0 +1,108 @@
+"""Authorisation matrix harness (T-035, SEC-06): every API route is classified, and each
+classification is checked against every role. A new route without an entry fails the build."""
+
+import pytest
+from django.test import Client
+from django.urls import URLPattern, URLResolver, get_resolver
+
+from apps.identity.defaults import DEFAULT_ROLES
+
+PUBLIC = "public"  # reachable without signing in
+SIGNED_IN = "signed_in"  # any signed-in user
+
+# route (without the api/v1/ prefix) -> {HTTP method: PUBLIC | SIGNED_IN | permission code}
+MATRIX = {
+    "health": {"GET": PUBLIC},
+    "me": {"GET": PUBLIC},
+    "schema/": {"GET": PUBLIC},
+    "auth/login": {"POST": PUBLIC},
+    "auth/logout": {"POST": PUBLIC},
+    "auth/mfa/setup": {"POST": PUBLIC},
+    "auth/mfa/confirm": {"POST": PUBLIC},
+    "auth/mfa/verify": {"POST": PUBLIC},
+    "auth/password/reset": {"POST": PUBLIC},
+    "auth/password/reset/confirm": {"POST": PUBLIC},
+    "auth/password/change": {"POST": SIGNED_IN},
+    "identity/permissions": {"GET": "identity.manage_roles"},
+    "identity/roles": {"GET": "identity.manage_roles", "POST": "identity.manage_roles"},
+    "identity/roles/<int:pk>": {
+        "GET": "identity.manage_roles",
+        "PATCH": "identity.manage_roles",
+        "DELETE": "identity.manage_roles",
+    },
+    "audit/events": {"GET": "audit.view"},
+}
+
+
+def routes(resolver=None, prefix=""):
+    resolver = resolver or get_resolver()
+    for p in resolver.url_patterns:
+        text = prefix + str(p.pattern)
+        if isinstance(p, URLResolver):
+            yield from routes(p, text)
+        elif isinstance(p, URLPattern):
+            yield text
+
+
+def api_routes():
+    return sorted(r.removeprefix("api/v1/") for r in routes() if r.startswith("api/v1/"))
+
+
+def test_every_route_is_in_the_matrix():
+    assert set(api_routes()) == set(MATRIX), "classify new routes in tests/test_authz_matrix.py"
+
+
+def concrete(route):
+    return "/api/v1/" + route.replace("<int:pk>", "999999")
+
+
+ROLES = [r["name"] for r in DEFAULT_ROLES if r["active"]]
+CASES = [(route, method, rule) for route, rules in MATRIX.items() for method, rule in rules.items()]
+
+
+def call(client, method, route):
+    url = concrete(route)
+    if method == "GET":
+        return client.get(url)
+    return getattr(client, method.lower())(url, {}, content_type="application/json")
+
+
+@pytest.mark.parametrize("route,method,rule", CASES)
+def test_anonymous(route, method, rule):
+    status = call(Client(), method, route).status_code
+    if rule == PUBLIC:
+        assert status not in (401, 403), (route, method, status)
+    else:
+        assert status == 401, (route, method, status)
+
+
+@pytest.mark.parametrize("role", ROLES)
+@pytest.mark.parametrize("route,method,rule", CASES)
+def test_each_role(make_user, role, route, method, rule):
+    allowed = {r["name"]: set(r["permissions"]) for r in DEFAULT_ROLES}[role]
+    c = Client()
+    c.force_login(make_user("u", role))
+    status = call(c, method, route).status_code
+    if rule in (PUBLIC, SIGNED_IN) or rule in allowed:
+        assert status != 403 and status != 401, (role, route, method, status)
+    else:
+        assert status == 403, (role, route, method, status)
+
+
+@pytest.mark.parametrize("route,method,rule", CASES)
+def test_signed_in_user_with_no_role_gets_only_public_and_signed_in(make_user, route, method, rule):
+    c = Client()
+    c.force_login(make_user("norole"))
+    status = call(c, method, route).status_code
+    if rule in (PUBLIC, SIGNED_IN):
+        assert status not in (401, 403)
+    else:
+        assert status == 403
+
+
+def test_every_permission_in_the_matrix_exists():
+    from apps.identity.catalogue import BY_CODE
+
+    for rules in MATRIX.values():
+        for rule in rules.values():
+            assert rule in (PUBLIC, SIGNED_IN) or rule in BY_CODE

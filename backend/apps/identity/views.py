@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import access, services
 from .serializers import MeSerializer
 
 
@@ -24,6 +25,8 @@ class MeView(APIView):
             {
                 "authenticated": True,
                 "username": user.get_username(),
-                "roles": sorted(user.groups.values_list("name", flat=True)),
+                "roles": services.role_names(user),
+                "permissions": sorted(access.IdentityAccess().permissions(user)),
+                "scope": access.scope_summary(user),
             }
         )

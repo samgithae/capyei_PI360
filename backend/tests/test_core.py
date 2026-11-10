@@ -1,5 +1,4 @@
 import pytest
-from django.contrib.auth.models import Group, User
 
 
 @pytest.mark.django_db
@@ -17,16 +16,15 @@ def test_me_anonymous_sets_csrf_cookie(client):
     assert "csrftoken" in res.cookies
 
 
-@pytest.mark.django_db
-def test_me_signed_in_lists_roles(client):
-    user = User.objects.create_user("officer", password="a-long-test-password")
-    user.groups.add(Group.objects.create(name="Placement officer"))
+def test_me_signed_in_lists_roles_permissions_scope(client, make_user):
+    user = make_user("officer", "Placement officer")
     client.force_login(user)
-    assert client.get("/api/v1/me").json() == {
-        "authenticated": True,
-        "username": "officer",
-        "roles": ["Placement officer"],
-    }
+    body = client.get("/api/v1/me").json()
+    assert body["authenticated"] is True and body["username"] == "officer"
+    assert body["roles"] == ["Placement officer"]
+    assert "participants.view" in body["permissions"]
+    assert "audit.view" not in body["permissions"]
+    assert body["scope"] == {"mode": "assigned", "assignments": []}
 
 
 def test_argon2_is_default_hasher(settings):

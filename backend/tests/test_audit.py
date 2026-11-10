@@ -1,7 +1,7 @@
 """Audit framework (T-037, SEC-09): append-only, hash-chained, viewable by role."""
 
 import pytest
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import User
 from django.db import connection, transaction
 from django.db.utils import InternalError, ProgrammingError
 
@@ -172,15 +172,14 @@ def test_concurrent_writers_keep_one_unbroken_chain(audit_db):
 
 
 @pytest.mark.django_db
-def test_viewer_requires_permission(client):
+def test_viewer_requires_permission(client, make_user):
     make(2)
     assert client.get("/api/v1/audit/events").status_code in (401, 403)
-    plain = User.objects.create_user("plain", password="a-long-test-password")
-    client.force_login(plain)
+    officer = make_user("plain", "Placement officer")
+    client.force_login(officer)
     assert client.get("/api/v1/audit/events").status_code == 403
-    plain.user_permissions.add(Permission.objects.get(codename="view_auditevent"))
-    client.force_login(User.objects.get(pk=plain.pk))
-    res = client.get("/api/v1/audit/events")
+    client.force_login(make_user("boss", "Administrator"))
+    res = client.get("/api/v1/audit/events?object_type=referral")
     assert res.status_code == 200
     body = res.json()
     assert [e["object_id"] for e in body["results"]] == ["101", "100"]  # newest first

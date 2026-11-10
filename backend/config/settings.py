@@ -128,9 +128,9 @@ if not DEBUG:
 # Staff authentication (T-034, FR-01, SEC-10). Defaults follow ADR-018 while D-031 is open.
 AUTH_MAX_FAILURES = int(os.environ.get("AUTH_MAX_FAILURES", 5))
 AUTH_LOCKOUT_SECONDS = int(os.environ.get("AUTH_LOCKOUT_SECONDS", 15 * 60))
-# MFA is required for superusers, Django staff and members of these groups. Set
+# MFA is required for superusers, Django staff and holders of these roles. Set
 # AUTH_MFA_ALL_STAFF=1 if CAP-YEI decides every staff account needs it (D-031).
-AUTH_MFA_GROUPS = env_list("AUTH_MFA_GROUPS", "Administrator")
+AUTH_MFA_ROLES = env_list("AUTH_MFA_ROLES", "Administrator")
 AUTH_MFA_ALL_STAFF = env_bool("AUTH_MFA_ALL_STAFF", False)
 AUTH_MFA_PENDING_SECONDS = 5 * 60
 OTP_TOTP_ISSUER = "CAP-YEI PI 360"
@@ -147,9 +147,9 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "apps.identity.authentication.SessionAuthentication401",
     ],
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
-    ],
+    # Closed by default (SEC-06): a view must declare required_permission, or say
+    # explicitly that it is public or sign-in only.
+    "DEFAULT_PERMISSION_CLASSES": ["apps.api.access.HasPermission"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.api.problems.exception_handler",

@@ -5,6 +5,8 @@ class MeSerializer(serializers.Serializer):
     authenticated = serializers.BooleanField()
     username = serializers.CharField(required=False)
     roles = serializers.ListField(child=serializers.CharField(), required=False)
+    permissions = serializers.ListField(child=serializers.CharField(), required=False)
+    scope = serializers.DictField(required=False)
 
 
 class LoginSerializer(serializers.Serializer):
@@ -38,3 +40,21 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     uid = serializers.CharField()
     token = serializers.CharField()
     new_password = serializers.CharField(max_length=256, trim_whitespace=False)
+
+
+class PermissionSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    label = serializers.CharField()
+    group = serializers.CharField()
+    grant_only = serializers.BooleanField()
+
+
+class RoleSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(max_length=80)
+    description = serializers.CharField(max_length=300, allow_blank=True, required=False)
+    permissions = serializers.ListField(child=serializers.CharField(), required=False)
+    scope_mode = serializers.ChoiceField(choices=["all", "assigned"], required=False)
+    active = serializers.BooleanField(required=False)
+    is_system = serializers.BooleanField(read_only=True)
+    user_count = serializers.IntegerField(read_only=True)
