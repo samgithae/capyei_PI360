@@ -36,10 +36,23 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
-    "apps.core",
+    "apps.api",
+    "apps.platform",
+    "apps.audit",
+    "apps.configuration",
+    "apps.identity",
+    "apps.participants",
+    "apps.employers",
+    "apps.referrals",
+    "apps.placements",
+    "apps.intelligence",
+    "apps.imports",
+    "apps.dataquality",
+    "apps.reporting",
 ]
 
 MIDDLEWARE = [
+    "apps.platform.observability.RequestIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -113,6 +126,17 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "apps.api.problems.exception_handler",
+    "DEFAULT_PAGINATION_CLASS": "apps.api.pagination.DefaultCursorPagination",
+    "PAGE_SIZE": 50,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.environ.get("API_THROTTLE_ANON", "60/min"),
+        "user": os.environ.get("API_THROTTLE_USER", "600/min"),
+    },
 }
 
 SPECTACULAR_SETTINGS = {
@@ -130,10 +154,23 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Structured JSON logs with the request ID on every line (CMP-15).
+# LOG_FORMAT=text gives plain lines for local reading.
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "filters": {"request_id": {"()": "apps.platform.observability.RequestIdFilter"}},
+    "formatters": {
+        "json": {"()": "apps.platform.observability.JsonFormatter"},
+        "text": {"format": "%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s"},
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "filters": ["request_id"],
+            "formatter": os.environ.get("LOG_FORMAT", "json"),
+        }
+    },
     "root": {"handlers": ["console"], "level": os.environ.get("LOG_LEVEL", "INFO")},
 }
 

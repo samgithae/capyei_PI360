@@ -14,6 +14,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "import-linter>=2.16",
     "pytest>=9.2.0",
     "pytest-django>=4.14.0",
     "ruff>=0.17.4",
@@ -34,3 +35,113 @@ ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S106"]
+
+[tool.importlinter]
+root_packages = ["apps", "config", "pi360_rules"]
+include_external_packages = true
+
+# Generated from doc 04 §4.1 "Depends on". Each module may import only the
+# modules listed there, plus apps.api (shared API conventions).
+
+[[tool.importlinter.contracts]]
+name = "CMP-02 API conventions import no domain module"
+type = "forbidden"
+source_modules = ["apps.api"]
+forbidden_modules = ["apps.identity", "apps.participants", "apps.employers", "apps.referrals", "apps.placements", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "apps.audit", "apps.configuration", "apps.platform", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-03 Identity & access imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.identity"]
+forbidden_modules = ["apps.participants", "apps.employers", "apps.referrals", "apps.placements", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "apps.configuration", "apps.platform", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-04 Participants imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.participants"]
+forbidden_modules = ["apps.identity", "apps.employers", "apps.referrals", "apps.placements", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "apps.platform", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-05 Employers & opportunities imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.employers"]
+forbidden_modules = ["apps.identity", "apps.participants", "apps.referrals", "apps.placements", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "apps.platform", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-06 Referrals & cases imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.referrals"]
+forbidden_modules = ["apps.identity", "apps.placements", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "apps.platform", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-07 Placements & follow-up imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.placements"]
+forbidden_modules = ["apps.identity", "apps.participants", "apps.employers", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-09 Intelligence services imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.intelligence"]
+forbidden_modules = ["apps.identity", "apps.imports", "apps.dataquality", "apps.reporting", "apps.configuration", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-10 Import & reconciliation imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.imports"]
+forbidden_modules = ["apps.identity", "apps.referrals", "apps.placements", "apps.intelligence", "apps.reporting", "apps.configuration", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-11 Data quality & duplicates imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.dataquality"]
+forbidden_modules = ["apps.identity", "apps.participants", "apps.employers", "apps.referrals", "apps.placements", "apps.intelligence", "apps.imports", "apps.reporting", "apps.configuration", "apps.platform", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-12 Reporting & exports imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.reporting"]
+forbidden_modules = ["apps.imports", "apps.dataquality", "apps.audit", "apps.configuration", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-13 Audit & history imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.audit"]
+forbidden_modules = ["apps.identity", "apps.participants", "apps.employers", "apps.referrals", "apps.placements", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "apps.configuration", "apps.platform", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-14 Configuration imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.configuration"]
+forbidden_modules = ["apps.identity", "apps.participants", "apps.employers", "apps.referrals", "apps.placements", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "apps.platform", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "CMP-15 Platform imports only its documented dependencies"
+type = "forbidden"
+source_modules = ["apps.platform"]
+forbidden_modules = ["apps.identity", "apps.participants", "apps.employers", "apps.referrals", "apps.placements", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "apps.audit", "apps.configuration", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "No domain module depends on intelligence, even indirectly (AI-A3)"
+type = "forbidden"
+source_modules = ["apps.identity", "apps.participants", "apps.employers", "apps.referrals", "apps.placements", "apps.imports", "apps.dataquality", "apps.audit", "apps.configuration", "apps.platform", "apps.api"]
+forbidden_modules = ["apps.intelligence"]
+
+[[tool.importlinter.contracts]]
+name = "CMP-08 Rules engine is pure: no Django, DRF or app imports"
+type = "forbidden"
+source_modules = ["pi360_rules"]
+forbidden_modules = ["apps", "config", "django", "rest_framework"]

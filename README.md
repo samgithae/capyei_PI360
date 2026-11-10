@@ -37,9 +37,27 @@ cd frontend && npm ci && npm run dev    # http://localhost:5173
 ## Checks
 
 ```bash
-cd backend && uv run ruff check . && uv run pytest
+cd backend && uv run ruff check . && uv run lint-imports && uv run pytest
 cd frontend && npm run lint && npm run build
 ```
+
+After changing an API, regenerate the committed schema (CI fails if it is stale):
+
+```bash
+cd backend && DJANGO_DEBUG=1 uv run python manage.py spectacular --validate --file openapi.yaml
+```
+
+## Backend structure (doc 04 §4)
+
+- `backend/apps/<module>/`: one Django app per component (CMP-03 to CMP-15).
+  Another module may import only `apps.<module>.services`, never its models or
+  views. `apps/api/` holds the shared API conventions (CMP-02).
+- `backend/pi360_rules/`: the rules engine (CMP-08). Pure Python; no Django.
+- Allowed dependencies are import-linter contracts in `backend/pyproject.toml`,
+  copied from doc 04 §4.1. Changing one is an architecture change: update doc 04 first.
+- API errors are `application/problem+json` (RFC 9457) with a `request_id`.
+  Every response carries `X-Request-ID`; logs are JSON lines with the same ID
+  (`LOG_FORMAT=text` for plain local logs).
 
 ## Repository
 

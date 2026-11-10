@@ -33,8 +33,16 @@ jobs:
       - run: uv sync --frozen
       - run: uv run ruff check .
       - run: uv run ruff format --check .
+      - name: Architecture contracts (doc 04 §4)
+        run: uv run lint-imports
       - run: uv run python manage.py makemigrations --check --dry-run
-      - run: uv run python manage.py spectacular --validate --file openapi.yaml
+      - name: OpenAPI schema is valid and committed
+        run: |
+          uv run python manage.py spectacular --validate --fail-on-warn --file openapi.yaml
+          git diff --exit-code -- openapi.yaml || {
+            echo "::error::openapi.yaml is out of date. Regenerate it with: uv run python manage.py spectacular --file openapi.yaml, then commit it."
+            exit 1
+          }
       - run: uv run pytest
 
   frontend:

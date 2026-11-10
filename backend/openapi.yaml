@@ -1,0 +1,93 @@
+openapi: 3.0.3
+info:
+  title: PI 360 API
+  version: 0.1.0
+paths:
+  /api/v1/health:
+    get:
+      operationId: health_retrieve
+      description: Liveness and database check for load balancers and the SPA.
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+  /api/v1/me:
+    get:
+      operationId: me_retrieve
+      description: |-
+        Who is signed in. Sets the CSRF cookie for the SPA (ADR-023).
+        Roles and permissions arrive with the identity module (T-142).
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+          description: ''
+components:
+  schemas:
+    DatabaseEnum:
+      enum:
+      - ok
+      - unavailable
+      type: string
+      description: |-
+        * `ok` - ok
+        * `unavailable` - unavailable
+    Health:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        database:
+          $ref: '#/components/schemas/DatabaseEnum'
+        version:
+          type: string
+      required:
+      - database
+      - status
+      - version
+    Me:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+        username:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+      required:
+      - authenticated
+    StatusEnum:
+      enum:
+      - ok
+      - degraded
+      type: string
+      description: |-
+        * `ok` - ok
+        * `degraded` - degraded
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
