@@ -389,4 +389,13 @@ class PlacementStatusMapView(APIView):
         )
 
 
+class PlacementProposedStatusesView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"POST": COMMIT}
+
+    @extend_schema(request=None, responses={200: dict})
+    def post(self, request, pk):
+        return Response(_run(services.load_proposed_statuses, actor=request.user, batch=_batch(pk)))
+
+
 BatchRecheckView = _action("recheck", COMMIT, "recheck")

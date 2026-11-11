@@ -538,7 +538,13 @@ export function ImportBatchPage() {
 
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               <Count label="Rows in file" value={c.total} hint="data rows" />
-              <Count label="Will create" value={c.create} hint="new people" />
+              <Count
+                label="Will create"
+                value={c.create}
+                hint={
+                  b?.target === 'placements' ? 'new placements' : 'new people'
+                }
+              />
               <Count
                 label="Will update"
                 value={c.update}
@@ -695,8 +701,9 @@ export function ImportBatchPage() {
                     <CardContent className="space-y-3">
                       <h2 className="font-medium">Roll back this import</h2>
                       <p className="text-sm text-muted-foreground">
-                        Reverts what this file created or changed. It is refused
-                        if people from this file have since been merged.
+                        {b?.target === 'placements'
+                          ? 'Removes the placements this file added and undoes the employer details and name decisions made for it. It is refused if any of them has been verified.'
+                          : 'Reverts what this file created or changed. It is refused if people from this file have since been merged.'}
                       </p>
                       <Input
                         placeholder="Reason (required)"

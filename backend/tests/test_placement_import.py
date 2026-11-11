@@ -155,3 +155,11 @@ def test_review_refused_for_participant_batches_and_after_approval(tpl, steward)
     services.approve(actor=steward, batch=b)
     with pytest.raises(services.ImportFailure):
         services.placement_review(b)
+
+
+def test_same_person_twice_in_a_file_warns_but_both_load(tpl, steward):  # noqa: F811
+    b = up(steward, tpl, "P1,E-001,Employment,Acme,,,,", "P1,E-001,Employment,Beta,,,,")
+    second = b.rows.get(row_no=2)
+    assert any("Same person as row 1" in w["message"] for w in second.warnings)
+    load(steward, b)
+    assert Placement.objects.count() == 2

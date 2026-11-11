@@ -85,6 +85,14 @@ export function PlacementReview({
       toast.success('Status mapped. Re-check the batch to release its rows.');
     },
   });
+  const proposed = useMutation({
+    mutationFn: () =>
+      post<Review>(`/imports/batches/${id}/review/statuses/proposed`),
+    onSuccess: () => {
+      refresh();
+      toast.success('Proposed map loaded. Re-check the batch to release rows.');
+    },
+  });
   const decide = useMutation({
     mutationFn: (v: {
       key: string;
@@ -105,7 +113,8 @@ export function PlacementReview({
     },
   });
 
-  const error = mapStatus.error ?? decide.error ?? recheck.error;
+  const error =
+    mapStatus.error ?? decide.error ?? recheck.error ?? proposed.error;
   const r = review.data;
   if (!r) return null;
 
@@ -130,6 +139,14 @@ export function PlacementReview({
                 Rows with these values are held until someone says what they
                 mean. The choice applies to every later file too.
               </p>
+              <Button
+                variant="outline"
+                disabled={!canDecide || proposed.isPending}
+                onClick={() => proposed.mutate()}
+              >
+                Use the proposed map (Employment, Entrepreneur, Further Studies,
+                declined offers)
+              </Button>
               {r.unmapped_statuses.map((u) => (
                 <div
                   key={u.value}

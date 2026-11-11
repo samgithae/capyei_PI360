@@ -19,5 +19,9 @@ urlpatterns = [
     path("imports/batches/<uuid:pk>/review", v.PlacementReviewView.as_view()),
     path("imports/batches/<uuid:pk>/review/employers", v.PlacementEmployerDecisionView.as_view()),
     path("imports/batches/<uuid:pk>/review/statuses", v.PlacementStatusMapView.as_view()),
+    path(
+        "imports/batches/<uuid:pk>/review/statuses/proposed",
+        v.PlacementProposedStatusesView.as_view(),
+    ),
     path("imports/batches/<uuid:pk>/recheck", v.BatchRecheckView.as_view()),
 ]

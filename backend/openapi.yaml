@@ -1508,6 +1508,28 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/imports/batches/{id}/review/statuses/proposed:
+    post:
+      operationId: imports_batches_review_statuses_proposed_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/imports/batches/{id}/rollback:
     post:
       operationId: imports_batch_rollback

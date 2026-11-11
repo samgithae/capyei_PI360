@@ -248,6 +248,17 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
                     )
                 else:
                     seen_keys[checked.source_key] = n
+            if checked.source_key and target == "placements" and not errors:
+                if checked.source_key in seen_keys:
+                    checked.warnings.append(
+                        {
+                            "field": "enrollment_no",
+                            "message": f"Same person as row {seen_keys[checked.source_key]}; "
+                            "each row is recorded as its own placement.",
+                        }
+                    )
+                else:
+                    seen_keys[checked.source_key] = n
             if errors:
                 outcome = ImportRow.HELD
             elif checked.match == "exact" and not ALLOW_UPDATES:
@@ -702,6 +713,16 @@ def map_placement_status(
             actor=actor, source_value=source_value, status=status,
             pathway=pathway, is_placement=is_placement,
         )  # fmt: skip
+    except ValueError as exc:
+        raise ImportFailure(str(exc), "status") from exc
+    return placement_review(batch)
+
+
+def load_proposed_statuses(*, actor, batch) -> dict:
+    """Fill the status map from the doc 14 section 6 proposal (D-061); mapped values stay."""
+    _need_placements(batch)
+    try:
+        placements.load_proposed(actor=actor)
     except ValueError as exc:
         raise ImportFailure(str(exc), "status") from exc
     return placement_review(batch)
