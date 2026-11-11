@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
@@ -19,8 +20,18 @@ import {
   ParticipantStatus,
   SearchBox,
 } from '@/components/data-card';
+import {
+  BulkBar,
+  RowActions,
+  RowCheckbox,
+  SelectAllHead,
+  ShowArchived,
+  useArchiveFlow,
+  useSelection,
+} from '@/components/shared/bulk';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { EditParticipant } from './participant-edit';
 
 interface Row {
   id: string;
@@ -28,6 +39,7 @@ interface Row {
   gender: string;
   age: number | null;
   status: string;
+  archived: boolean;
   county: string;
   programmes: string[];
   cohorts: string[];
@@ -49,13 +61,24 @@ interface Options {
 }
 
 const STATUSES = ['active', 'completed', 'withdrawn', 'unknown'];
-const FILTERS = ['q', 'programme', 'cohort', 'county', 'status'] as const;
+const FILTERS = [
+  'q',
+  'programme',
+  'cohort',
+  'county',
+  'status',
+  'archived',
+] as const;
 
 /** Youth directory. With a cohort chosen it doubles as the cohort roster (T-058). */
 export function DirectoryPage() {
   const { can } = useAuth();
   const [params, setParams] = useSearchParams();
   const offset = Number(params.get('offset') ?? 0);
+  const [editing, setEditing] = useState<string | null>(null);
+  const showArchived = params.get('archived') === '1';
+  const canEdit = can('participants.edit');
+  const canArchive = can('records.archive');
 
   const options = useQuery({
     queryKey: ['participant-filters'],
@@ -83,6 +106,17 @@ export function DirectoryPage() {
       !params.get('programme') || c.programme_id === params.get('programme'),
   );
   const data = page.data;
+  const selection = useSelection(
+    data?.results.map((p) => p.id) ?? [],
+    params.toString(),
+  );
+  const archive = useArchiveFlow({
+    path: '/participants',
+    noun: 'participant',
+    nounPlural: 'participants',
+    queryKeys: ['participants'],
+    onDone: selection.clear,
+  });
   const filtered = FILTERS.some((f) => params.get(f));
 
   return (
@@ -103,6 +137,11 @@ export function DirectoryPage() {
           </>
         }
       />
+
+      {archive.dialog}
+      {editing && (
+        <EditParticipant id={editing} onClose={() => setEditing(null)} />
+      )}
 
       <DataCard
         toolbar={
@@ -137,6 +176,12 @@ export function DirectoryPage() {
               onChange={(v) => set('status', v)}
               className="w-36 capitalize"
             />
+            {canArchive && (
+              <ShowArchived
+                checked={showArchived}
+                onChange={(v) => set('archived', v ? '1' : '')}
+              />
+            )}
             {filtered && (
               <Button variant="outline" onClick={() => setParams({})}>
                 Clear
@@ -166,19 +211,48 @@ export function DirectoryPage() {
           </div>
         )}
         {data && data.results.length > 0 && (
+          <BulkBar
+            count={selection.selected.length}
+            noun="participant(s)"
+            archived={showArchived}
+            canArchive={canArchive}
+            onArchive={() => archive.request(selection.selected, true)}
+            onRestore={() => archive.request(selection.selected, false)}
+            onClear={selection.clear}
+          />
+        )}
+        {data && data.results.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40">
+                {canArchive && <SelectAllHead selection={selection} />}
                 <TableHead>Name</TableHead>
                 <TableHead>Programme</TableHead>
                 <TableHead>Cohort</TableHead>
                 <TableHead>County</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="w-12">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.results.map((p) => (
-                <TableRow key={p.id}>
+                <TableRow
+                  key={p.id}
+                  data-state={
+                    selection.isSelected(p.id) ? 'selected' : undefined
+                  }
+                >
+                  {canArchive && (
+                    <TableCell>
+                      <RowCheckbox
+                        selection={selection}
+                        id={p.id}
+                        label={`Select ${p.name}`}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Link
                       className="font-medium text-foreground hover:text-primary"
@@ -192,6 +266,24 @@ export function DirectoryPage() {
                   <TableCell>{p.county}</TableCell>
                   <TableCell>
                     <ParticipantStatus status={p.status} />
+                  </TableCell>
+                  <TableCell>
+                    <RowActions
+                      label={p.name}
+                      viewTo={`/youth/${p.id}`}
+                      archived={p.archived}
+                      onEdit={canEdit ? () => setEditing(p.id) : undefined}
+                      onArchive={
+                        canArchive
+                          ? () => archive.request([p.id], true)
+                          : undefined
+                      }
+                      onRestore={
+                        canArchive
+                          ? () => archive.request([p.id], false)
+                          : undefined
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ))}

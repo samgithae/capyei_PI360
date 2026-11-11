@@ -20,6 +20,15 @@ import {
   ParticipantStatus,
   SearchBox,
 } from '@/components/data-card';
+import {
+  BulkBar,
+  RowActions,
+  RowCheckbox,
+  SelectAllHead,
+  ShowArchived,
+  useArchiveFlow,
+  useSelection,
+} from '@/components/shared/bulk';
 import { DialogShell } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
@@ -31,6 +40,7 @@ interface Row {
   status: string;
   sector: string;
   county: string;
+  archived: boolean;
 }
 interface Page {
   total: number;
@@ -67,6 +77,20 @@ export function EmployersPage() {
     setParams(next);
   };
   const data = page.data;
+  const showArchived = params.get('archived') === '1';
+  const canEdit = can('employers.edit');
+  const canArchive = can('records.archive');
+  const selection = useSelection(
+    data?.results.map((e) => e.id) ?? [],
+    params.toString(),
+  );
+  const archive = useArchiveFlow({
+    path: '/employers',
+    noun: 'employer',
+    nounPlural: 'employers',
+    queryKeys: ['employers', 'opportunities', 'opportunity-count'],
+    onDone: selection.clear,
+  });
 
   return (
     <div className="container-fluid space-y-5">
@@ -101,6 +125,8 @@ export function EmployersPage() {
           />
         </DialogShell>
       )}
+
+      {archive.dialog}
 
       <DataCard
         footer={
@@ -146,6 +172,12 @@ export function EmployersPage() {
               onChange={(v) => set('status', v)}
               className="w-36 capitalize"
             />
+            {canArchive && (
+              <ShowArchived
+                checked={showArchived}
+                onChange={(v) => set('archived', v ? '1' : '')}
+              />
+            )}
           </>
         }
       >
@@ -160,18 +192,47 @@ export function EmployersPage() {
           </div>
         )}
         {data && data.results.length > 0 && (
+          <BulkBar
+            count={selection.selected.length}
+            noun="employer(s)"
+            archived={showArchived}
+            canArchive={canArchive}
+            onArchive={() => archive.request(selection.selected, true)}
+            onRestore={() => archive.request(selection.selected, false)}
+            onClear={selection.clear}
+          />
+        )}
+        {data && data.results.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40">
+                {canArchive && <SelectAllHead selection={selection} />}
                 <TableHead>Name</TableHead>
                 <TableHead>Sector</TableHead>
                 <TableHead>County</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="w-12">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.results.map((e) => (
-                <TableRow key={e.id}>
+                <TableRow
+                  key={e.id}
+                  data-state={
+                    selection.isSelected(e.id) ? 'selected' : undefined
+                  }
+                >
+                  {canArchive && (
+                    <TableCell>
+                      <RowCheckbox
+                        selection={selection}
+                        id={e.id}
+                        label={`Select ${e.name}`}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Link
                       className="font-medium text-foreground hover:text-primary"
@@ -184,6 +245,24 @@ export function EmployersPage() {
                   <TableCell>{e.county}</TableCell>
                   <TableCell>
                     <ParticipantStatus status={e.status} />
+                  </TableCell>
+                  <TableCell>
+                    <RowActions
+                      label={e.name}
+                      viewTo={`/employers/${e.id}`}
+                      editTo={canEdit ? `/employers/${e.id}?edit=1` : undefined}
+                      archived={e.archived}
+                      onArchive={
+                        canArchive
+                          ? () => archive.request([e.id], true)
+                          : undefined
+                      }
+                      onRestore={
+                        canArchive
+                          ? () => archive.request([e.id], false)
+                          : undefined
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ))}

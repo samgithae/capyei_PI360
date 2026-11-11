@@ -3,7 +3,7 @@ import { useAuth } from '@/auth/auth-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { api, ApiError, post } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -64,7 +64,8 @@ export function EmployerPage() {
   const { can } = useAuth();
   const qc = useQueryClient();
   const canEdit = can('employers.edit');
-  const [editing, setEditing] = useState(false);
+  const [query] = useSearchParams();
+  const [editing, setEditing] = useState(canEdit && query.get('edit') === '1');
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<Contact | null>(null);
   const [contact, setContact] = useState({

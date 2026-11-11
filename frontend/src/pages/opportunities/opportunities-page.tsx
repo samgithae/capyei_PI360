@@ -30,11 +30,21 @@ import {
   Pager,
   SearchBox,
 } from '@/components/data-card';
+import {
+  BulkBar,
+  RowActions,
+  RowCheckbox,
+  SelectAllHead,
+  ShowArchived,
+  useArchiveFlow,
+  useSelection,
+} from '@/components/shared/bulk';
 import { SummaryStatCard } from '@/components/shared/info-card';
 import { FormModal } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { EditOpportunity } from './opportunity-edit';
 
 interface Row {
   id: string;
@@ -45,6 +55,7 @@ interface Row {
   county: string;
   positions: number;
   closing_date: string | null;
+  archived: boolean;
 }
 interface Page {
   total: number;
@@ -203,6 +214,7 @@ export function OpportunitiesPage() {
   const { can } = useAuth();
   const [params, setParams] = useSearchParams();
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
   const offset = Number(params.get('offset') ?? 0);
   const page = useQuery({
     queryKey: ['opportunities', params.toString()],
@@ -216,6 +228,20 @@ export function OpportunitiesPage() {
     setParams(next);
   };
   const data = page.data;
+  const showArchived = params.get('archived') === '1';
+  const canEdit = can('employers.edit');
+  const canArchive = can('records.archive');
+  const selection = useSelection(
+    data?.results.map((o) => o.id) ?? [],
+    params.toString(),
+  );
+  const archive = useArchiveFlow({
+    path: '/opportunities',
+    noun: 'opportunity',
+    nounPlural: 'opportunities',
+    queryKeys: ['opportunities', 'opportunity-count'],
+    onDone: selection.clear,
+  });
   const total = useCount();
   const open = useCount('open');
   const draft = useCount('draft');
@@ -256,6 +282,10 @@ export function OpportunitiesPage() {
         />
       </div>
       <AddOpportunity open={adding} onOpenChange={setAdding} />
+      {archive.dialog}
+      {editing && (
+        <EditOpportunity id={editing} onClose={() => setEditing(null)} />
+      )}
       <DataCard
         footer={
           data && data.total > data.page_size ? (
@@ -292,6 +322,12 @@ export function OpportunitiesPage() {
               onChange={(v) => set('kind', v)}
               className="w-36 capitalize"
             />
+            {canArchive && (
+              <ShowArchived
+                checked={showArchived}
+                onChange={(v) => set('archived', v ? '1' : '')}
+              />
+            )}
           </>
         }
       >
@@ -306,23 +342,49 @@ export function OpportunitiesPage() {
           </div>
         )}
         {data && data.results.length > 0 && (
+          <BulkBar
+            count={selection.selected.length}
+            noun="opportunity(ies)"
+            archived={showArchived}
+            canArchive={canArchive}
+            onArchive={() => archive.request(selection.selected, true)}
+            onRestore={() => archive.request(selection.selected, false)}
+            onClear={selection.clear}
+          />
+        )}
+        {data && data.results.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40">
+                {canArchive && <SelectAllHead selection={selection} />}
                 <TableHead>Title</TableHead>
                 <TableHead>Employer</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Positions</TableHead>
                 <TableHead>Closes</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-20">
+                <TableHead className="w-12">
                   <span className="sr-only">Actions</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.results.map((o) => (
-                <TableRow key={o.id}>
+                <TableRow
+                  key={o.id}
+                  data-state={
+                    selection.isSelected(o.id) ? 'selected' : undefined
+                  }
+                >
+                  {canArchive && (
+                    <TableCell>
+                      <RowCheckbox
+                        selection={selection}
+                        id={o.id}
+                        label={`Select ${o.title}`}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Link
                       className="font-medium text-foreground hover:text-primary"
@@ -339,9 +401,22 @@ export function OpportunitiesPage() {
                     <StatusBadge status={o.status} />
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link to={`/opportunities/${o.id}`}>View</Link>
-                    </Button>
+                    <RowActions
+                      label={o.title}
+                      viewTo={`/opportunities/${o.id}`}
+                      archived={o.archived}
+                      onEdit={canEdit ? () => setEditing(o.id) : undefined}
+                      onArchive={
+                        canArchive
+                          ? () => archive.request([o.id], true)
+                          : undefined
+                      }
+                      onRestore={
+                        canArchive
+                          ? () => archive.request([o.id], false)
+                          : undefined
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ))}
