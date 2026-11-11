@@ -3,8 +3,7 @@
 Application code. The plan, requirements, decisions and registers live in the
 separate `planning/` package; task and requirement IDs (T-xxx, FR-xx) refer to it.
 
-**Status:** Sprint 0 skeleton (T-019) with the ported Metronic shell (T-141).
-No features yet: screens wait for the design sign-off (G2).
+**Status and working rules: see [PROJECT.md](PROJECT.md).**
 
 | Folder | What |
 |---|---|
