@@ -348,6 +348,15 @@ def change_setting(*, actor, key, value, reason, password, code=""):
 # --- lookups for other modules (the import pipeline) ------------------------
 
 
+def _by_name(model, programme, text):
+    """Sheets often carry a cohort or course NAME, not its code: accept an exact name match
+    (case, spacing and punctuation ignored) when it is unambiguous."""
+    hits = list(
+        model.objects.filter(programme=programme, name_normalised=norm(text), active=True)[:2]
+    )
+    return hits[0] if len(hits) == 1 else None
+
+
 def resolve_offering(programme_code, cohort_code, course_code):
     """Find the active programme, cohort and course by code, and the offering joining cohort and
     course. Returns ``(offering_id, programme_id, institution_id, errors)`` where errors is a list
@@ -363,13 +372,13 @@ def resolve_offering(programme_code, cohort_code, course_code):
     if prog and cohort_code:
         cohort = Cohort.objects.filter(
             programme=prog, code__iexact=cohort_code, active=True
-        ).first()
+        ).first() or _by_name(Cohort, prog, cohort_code)
         if cohort is None:
             errors.append(("cohort_code", f"Unknown cohort '{cohort_code}' in this programme."))
     if prog and course_code:
         course = Course.objects.filter(
             programme=prog, code__iexact=course_code, active=True
-        ).first()
+        ).first() or _by_name(Course, prog, course_code)
         if course is None:
             errors.append(("course_code", f"Unknown course '{course_code}' in this programme."))
     if cohort and course:

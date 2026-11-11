@@ -233,3 +233,5 @@ When a file row matches a stored person (same programme + enrollment number), va
 ### Import wizard: seeing your data and the reference codes
 
 On "Say what each column means" every column shows the value from the first data row of your file, so you can tell what it holds. Programme, cohort and course are reference-data codes, not usually sheet columns: the wizard lists the existing codes under "Cohort defaults" and you can click one to use it for the whole file.
+
+A cohort or course may also be given by its exact name (case, spacing and punctuation ignored) instead of its code, when the name is unique within the programme.

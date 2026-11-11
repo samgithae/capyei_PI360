@@ -500,3 +500,11 @@ def test_template_may_omit_defaultable_columns_but_upload_then_needs_defaults(wo
         )
     with pytest.raises(services.ImportFailure, match="full_name"):
         services.create_template(actor=steward, source="bad", columns={"EnrolNo": "enrollment_no"})
+
+
+@pytest.mark.django_db
+def test_cohort_and_course_given_by_name_resolve_like_codes(template, steward):
+    b = upload(steward, template, "Test One,P1,cohort 1,COURSE,E-001,F,21,01")
+    assert b.counts["create"] == 1 and b.counts["held"] == 0
+    bad = upload(steward, template, "Test Two,P1,Cohort 9,C1,E-002,F,21,01", name="g.csv")
+    assert bad.counts["held"] == 1
