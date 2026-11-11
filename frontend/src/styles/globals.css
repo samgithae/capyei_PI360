@@ -169,3 +169,11 @@ html {
 
 /* Metronic Configs */
 @import './config.metronic.css';
+
+/* Browser autofill: keep the field looking like our inputs, not the UA's blue fill */
+input:-webkit-autofill,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--background) inset;
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+}

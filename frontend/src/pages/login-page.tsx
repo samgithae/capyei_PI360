@@ -78,17 +78,31 @@ export function LoginPage() {
         : 'Enter the 6-digit code from your authenticator app.';
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
+    <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Helmet>
         <title>Sign in | PI 360</title>
       </Helmet>
 
       {/* Form side (Metronic auth/signin: card centred in its half) */}
-      <div className="order-2 flex items-center justify-center p-8 lg:order-1 lg:p-10">
-        <Card className="w-full max-w-100">
-          <CardContent className="p-6">
+      <div className="order-2 flex min-w-0 flex-col items-center justify-center gap-6 p-8 lg:order-1 lg:p-10">
+        <Card className="w-full max-w-md overflow-hidden">
+          {/* Brand stripe: the one place the full CAP palette shows */}
+          <div className="flex h-1.5">
+            <span className="flex-1 bg-[#fbc30f]" />
+            <span className="flex-1 bg-[#da251c]" />
+            <span className="flex-1 bg-[#86c127]" />
+          </div>
+          <CardContent className="p-8">
             <form onSubmit={submit} className="space-y-5" noValidate>
               <div className="space-y-1.5 text-center">
+                <img
+                  src="/media/app/cap-logo.png"
+                  alt="CAP Youth Empowerment Institute, Kenya"
+                  className="mx-auto mb-3 h-16 w-auto rounded-md dark:bg-white dark:p-1.5"
+                />
+                <div className="text-xs font-semibold uppercase tracking-wide text-primary">
+                  Placement Intelligence 360
+                </div>
                 <h1 className="text-2xl font-semibold tracking-tight">
                   {title}
                 </h1>
@@ -174,41 +188,31 @@ export function LoginPage() {
             </form>
           </CardContent>
         </Card>
+        <p className="text-center text-sm text-muted-foreground">
+          Trouble signing in? Contact your PI 360 administrator.
+        </p>
       </div>
 
       {/* Branded panel (Metronic BrandedLayout: rounded, bordered, inset on desktop) */}
-      <div className="order-1 flex flex-col overflow-hidden border-border bg-gradient-to-b from-primary/10 via-muted/40 to-background lg:order-2 lg:m-5 lg:rounded-xl lg:border">
-        <div className="flex flex-col gap-4 p-8 lg:p-16">
-          <img
-            src="/media/app/cap-logo.png"
-            alt="CAP Youth Empowerment Institute, Kenya"
-            className="h-20 w-fit max-w-none"
-          />
-          <div className="flex h-1.5 w-20 overflow-hidden rounded-full">
-            <span className="flex-1 bg-[#fbc30f]" />
-            <span className="flex-1 bg-[#da251c]" />
-            <span className="flex-1 bg-[#86c127]" />
-          </div>
-          <div className="flex flex-col gap-3">
-            <h3 className="text-2xl font-semibold text-foreground">
-              Placement Intelligence 360
-            </h3>
-            <div className="text-base font-medium text-secondary-foreground">
-              Linking learning and livelihood,{' '}
-              <span className="font-semibold text-foreground">
-                tracked in one place
-              </span>
-              . Import trainee data, match young people to opportunities and see
-              outcomes across programmes and counties.
-            </div>
+      <div className="order-1 flex min-w-0 flex-col overflow-hidden border-border bg-gradient-to-b from-primary/10 via-muted/40 to-background lg:order-2 lg:m-5 lg:h-[calc(100vh-2.5rem)] lg:rounded-xl lg:border">
+        <div className="flex flex-col gap-3 p-8 pb-0 lg:p-12 lg:pb-0">
+          <h3 className="text-2xl font-semibold text-foreground">
+            Linking learning and livelihood
+          </h3>
+          <div className="max-w-xl text-base font-medium text-secondary-foreground">
+            Import trainee data, match young people to opportunities and see{' '}
+            <span className="font-semibold text-foreground">
+              placement outcomes
+            </span>{' '}
+            across programmes and counties, tracked in one place.
           </div>
         </div>
-        {/* Photo card, cropped at the bottom like the template's app preview */}
-        <div className="mt-auto hidden px-16 lg:block">
+        {/* Photos fill the remaining height (no fixed crop) */}
+        <div className="relative m-12 mb-0 hidden min-h-0 flex-1 overflow-hidden rounded-t-xl border border-b-0 border-border shadow-lg lg:block">
           <img
-            src="/media/app/login-hero.webp"
-            alt=""
-            className="h-64 w-full rounded-t-xl border border-b-0 border-border object-cover object-top shadow-lg"
+            src="/media/app/login-photos.webp"
+            alt="CAP-YEI trainees at work in practical training"
+            className="absolute inset-0 size-full object-cover object-top"
           />
         </div>
       </div>
