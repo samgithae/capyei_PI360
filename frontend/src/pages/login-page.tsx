@@ -77,11 +77,39 @@ export function LoginPage() {
         : 'Enter the 6-digit code from your authenticator app.';
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+    <div className="grid min-h-screen md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <Helmet>
         <title>Sign in | PI 360</title>
       </Helmet>
 
+      {/* Brand side: hidden below tablet width */}
+      <div className="relative hidden overflow-hidden bg-primary text-primary-foreground md:flex">
+        <img
+          src="/media/app/login-hero.webp"
+          alt=""
+          className="absolute inset-0 size-full object-cover object-top"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1e3f95] via-[#1e3f95]/70 to-transparent" />
+        <div className="relative mt-auto w-full space-y-4 p-12">
+          <div className="flex h-1.5 w-24 overflow-hidden rounded-full">
+            <span className="flex-1 bg-[#fbc30f]" />
+            <span className="flex-1 bg-[#da251c]" />
+            <span className="flex-1 bg-[#86c127]" />
+          </div>
+          <h2 className="text-3xl font-semibold leading-tight text-white">
+            Linking learning and livelihood,
+            <br />
+            tracked in one place.
+          </h2>
+          <p className="max-w-md text-white/85">
+            Import trainee data, match young people to opportunities and see
+            placement outcomes across programmes and counties.
+          </p>
+          <div className="text-sm text-white/70">
+            &copy; {new Date().getFullYear()} CAP Youth Empowerment Institute
+          </div>
+        </div>
+      </div>
       {/* Form side */}
       <div className="flex flex-col items-center justify-center gap-6 bg-muted/40 p-6">
         <Card className="w-full max-w-100">
@@ -166,35 +194,6 @@ export function LoginPage() {
             </form>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Brand side: hidden on small screens */}
-      <div className="relative hidden overflow-hidden bg-primary text-primary-foreground lg:flex">
-        <img
-          src="/media/app/login-hero.webp"
-          alt=""
-          className="absolute inset-0 size-full object-cover object-top"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1e3f95] via-[#1e3f95]/70 to-transparent" />
-        <div className="relative mt-auto w-full space-y-4 p-12">
-          <div className="flex h-1.5 w-24 overflow-hidden rounded-full">
-            <span className="flex-1 bg-[#fbc30f]" />
-            <span className="flex-1 bg-[#da251c]" />
-            <span className="flex-1 bg-[#86c127]" />
-          </div>
-          <h2 className="text-3xl font-semibold leading-tight text-white">
-            Linking learning and livelihood,
-            <br />
-            tracked in one place.
-          </h2>
-          <p className="max-w-md text-white/85">
-            Import trainee data, match young people to opportunities and see
-            placement outcomes across programmes and counties.
-          </p>
-          <div className="text-sm text-white/70">
-            &copy; {new Date().getFullYear()} CAP Youth Empowerment Institute
-          </div>
-        </div>
       </div>
     </div>
   );
