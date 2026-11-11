@@ -81,6 +81,12 @@ def check_row(raw: dict) -> Checked:
         county_id = configuration.county_id_by_code(c["county_code"])
         if county_id is None:
             warn("county_code", f"Unknown county '{c['county_code']}'; left blank.")
+    if c["phone"]:  # spec 15 §4: a warning, never a rewrite (rule N-03 is a proposal)
+        digits = sum(ch.isdigit() for ch in c["phone"])
+        if digits == 9:
+            warn("phone", "Phone has 9 digits; a leading 0 may be missing. Stored as received.")
+        elif digits != 10:
+            warn("phone", f"Phone has {digits} digits; 10 expected. Stored as received.")
     if c["gender"]:
         g = GENDERS.get(c["gender"].lower())
         if g is None:

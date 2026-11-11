@@ -153,6 +153,23 @@ def test_matched_row_lists_field_differences_without_applying_them(template, ste
 
 
 @pytest.mark.django_db
+def test_odd_phone_lengths_warn_but_load_unchanged(world, steward):
+    tpl = services.create_template(
+        actor=steward, source="phones", columns={**COLUMNS, "Phone": "phone"}
+    )
+    data = (
+        HEAD.strip() + ",Phone\n"
+        "Nine Digits,P1,K1,C1,E-901,F,21,01,712345678\n"
+        "Ten Digits,P1,K1,C1,E-902,F,21,01,0712345678\n"
+    ).encode()
+    b = services.upload(actor=steward, template=tpl, file_name="p.csv", data=data)
+    by = {r.source_key: r for r in b.rows.all()}
+    assert [w["field"] for w in by["P1|E-901"].warnings] == ["phone"]
+    assert by["P1|E-902"].warnings == []
+    assert b.counts["create"] == 2 and b.counts["held"] == 0
+
+
+@pytest.mark.django_db
 def test_update_path_still_works_when_enabled(template, steward, monkeypatch):
     monkeypatch.setattr(services, "ALLOW_UPDATES", True)
     load(steward, upload(steward, template, *GOOD))

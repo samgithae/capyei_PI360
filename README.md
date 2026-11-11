@@ -225,3 +225,7 @@ Programme, cohort and course may be left out of a mapping and set once per file 
 ### Field-difference review (wizard step 6)
 
 When a file row matches a stored person (same programme + enrollment number), validation compares the file with the stored record and keeps the differences on the row (`ImportRow.diff`, migration `imports.0004`). The review table lists them as "In PI 360" vs "In the file". Compared: name, gender, age, status, county, phone, email; a field is compared only when the file supplies a usable value, so blanks and "unknown" never show. This is **read-only**: D-059 means imports never update, so nothing is applied and there is no accept/reject yet (that arrives only if updates are approved). The differences are the steward's conflict list (spec 15 §5).
+
+### Go Blue dry run (T-086)
+
+`backend/scripts/go_blue_dry_run.py` builds reference data from the Go Blue enrollment file, prepares an import-ready copy and loads it through the import services, printing counts only. Run it **only on a throwaway database** (it handles real trainee data; SEC-14, D-035) and delete the database and prepared copy afterwards. Imports also now warn when a phone number does not have 10 digits (stored as received).
