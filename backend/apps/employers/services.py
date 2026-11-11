@@ -1,14 +1,24 @@
 """Public interface of apps.employers (T-044). Every change is audited in the same transaction."""
 
+from collections import Counter
 from datetime import date
 from difflib import SequenceMatcher
 
 from django.db import transaction
+from django.db.models import ProtectedError
+from django.utils import timezone
 
 from apps.audit import services as audit
 from apps.configuration.services import normalise as norm
 
-from .models import Employer, EmployerContact, Opportunity, OpportunityRequirement
+from .models import (
+    ClusterDecision,
+    Employer,
+    EmployerAlias,
+    EmployerContact,
+    Opportunity,
+    OpportunityRequirement,
+)
 
 SIMILAR = (
     0.88  # name similarity that triggers the duplicate warning; steward decides, never auto-merged
@@ -254,3 +264,121 @@ def remove_requirement(*, actor, opportunity, requirement):
 
 def opportunity_history(opportunity):
     return audit.history("opportunity", opportunity.pk)
+
+
+# --- Employer clustering for placement imports (T-087 stage B, doc 15 §8) ---------------------
+
+LEGAL_SUFFIXES = {"ltd", "limited", "co", "company", "inc", "plc", "llc"}
+
+
+class ClusterError(ValueError):
+    """The decision cannot be made or reversed; the message is safe to show."""
+
+
+def cluster_key(text):
+    """Normalised grouping key: case, spacing and punctuation ignored, trailing legal suffixes
+    (Ltd, Limited, Co, Company, Inc...) dropped. 'ACME Ltd.' and 'Acme Limited' share a key."""
+    words = norm(text).split()
+    while len(words) > 1 and words[-1] in LEGAL_SUFFIXES:
+        words.pop()
+    return " ".join(words)
+
+
+def build_clusters(names):
+    """Group source spellings into review clusters, largest first. Suggestions only: each cluster
+    lists existing employers (by name or alias) that share its key. Nothing is changed."""
+    spellings = Counter(n.strip() for n in names if n and n.strip())
+    groups = {}
+    for text, n in spellings.items():
+        groups.setdefault(cluster_key(text), []).append((text, n))
+    existing = {}
+    for e in Employer.objects.all():
+        existing.setdefault(cluster_key(e.name), {})[str(e.pk)] = e.name
+    for a in EmployerAlias.objects.select_related("employer"):
+        existing.setdefault(a.name_key, {})[str(a.employer_id)] = a.employer.name
+    clusters = []
+    for key, members in groups.items():
+        members.sort(key=lambda m: (-m[1], m[0]))
+        clusters.append(
+            {
+                "key": key,
+                "spellings": [{"text": t, "count": n} for t, n in members],
+                "count": sum(n for _, n in members),
+                "suggested": [{"id": i, "name": nm} for i, nm in existing.get(key, {}).items()],
+            }
+        )
+    return sorted(clusters, key=lambda c: (-c["count"], c["key"]))
+
+
+def resolve_name(text):
+    """The employer a source spelling was linked to, or None if no steward has decided it."""
+    a = EmployerAlias.objects.filter(source_name=(text or "").strip()).first()
+    return a.employer_id if a else None
+
+
+def _add_alias(employer, text, decision):
+    if EmployerAlias.objects.filter(source_name=text).exists():
+        raise ClusterError(f"'{text}' is already linked to an employer.")
+    return EmployerAlias.objects.create(
+        employer=employer, source_name=text, name_key=cluster_key(text), decision=decision
+    )
+
+
+@transaction.atomic
+def decide_cluster(*, actor, key, spellings, action, employer_id=None, source=""):
+    """Link the spellings to an existing employer, create one employer, or keep them apart (one
+    new employer per spelling). Returns the decision."""
+    texts = list(dict.fromkeys(s.strip() for s in spellings if s and s.strip()))
+    if not texts:
+        raise ClusterError("Choose at least one spelling.")
+    if action not in {c for c, _ in ClusterDecision.ACTIONS}:
+        raise ClusterError(f"Unknown action '{action}'.")
+    decision = ClusterDecision.objects.create(
+        key=key, action=action, spellings=texts, source=source, decided_by=actor
+    )
+    created = []
+    if action == ClusterDecision.LINK:
+        employer = Employer.objects.filter(pk=employer_id).first()
+        if employer is None:
+            raise ClusterError("Choose the existing employer to link to.")
+        for t in texts:
+            _add_alias(employer, t, decision)
+    else:
+        groups = [texts] if action == ClusterDecision.CREATE else [[t] for t in texts]
+        for group in groups:
+            employer = create_employer(actor=actor, data={"name": group[0]}, confirm_duplicate=True)
+            created.append(str(employer.pk))
+            for t in group:
+                _add_alias(employer, t, decision)
+    decision.created_employers = created
+    decision.save(update_fields=["created_employers"])
+    audit.record(
+        actor=actor, action="employer.cluster_decided", object_type="cluster_decision",
+        object_id=decision.pk,
+        after={"action": action, "key": key, "spellings": len(texts), "created": len(created)},
+    )  # fmt: skip
+    return decision
+
+
+@transaction.atomic
+def reverse_decision(*, actor, decision):
+    """Undo a decision: remove its aliases and delete the employers it created. Refused if a
+    created employer is already in use (placements or opportunities point at it)."""
+    if decision.reversed_at:
+        raise ClusterError("This decision was already reversed.")
+    decision.aliases.all().delete()
+    for emp in Employer.objects.filter(pk__in=decision.created_employers):
+        try:
+            with transaction.atomic():
+                emp.delete()
+        except ProtectedError as exc:
+            raise ClusterError(
+                f"'{emp.name}' is already used by placements or opportunities; unlink those first."
+            ) from exc
+    decision.reversed_at, decision.reversed_by = timezone.now(), actor
+    decision.save(update_fields=["reversed_at", "reversed_by"])
+    audit.record(
+        actor=actor, action="employer.cluster_reversed", object_type="cluster_decision",
+        object_id=decision.pk, after={"key": decision.key},
+    )  # fmt: skip
+    return decision
