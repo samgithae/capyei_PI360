@@ -4,9 +4,23 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api, ApiError, post } from '@/lib/api';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DataCard,
+  FilterSelect,
+  Pager,
+  ParticipantStatus,
+  SearchBox,
+} from '@/components/data-card';
 import {
   Toolbar,
   ToolbarHeading,
@@ -99,7 +113,7 @@ function AddForm({ onCancel }: { onCancel: () => void }) {
       <div className="flex flex-wrap gap-2">
         <select
           aria-label="Type"
-          className="h-9 rounded-md border bg-background px-2 text-sm"
+          className="h-8.5 rounded-md border border-input bg-background px-3 text-[0.8125rem] text-foreground shadow-xs shadow-black/5 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
           value={v.kind}
           onChange={(e) => setV({ ...v, kind: e.target.value })}
         >
@@ -153,20 +167,6 @@ export function OpportunitiesPage() {
     setParams(next);
   };
   const data = page.data;
-  const sel = (key: string, label: string, items: string[]) => (
-    <select
-      aria-label={label}
-      className="h-9 rounded-md border bg-background px-2 text-sm"
-      value={params.get(key) ?? ''}
-      onChange={(e) => set(key, e.target.value)}
-    >
-      <option value="">{label}</option>
-      {items.map((i) => (
-        <option key={i}>{i}</option>
-      ))}
-    </select>
-  );
-
   return (
     <div className="container-fluid space-y-5">
       <Helmet>
@@ -181,92 +181,99 @@ export function OpportunitiesPage() {
         )}
       </Toolbar>
       {adding && <AddForm onCancel={() => setAdding(false)} />}
-      <div className="flex flex-wrap gap-2">
-        <Input
-          placeholder="Search by title"
-          defaultValue={params.get('q') ?? ''}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') set('q', e.currentTarget.value.trim());
-          }}
-          className="max-w-xs"
-        />
-        {sel('status', 'Any status', STATUSES)}
-        {sel('kind', 'Any type', KINDS)}
-      </div>
-      {page.isError && (
-        <ErrorState error={page.error} onRetry={() => page.refetch()} />
-      )}
-      {page.isPending && <LoadingState />}
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-muted-foreground">
-            <th className="py-2">Title</th>
-            <th>Employer</th>
-            <th>Type</th>
-            <th>Positions</th>
-            <th>Closes</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data?.results.map((o) => (
-            <tr key={o.id} className="border-t">
-              <td className="py-2">
-                <Link className="text-primary" to={`/opportunities/${o.id}`}>
-                  {o.title}
-                </Link>
-              </td>
-              <td>{o.employer}</td>
-              <td>{o.kind}</td>
-              <td>{o.positions}</td>
-              <td>{o.closing_date ?? ''}</td>
-              <td>
-                <Badge variant="secondary">{o.status}</Badge>
-              </td>
-            </tr>
-          ))}
-          {data && data.results.length === 0 && (
-            <tr>
-              <td colSpan={6}>
-                <EmptyState
-                  title="No opportunities match"
-                  hint="Try changing or clearing the filters."
-                />
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-      {data && data.total > data.page_size && (
-        <div className="flex items-center gap-3 text-sm">
-          <span>
-            {offset + 1}-{Math.min(offset + data.page_size, data.total)} of{' '}
-            {data.total}
-          </span>
-          <Button
-            variant="outline"
-            disabled={offset === 0}
-            onClick={() => {
-              const next = new URLSearchParams(params);
-              next.set('offset', String(Math.max(offset - data.page_size, 0)));
-              setParams(next);
-            }}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            disabled={offset + data.page_size >= data.total}
-            onClick={() => {
-              const next = new URLSearchParams(params);
-              next.set('offset', String(offset + data.page_size));
-              setParams(next);
-            }}
-          >
-            Next
-          </Button>
-        </div>
-      )}
+      <DataCard
+        footer={
+          data && data.total > data.page_size ? (
+            <Pager
+              offset={offset}
+              pageSize={data.page_size}
+              total={data.total}
+              onMove={(to) => {
+                const next = new URLSearchParams(params);
+                next.set('offset', String(Math.max(to, 0)));
+                setParams(next);
+              }}
+            />
+          ) : undefined
+        }
+        toolbar={
+          <>
+            <SearchBox
+              placeholder="Search by title"
+              defaultValue={params.get('q') ?? ''}
+              onSubmit={(v) => set('q', v)}
+            />
+            <FilterSelect
+              label="Any status"
+              value={params.get('status') ?? ''}
+              options={STATUSES.map((x) => ({ id: x, name: x }))}
+              onChange={(v) => set('status', v)}
+              className="w-36 capitalize"
+            />
+            <FilterSelect
+              label="Any type"
+              value={params.get('kind') ?? ''}
+              options={KINDS.map((x) => ({ id: x, name: x }))}
+              onChange={(v) => set('kind', v)}
+              className="w-36 capitalize"
+            />
+          </>
+        }
+      >
+        {page.isError && (
+          <div className="p-5">
+            <ErrorState error={page.error} onRetry={() => page.refetch()} />
+          </div>
+        )}
+        {page.isPending && (
+          <div className="p-5">
+            <LoadingState />
+          </div>
+        )}
+        {data && data.results.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40">
+                <TableHead>Title</TableHead>
+                <TableHead>Employer</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Positions</TableHead>
+                <TableHead>Closes</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.results.map((o) => (
+                <TableRow key={o.id}>
+                  <TableCell>
+                    <Link
+                      className="font-medium text-foreground hover:text-primary"
+                      to={`/opportunities/${o.id}`}
+                    >
+                      {o.title}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{o.employer}</TableCell>
+                  <TableCell className="capitalize">{o.kind}</TableCell>
+                  <TableCell>{o.positions}</TableCell>
+                  <TableCell>{o.closing_date ?? ''}</TableCell>
+                  <TableCell>
+                    <ParticipantStatus status={o.status} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        {data && data.results.length === 0 && (
+          <div className="p-5">
+            <EmptyState
+              title="No opportunities match"
+              hint="Try changing or clearing the filters."
+            />
+          </div>
+        )}
+      </DataCard>
     </div>
   );
 }

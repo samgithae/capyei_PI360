@@ -5,7 +5,16 @@ import { Helmet } from 'react-helmet-async';
 import { api, ApiError, post } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   Toolbar,
   ToolbarHeading,
@@ -94,110 +103,112 @@ function CandidateCard({
   const error = merge.error ?? dismiss.error;
 
   return (
-    <section className="rounded-lg border p-4 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge>{Math.round(c.score * 100)}% likely</Badge>
-        {c.reasons.map((r) => (
-          <Badge key={r.code} variant="secondary">
-            {r.text}
-          </Badge>
-        ))}
-      </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-muted-foreground">
-            <th className="w-36 py-1"></th>
-            {(['a', 'b'] as const).map((k) => (
-              <th key={k}>
-                {canMerge ? (
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name={`survivor-${c.id}`}
-                      checked={survivor === k}
-                      onChange={() => {
-                        setSurvivor(k);
-                        setTake(new Set());
-                      }}
-                    />
-                    Keep this record
-                  </label>
-                ) : (
-                  `Record ${k.toUpperCase()}`
-                )}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {ROWS.map(([label, get, field]) => {
-            const va = get(c.a);
-            const vb = get(c.b);
-            if (!va && !vb) return null;
-            const differs = va !== vb;
-            return (
-              <tr key={label} className="border-t align-top">
-                <td className="py-1 text-muted-foreground">{label}</td>
-                <td className={differs ? 'font-medium' : ''}>{va || '-'}</td>
-                <td className={differs ? 'font-medium' : ''}>
-                  {vb || '-'}
-                  {canMerge && differs && field && (
-                    <label className="ml-3 text-xs text-muted-foreground">
+    <Card>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge>{Math.round(c.score * 100)}% likely</Badge>
+          {c.reasons.map((r) => (
+            <Badge key={r.code} variant="secondary">
+              {r.text}
+            </Badge>
+          ))}
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead></TableHead>
+              {(['a', 'b'] as const).map((k) => (
+                <TableHead key={k}>
+                  {canMerge ? (
+                    <label className="flex items-center gap-2">
                       <input
-                        type="checkbox"
-                        className="mr-1"
-                        checked={take.has(field)}
-                        onChange={(e) => {
-                          const next = new Set(take);
-                          if (e.target.checked) next.add(field);
-                          else next.delete(field);
-                          setTake(next);
+                        type="radio"
+                        name={`survivor-${c.id}`}
+                        checked={survivor === k}
+                        onChange={() => {
+                          setSurvivor(k);
+                          setTake(new Set());
                         }}
                       />
-                      {/* the checkbox always refers to the record that is NOT kept */}
-                      use {survivor === 'a' ? 'B' : 'A'}'s value
+                      Keep this record
                     </label>
+                  ) : (
+                    `Record ${k.toUpperCase()}`
                   )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {canMerge ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            aria-label="Reason"
-            placeholder={`Reason (kept: ${c[survivor].name}, merged in: ${other.name})`}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="max-w-md"
-          />
-          <Button
-            disabled={!reason.trim() || merge.isPending}
-            onClick={() => merge.mutate()}
-          >
-            Merge
-          </Button>
-          <Button
-            variant="outline"
-            disabled={!reason.trim() || dismiss.isPending}
-            onClick={() => dismiss.mutate()}
-          >
-            Not the same person
-          </Button>
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          You can review this pair; merging needs the merge permission.
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {errorText(error)}
-        </p>
-      )}
-    </section>
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {ROWS.map(([label, get, field]) => {
+              const va = get(c.a);
+              const vb = get(c.b);
+              if (!va && !vb) return null;
+              const differs = va !== vb;
+              return (
+                <TableRow key={label}>
+                  <TableCell>{label}</TableCell>
+                  <TableCell>{va || '-'}</TableCell>
+                  <TableCell>
+                    {vb || '-'}
+                    {canMerge && differs && field && (
+                      <label className="ml-3 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          className="mr-1"
+                          checked={take.has(field)}
+                          onChange={(e) => {
+                            const next = new Set(take);
+                            if (e.target.checked) next.add(field);
+                            else next.delete(field);
+                            setTake(next);
+                          }}
+                        />
+                        {/* the checkbox always refers to the record that is NOT kept */}
+                        use {survivor === 'a' ? 'B' : 'A'}'s value
+                      </label>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        {canMerge ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              aria-label="Reason"
+              placeholder={`Reason (kept: ${c[survivor].name}, merged in: ${other.name})`}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="max-w-md"
+            />
+            <Button
+              disabled={!reason.trim() || merge.isPending}
+              onClick={() => merge.mutate()}
+            >
+              Merge
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!reason.trim() || dismiss.isPending}
+              onClick={() => dismiss.mutate()}
+            >
+              Not the same person
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            You can review this pair; merging needs the merge permission.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {errorText(error)}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

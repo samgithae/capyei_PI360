@@ -1,11 +1,21 @@
 import { FormEvent, useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { api, ApiError, post } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, InputWrapper } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { DataCard } from '@/components/data-card';
 import {
   Toolbar,
   ToolbarHeading,
@@ -84,14 +94,6 @@ export function UsersPage() {
         </ToolbarHeading>
       </Toolbar>
 
-      <Input
-        placeholder="Search name, username or email"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        className="max-w-sm"
-        aria-label="Search staff"
-      />
-
       {canManage && <CreateUser roles={roles.data ?? []} />}
 
       {message && (
@@ -100,59 +102,78 @@ export function UsersPage() {
         </p>
       )}
 
-      <table className="w-full text-sm">
-        <thead className="text-left text-muted-foreground">
-          <tr>
-            <th className="py-2">Name</th>
-            <th>Roles</th>
-            <th>Status</th>
-            <th>MFA</th>
-            {canManage && <th />}
-          </tr>
-        </thead>
-        <tbody>
-          {users.data?.map((u) => (
-            <tr key={u.id} className="border-t">
-              <td className="py-2">
-                <div className="font-medium">
-                  {`${u.first_name} ${u.last_name}`.trim() || u.username}
-                </div>
-                <div className="text-muted-foreground">{u.email}</div>
-              </td>
-              <td>{u.roles.map((r) => r.name).join(', ') || '—'}</td>
-              <td>
-                <Badge
-                  variant={u.is_active ? 'success' : 'destructive'}
-                  appearance="light"
-                >
-                  {u.is_active ? 'Active' : 'Suspended'}
-                </Badge>
-              </td>
-              <td>{u.mfa_enrolled ? 'Enrolled' : 'Not enrolled'}</td>
-              {canManage && (
-                <td className="space-x-2 text-right">
-                  {(u.is_active
-                    ? (['suspend', 'reset-mfa'] as Action[])
-                    : (['reactivate'] as Action[])
-                  ).map((action) => (
-                    <Button
-                      key={action}
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setPending({ user: u, action });
-                        setMessage('');
-                      }}
-                    >
-                      {LABEL[action]}
-                    </Button>
-                  ))}
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <DataCard
+        title="Staff"
+        toolbar={
+          <InputWrapper className="w-72">
+            <Search />
+            <Input
+              placeholder="Search name, username or email"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Search staff"
+            />
+          </InputWrapper>
+        }
+      >
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/40">
+              <TableHead>Name</TableHead>
+              <TableHead>Roles</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>MFA</TableHead>
+              {canManage && <TableHead />}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.data?.map((u) => (
+              <TableRow key={u.id}>
+                <TableCell>
+                  <div className="font-medium">
+                    {`${u.first_name} ${u.last_name}`.trim() || u.username}
+                  </div>
+                  <div className="text-muted-foreground">{u.email}</div>
+                </TableCell>
+                <TableCell>
+                  {u.roles.map((r) => r.name).join(', ') || '—'}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={u.is_active ? 'success' : 'destructive'}
+                    appearance="light"
+                  >
+                    {u.is_active ? 'Active' : 'Suspended'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {u.mfa_enrolled ? 'Enrolled' : 'Not enrolled'}
+                </TableCell>
+                {canManage && (
+                  <TableCell>
+                    {(u.is_active
+                      ? (['suspend', 'reset-mfa'] as Action[])
+                      : (['reactivate'] as Action[])
+                    ).map((action) => (
+                      <Button
+                        key={action}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setPending({ user: u, action });
+                          setMessage('');
+                        }}
+                      >
+                        {LABEL[action]}
+                      </Button>
+                    ))}
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </DataCard>
       {users.isError && (
         <ErrorState error={users.error} onRetry={() => users.refetch()} />
       )}

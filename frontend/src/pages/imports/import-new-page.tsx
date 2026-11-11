@@ -4,7 +4,23 @@ import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router';
 import { api, ApiError, post, upload } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   Toolbar,
   ToolbarHeading,
@@ -22,6 +38,7 @@ import {
 const DEFAULTABLE = ['programme_code', 'cohort_code', 'course_code'];
 const IGNORE = '';
 const NEW = 'new';
+const SKIP = '__skip__'; // Radix Select cannot hold an empty value
 
 /** Steps 1-2: choose a file, then say what each column means. Nothing is stored until the
  * mapping is confirmed and the file is validated (the "dry run"). */
@@ -135,25 +152,27 @@ export function ImportNewPage() {
         )}
 
         {!seen && (
-          <section className="rounded-lg border p-4 space-y-3 max-w-xl">
-            <h2 className="font-medium">1. Choose the file</h2>
-            <p className="text-sm text-muted-foreground">
-              A .csv or .xlsx file (first sheet, headers in the first row).
-              Choosing it only reads the headers. Nothing is saved yet.
-            </p>
-            <Input
-              type="file"
-              accept=".csv,.xlsx"
-              onChange={(e) => {
-                const f = e.target.files?.[0] ?? null;
-                setFile(f);
-                if (f) inspect.mutate(f);
-              }}
-            />
-            {inspect.isPending && (
-              <p className="text-sm">Reading the file...</p>
-            )}
-          </section>
+          <Card className="max-w-xl">
+            <CardContent className="space-y-3">
+              <h2 className="font-medium">1. Choose the file</h2>
+              <p className="text-sm text-muted-foreground">
+                A .csv or .xlsx file (first sheet, headers in the first row).
+                Choosing it only reads the headers. Nothing is saved yet.
+              </p>
+              <Input
+                type="file"
+                accept=".csv,.xlsx"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setFile(f);
+                  if (f) inspect.mutate(f);
+                }}
+              />
+              {inspect.isPending && (
+                <p className="text-sm">Reading the file...</p>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {seen && file && (
@@ -172,150 +191,162 @@ export function ImportNewPage() {
               </Notice>
             )}
 
-            <section className="rounded-lg border p-4 space-y-3">
-              <h2 className="font-medium">2. Say what each column means</h2>
-              {fitting.length > 0 && (
-                <div className="space-y-1 text-sm">
-                  {fitting.map((t) => (
-                    <label key={t.id} className="flex items-center gap-2">
+            <Card>
+              <CardContent className="space-y-3">
+                <h2 className="font-medium">2. Say what each column means</h2>
+                {fitting.length > 0 && (
+                  <div className="space-y-1 text-sm">
+                    {fitting.map((t) => (
+                      <label key={t.id} className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="tpl"
+                          checked={choice === t.id}
+                          onChange={() => setChoice(t.id)}
+                        />
+                        Use saved mapping &ldquo;{t.source}&rdquo; version{' '}
+                        {t.version}
+                      </label>
+                    ))}
+                    <label className="flex items-center gap-2">
                       <input
                         type="radio"
                         name="tpl"
-                        checked={choice === t.id}
-                        onChange={() => setChoice(t.id)}
+                        checked={choice === NEW}
+                        onChange={() => setChoice(NEW)}
                       />
-                      Use saved mapping &ldquo;{t.source}&rdquo; version{' '}
-                      {t.version}
+                      Set up a new mapping (saved as a new version)
                     </label>
-                  ))}
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="tpl"
-                      checked={choice === NEW}
-                      onChange={() => setChoice(NEW)}
-                    />
-                    Set up a new mapping (saved as a new version)
-                  </label>
-                </div>
-              )}
+                  </div>
+                )}
 
-              {choice === NEW && (
-                <>
-                  <label className="block text-sm max-w-sm">
-                    Name for this kind of file
-                    <Input
-                      value={source}
-                      onChange={(e) => setSource(e.target.value)}
-                    />
-                  </label>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-muted-foreground">
-                        <th className="py-1">Column in the file</th>
-                        <th>First row of your file</th>
-                        <th>Means (PI 360 field)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {seen.headers.map((h) => (
-                        <tr key={h} className="border-t">
-                          <td className="py-1.5">{h}</td>
-                          <td className="max-w-56 truncate pr-3 text-muted-foreground">
-                            {seen.sample[h] || <em>(empty)</em>}
-                          </td>
-                          <td>
-                            <select
-                              aria-label={`Field for ${h}`}
-                              className="h-8.5 rounded-md border bg-background px-2 text-sm"
-                              value={mapping[h] ?? IGNORE}
-                              onChange={(e) =>
-                                setMapping((m) => ({
-                                  ...m,
-                                  [h]: e.target.value,
-                                }))
-                              }
-                            >
-                              <option value={IGNORE}>Ignore this column</option>
-                              <option value={`extra:${h}`}>
-                                Keep as extra data (&ldquo;{h}&rdquo;)
-                              </option>
-                              {seen.fields.map((f) => (
-                                <option
-                                  key={f.field}
-                                  value={f.field}
-                                  disabled={taken(f.field, h)}
+                {choice === NEW && (
+                  <>
+                    <label className="block text-sm max-w-sm">
+                      Name for this kind of file
+                      <Input
+                        value={source}
+                        onChange={(e) => setSource(e.target.value)}
+                      />
+                    </label>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/40">
+                          <TableHead>Column in the file</TableHead>
+                          <TableHead>First row of your file</TableHead>
+                          <TableHead>Means (PI 360 field)</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {seen.headers.map((h) => (
+                          <TableRow key={h}>
+                            <TableCell>{h}</TableCell>
+                            <TableCell>
+                              {seen.sample[h] || <em>(empty)</em>}
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={mapping[h] || SKIP}
+                                onValueChange={(v) =>
+                                  setMapping((m) => ({
+                                    ...m,
+                                    [h]: v === SKIP ? '' : v,
+                                  }))
+                                }
+                              >
+                                <SelectTrigger
+                                  aria-label={`Field for ${h}`}
+                                  className="w-72"
                                 >
-                                  {f.field}
-                                  {f.required ? ' (required)' : ''}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {missingRequired.length > 0 && (
-                    <Notice
-                      tone="warning"
-                      title="Required fields not mapped yet"
-                    >
-                      {missingRequired.join(', ')}. Programme, cohort and course
-                      are usually not columns in a sheet: set them once under
-                      &ldquo;Cohort defaults&rdquo; below.
-                    </Notice>
-                  )}
-                </>
-              )}
-            </section>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value={SKIP}>
+                                    Ignore this column
+                                  </SelectItem>
+                                  <SelectItem value={`extra:${h}`}>
+                                    Keep as extra data (&ldquo;{h}&rdquo;)
+                                  </SelectItem>
+                                  {seen.fields.map((f) => (
+                                    <SelectItem
+                                      key={f.field}
+                                      value={f.field}
+                                      disabled={taken(f.field, h)}
+                                    >
+                                      {f.field}
+                                      {f.required ? ' (required)' : ''}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    {missingRequired.length > 0 && (
+                      <Notice
+                        tone="warning"
+                        title="Required fields not mapped yet"
+                      >
+                        {missingRequired.join(', ')}. Programme, cohort and
+                        course are usually not columns in a sheet: set them once
+                        under &ldquo;Cohort defaults&rdquo; below.
+                      </Notice>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
 
-            <section className="rounded-lg border p-4 space-y-2">
-              <h2 className="font-medium">Cohort defaults (optional)</h2>
-              <p className="text-sm text-muted-foreground">
-                A programme (e.g. Go Blue), a cohort (an intake at one
-                institution) and a course are set up in PI 360 reference data
-                and each has a short code. They are usually not a column in your
-                sheet, so search and pick the ones that apply to the whole file.
-                A default fills empty cells only and never replaces a value that
-                is in the file.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {DEFAULTABLE.map((f) => {
-                  // Cohort and course codes belong to a programme: once one is chosen, only
-                  // show that programme's.
-                  const prog = defaults.programme_code;
-                  const options = (seen.reference_codes[f] ?? []).filter(
-                    (o) =>
-                      f === 'programme_code' || !prog || o.programme === prog,
-                  );
-                  return (
-                    <CodePicker
-                      key={f}
-                      label={f.replace('_code', '')}
-                      options={options}
-                      value={defaults[f] ?? ''}
-                      onChange={(code) =>
-                        setDefaults({
-                          ...defaults,
-                          [f]: code,
-                          // a new programme invalidates the cohort and course picked before
-                          ...(f === 'programme_code'
-                            ? { cohort_code: '', course_code: '' }
-                            : {}),
-                        })
-                      }
-                    />
-                  );
-                })}
-              </div>
-              {defaultsNeeded.length > 0 && (
-                <Notice tone="warning" title="This mapping needs defaults">
-                  {defaultsNeeded.join(', ')} are not columns in the saved
-                  mapping.
-                </Notice>
-              )}
-            </section>
+            <Card>
+              <CardContent className="space-y-3">
+                <h2 className="font-medium">Cohort defaults (optional)</h2>
+                <p className="text-sm text-muted-foreground">
+                  A programme (e.g. Go Blue), a cohort (an intake at one
+                  institution) and a course are set up in PI 360 reference data
+                  and each has a short code. They are usually not a column in
+                  your sheet, so search and pick the ones that apply to the
+                  whole file. A default fills empty cells only and never
+                  replaces a value that is in the file.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {DEFAULTABLE.map((f) => {
+                    // Cohort and course codes belong to a programme: once one is chosen, only
+                    // show that programme's.
+                    const prog = defaults.programme_code;
+                    const options = (seen.reference_codes[f] ?? []).filter(
+                      (o) =>
+                        f === 'programme_code' || !prog || o.programme === prog,
+                    );
+                    return (
+                      <CodePicker
+                        key={f}
+                        label={f.replace('_code', '')}
+                        options={options}
+                        value={defaults[f] ?? ''}
+                        onChange={(code) =>
+                          setDefaults({
+                            ...defaults,
+                            [f]: code,
+                            // a new programme invalidates the cohort and course picked before
+                            ...(f === 'programme_code'
+                              ? { cohort_code: '', course_code: '' }
+                              : {}),
+                          })
+                        }
+                      />
+                    );
+                  })}
+                </div>
+                {defaultsNeeded.length > 0 && (
+                  <Notice tone="warning" title="This mapping needs defaults">
+                    {defaultsNeeded.join(', ')} are not columns in the saved
+                    mapping.
+                  </Notice>
+                )}
+              </CardContent>
+            </Card>
 
             <div className="flex gap-2">
               <Button

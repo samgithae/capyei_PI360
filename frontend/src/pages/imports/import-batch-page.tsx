@@ -7,7 +7,16 @@ import { toast } from 'sonner';
 import { api, ApiError, post } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   Toolbar,
   ToolbarHeading,
@@ -125,20 +134,20 @@ function RowsTable({ id, loaded }: { id: string; loaded: boolean }) {
       )}
       {rows.data && rows.data.rows.length > 0 && (
         <>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-muted-foreground">
-                <th className="py-1 w-14">Row</th>
-                <th className="w-32">Result</th>
-                <th className="w-40">Key</th>
-                <th>Why</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Row</TableHead>
+                <TableHead>Result</TableHead>
+                <TableHead>Key</TableHead>
+                <TableHead>Why</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.data.rows.map((r) => (
-                <tr key={r.row} className="border-t align-top">
-                  <td className="py-1.5">{r.row}</td>
-                  <td>
+                <TableRow key={r.row}>
+                  <TableCell>{r.row}</TableCell>
+                  <TableCell>
                     <Badge
                       appearance="light"
                       variant={
@@ -153,9 +162,9 @@ function RowsTable({ id, loaded }: { id: string; loaded: boolean }) {
                         OUTCOME_LABEL[r.outcome] ||
                         r.outcome}
                     </Badge>
-                  </td>
-                  <td>{r.source_key || '-'}</td>
-                  <td className="space-y-0.5">
+                  </TableCell>
+                  <TableCell>{r.source_key || '-'}</TableCell>
+                  <TableCell>
                     {r.errors.map((e, i) => (
                       <div key={`e${i}`}>
                         <span className="font-medium">Blocking</span>{' '}
@@ -176,31 +185,31 @@ function RowsTable({ id, loaded }: { id: string; loaded: boolean }) {
                           Differs from the stored record (not applied; imports
                           add new people only)
                         </div>
-                        <table className="mt-1 w-full text-xs">
-                          <thead>
-                            <tr className="text-left text-muted-foreground">
-                              <th className="w-32">Field</th>
-                              <th>In PI 360</th>
-                              <th>In the file</th>
-                            </tr>
-                          </thead>
-                          <tbody>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Field</TableHead>
+                              <TableHead>In PI 360</TableHead>
+                              <TableHead>In the file</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
                             {r.diff.map((d) => (
-                              <tr key={d.field}>
-                                <td>{d.field}</td>
-                                <td>{d.current || '(blank)'}</td>
-                                <td>{d.incoming}</td>
-                              </tr>
+                              <TableRow key={d.field}>
+                                <TableCell>{d.field}</TableCell>
+                                <TableCell>{d.current || '(blank)'}</TableCell>
+                                <TableCell>{d.incoming}</TableCell>
+                              </TableRow>
                             ))}
-                          </tbody>
-                        </table>
+                          </TableBody>
+                        </Table>
                       </div>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
           <div className="flex items-center gap-2 text-sm">
             <Button
               size="sm"
@@ -279,47 +288,51 @@ function SignoffPanel({ id, canSign }: { id: string; canSign: boolean }) {
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) =>
     setForm({ ...form, [k]: e.target.value });
   return (
-    <section className="rounded-lg border p-4 space-y-2 max-w-2xl">
-      <h2 className="font-medium">Sign off the reconciliation</h2>
-      <p className="text-sm text-muted-foreground">
-        Record that the data owner has reviewed the figures above. Needs a
-        balanced reconciliation. Once signed it cannot be changed or rolled
-        back.
-      </p>
-      <Input
-        placeholder="Signer's name"
-        aria-label="Signer's name"
-        value={form.signer_name}
-        onChange={set('signer_name')}
-      />
-      <Input
-        placeholder="Signer's role (e.g. MIS owner)"
-        aria-label="Signer's role"
-        value={form.signer_role}
-        onChange={set('signer_role')}
-      />
-      <Input
-        type="date"
-        aria-label="Date signed"
-        value={form.signed_on}
-        onChange={set('signed_on')}
-      />
-      <Input
-        placeholder="Note (optional)"
-        aria-label="Note"
-        value={form.note}
-        onChange={set('note')}
-      />
-      {error && <Notice tone="error" title={error} />}
-      <Button
-        disabled={
-          !form.signer_name.trim() || !form.signer_role.trim() || sign.isPending
-        }
-        onClick={() => sign.mutate()}
-      >
-        Record sign-off
-      </Button>
-    </section>
+    <Card className="max-w-2xl">
+      <CardContent className="space-y-3">
+        <h2 className="font-medium">Sign off the reconciliation</h2>
+        <p className="text-sm text-muted-foreground">
+          Record that the data owner has reviewed the figures above. Needs a
+          balanced reconciliation. Once signed it cannot be changed or rolled
+          back.
+        </p>
+        <Input
+          placeholder="Signer's name"
+          aria-label="Signer's name"
+          value={form.signer_name}
+          onChange={set('signer_name')}
+        />
+        <Input
+          placeholder="Signer's role (e.g. MIS owner)"
+          aria-label="Signer's role"
+          value={form.signer_role}
+          onChange={set('signer_role')}
+        />
+        <Input
+          type="date"
+          aria-label="Date signed"
+          value={form.signed_on}
+          onChange={set('signed_on')}
+        />
+        <Input
+          placeholder="Note (optional)"
+          aria-label="Note"
+          value={form.note}
+          onChange={set('note')}
+        />
+        {error && <Notice tone="error" title={error} />}
+        <Button
+          disabled={
+            !form.signer_name.trim() ||
+            !form.signer_role.trim() ||
+            sign.isPending
+          }
+          onClick={() => sign.mutate()}
+        >
+          Record sign-off
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -333,80 +346,84 @@ function ReconciliationPanel({ id }: { id: string }) {
     return <ErrorState error={rec.error} onRetry={() => rec.refetch()} />;
   const r = rec.data;
   return (
-    <section className="rounded-lg border p-4 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="font-medium">Reconciliation</h2>
-        <Badge
-          appearance="light"
-          variant={r.balanced ? 'success' : 'destructive'}
-        >
-          {r.balanced ? 'Balanced' : 'Not balanced'}
-        </Badge>
-        <Badge
-          appearance="light"
-          variant={r.controls_match ? 'success' : 'warning'}
-        >
-          {r.controls_match ? 'Cohort totals match' : 'Cohort totals differ'}
-        </Badge>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Every source row lands in exactly one bucket: {r.source_rows} rows in
-        the file, {r.accounted_for} accounted for.
-      </p>
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-        <Count label="Created" value={r.created} hint="new records" />
-        <Count label="Updated" value={r.updated} hint="existing records" />
-        <Count label="Skipped" value={r.skipped} hint="already loaded" />
-        <Count label="Blocked" value={r.held} hint="not loaded" />
-        <Count label="Rolled back" value={r.rolled_back} hint="reverted" />
-        <Count
-          label="To review"
-          value={r.quarantined}
-          hint="possible duplicates"
-        />
-      </div>
-      {r.controls.length > 0 && (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-muted-foreground">
-              <th className="py-1">Cohort</th>
-              <th>In the file</th>
-              <th>In PI 360</th>
-              <th>Check</th>
-            </tr>
-          </thead>
-          <tbody>
-            {r.controls.map((c) => (
-              <tr key={c.cohort} className="border-t">
-                <td className="py-1">{c.cohort || '(none)'}</td>
-                <td>{c.source}</td>
-                <td>{c.pi360}</td>
-                <td>{c.matches ? 'Matches' : 'Differs'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button asChild size="sm" variant="outline">
-          <a href={`/api/v1/imports/batches/${id}/reconciliation?download=csv`}>
-            Download reconciliation (CSV)
-          </a>
-        </Button>
-        {r.held > 0 && (
+    <Card>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-medium">Reconciliation</h2>
+          <Badge
+            appearance="light"
+            variant={r.balanced ? 'success' : 'destructive'}
+          >
+            {r.balanced ? 'Balanced' : 'Not balanced'}
+          </Badge>
+          <Badge
+            appearance="light"
+            variant={r.controls_match ? 'success' : 'warning'}
+          >
+            {r.controls_match ? 'Cohort totals match' : 'Cohort totals differ'}
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Every source row lands in exactly one bucket: {r.source_rows} rows in
+          the file, {r.accounted_for} accounted for.
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+          <Count label="Created" value={r.created} hint="new records" />
+          <Count label="Updated" value={r.updated} hint="existing records" />
+          <Count label="Skipped" value={r.skipped} hint="already loaded" />
+          <Count label="Blocked" value={r.held} hint="not loaded" />
+          <Count label="Rolled back" value={r.rolled_back} hint="reverted" />
+          <Count
+            label="To review"
+            value={r.quarantined}
+            hint="possible duplicates"
+          />
+        </div>
+        {r.controls.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cohort</TableHead>
+                <TableHead>In the file</TableHead>
+                <TableHead>In PI 360</TableHead>
+                <TableHead>Check</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {r.controls.map((c) => (
+                <TableRow key={c.cohort}>
+                  <TableCell>{c.cohort || '(none)'}</TableCell>
+                  <TableCell>{c.source}</TableCell>
+                  <TableCell>{c.pi360}</TableCell>
+                  <TableCell>{c.matches ? 'Matches' : 'Differs'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <div className="flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline">
-            <a href={`/api/v1/imports/batches/${id}/errors`}>
-              Download error report (CSV)
+            <a
+              href={`/api/v1/imports/batches/${id}/reconciliation?download=csv`}
+            >
+              Download reconciliation (CSV)
             </a>
           </Button>
-        )}
-        {r.quarantined > 0 && (
-          <Button asChild size="sm" variant="outline">
-            <Link to="/duplicates">Review possible duplicates</Link>
-          </Button>
-        )}
-      </div>
-    </section>
+          {r.held > 0 && (
+            <Button asChild size="sm" variant="outline">
+              <a href={`/api/v1/imports/batches/${id}/errors`}>
+                Download error report (CSV)
+              </a>
+            </Button>
+          )}
+          {r.quarantined > 0 && (
+            <Button asChild size="sm" variant="outline">
+              <Link to="/duplicates">Review possible duplicates</Link>
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -541,62 +558,66 @@ export function ImportBatchPage() {
             )}
 
             {status === 'validated' && step === 4 && (
-              <section className="rounded-lg border p-4 space-y-3 max-w-2xl">
-                <h2 className="font-medium">Approve for loading</h2>
-                <p className="text-sm">
-                  Approving will create {c.create ?? 0} and update{' '}
-                  {c.update ?? 0} records. {c.held ?? 0} blocked rows will not
-                  load; they stay in the error report for the file&apos;s owner
-                  to fix and re-send. Possible duplicates found afterwards go to
-                  a steward, never merged automatically.
-                </p>
-                {!canCommit ? (
-                  <Notice title="Approval needs another role">
-                    You can validate and review. Someone with approval rights
-                    must approve it.
-                  </Notice>
-                ) : loadable === 0 ? (
-                  <Notice tone="warning" title="Nothing to load">
-                    Every row is blocked or already loaded. Fix the file and
-                    import it again.
-                  </Notice>
-                ) : (
-                  <Button
-                    disabled={act.isPending}
-                    onClick={() => act.mutate({ verb: 'approve' })}
-                  >
-                    Approve
+              <Card className="max-w-2xl">
+                <CardContent className="space-y-3">
+                  <h2 className="font-medium">Approve for loading</h2>
+                  <p className="text-sm">
+                    Approving will create {c.create ?? 0} and update{' '}
+                    {c.update ?? 0} records. {c.held ?? 0} blocked rows will not
+                    load; they stay in the error report for the file&apos;s
+                    owner to fix and re-send. Possible duplicates found
+                    afterwards go to a steward, never merged automatically.
+                  </p>
+                  {!canCommit ? (
+                    <Notice title="Approval needs another role">
+                      You can validate and review. Someone with approval rights
+                      must approve it.
+                    </Notice>
+                  ) : loadable === 0 ? (
+                    <Notice tone="warning" title="Nothing to load">
+                      Every row is blocked or already loaded. Fix the file and
+                      import it again.
+                    </Notice>
+                  ) : (
+                    <Button
+                      disabled={act.isPending}
+                      onClick={() => act.mutate({ verb: 'approve' })}
+                    >
+                      Approve
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => setReviewed(false)}>
+                    Back to review
                   </Button>
-                )}
-                <Button variant="outline" onClick={() => setReviewed(false)}>
-                  Back to review
-                </Button>
-              </section>
+                </CardContent>
+              </Card>
             )}
 
             {(status === 'approved' || status === 'committing') && (
-              <section className="rounded-lg border p-4 space-y-3 max-w-2xl">
-                <h2 className="font-medium">Load into PI 360</h2>
-                <p className="text-sm text-muted-foreground">
-                  Rows load in chunks. If it stops part-way, the rows already
-                  loaded stay and loading again continues without creating
-                  anything twice.
-                </p>
-                {status === 'committing' ? (
-                  <p className="text-sm" role="status">
-                    Loading... this page refreshes by itself.
+              <Card className="max-w-2xl">
+                <CardContent className="space-y-3">
+                  <h2 className="font-medium">Load into PI 360</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Rows load in chunks. If it stops part-way, the rows already
+                    loaded stay and loading again continues without creating
+                    anything twice.
                   </p>
-                ) : canCommit ? (
-                  <Button
-                    disabled={act.isPending}
-                    onClick={() => act.mutate({ verb: 'commit' })}
-                  >
-                    {act.isPending ? 'Loading...' : 'Load now'}
-                  </Button>
-                ) : (
-                  <Notice title="Loading needs another role" />
-                )}
-              </section>
+                  {status === 'committing' ? (
+                    <p className="text-sm" role="status">
+                      Loading... this page refreshes by itself.
+                    </p>
+                  ) : canCommit ? (
+                    <Button
+                      disabled={act.isPending}
+                      onClick={() => act.mutate({ verb: 'commit' })}
+                    >
+                      {act.isPending ? 'Loading...' : 'Load now'}
+                    </Button>
+                  ) : (
+                    <Notice title="Loading needs another role" />
+                  )}
+                </CardContent>
+              </Card>
             )}
 
             {(loaded || status === 'rolled_back') && (
@@ -604,27 +625,29 @@ export function ImportBatchPage() {
                 <ReconciliationPanel id={id} />
                 {loaded && <SignoffPanel id={id} canSign={canCommit} />}
                 {loaded && canCommit && !signoff.data?.signed && (
-                  <section className="rounded-lg border p-4 space-y-2 max-w-2xl">
-                    <h2 className="font-medium">Roll back this import</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Reverts what this file created or changed. It is refused
-                      if people from this file have since been merged.
-                    </p>
-                    <Input
-                      placeholder="Reason (required)"
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                    />
-                    <Button
-                      variant="destructive"
-                      disabled={!reason.trim() || act.isPending}
-                      onClick={() =>
-                        act.mutate({ verb: 'rollback', body: { reason } })
-                      }
-                    >
-                      Roll back
-                    </Button>
-                  </section>
+                  <Card className="max-w-2xl">
+                    <CardContent className="space-y-3">
+                      <h2 className="font-medium">Roll back this import</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Reverts what this file created or changed. It is refused
+                        if people from this file have since been merged.
+                      </p>
+                      <Input
+                        placeholder="Reason (required)"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                      />
+                      <Button
+                        variant="destructive"
+                        disabled={!reason.trim() || act.isPending}
+                        onClick={() =>
+                          act.mutate({ verb: 'rollback', body: { reason } })
+                        }
+                      >
+                        Roll back
+                      </Button>
+                    </CardContent>
+                  </Card>
                 )}
                 <RowsTable id={id} loaded={loaded} />
               </>

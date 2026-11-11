@@ -90,7 +90,7 @@ export function EmployerForm({
   ) => (
     <select
       aria-label={label}
-      className="h-9 rounded-md border bg-background px-2 text-sm"
+      className="h-8.5 rounded-md border border-input bg-background px-3 text-[0.8125rem] text-foreground shadow-xs shadow-black/5 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
       value={v[k] ?? ''}
       onChange={(e) => set(k, e.target.value)}
     >

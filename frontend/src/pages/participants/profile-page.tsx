@@ -4,6 +4,14 @@ import { Link, useParams } from 'react-router';
 import { api, ApiError } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   Toolbar,
   ToolbarHeading,
   ToolbarPageTitle,
@@ -87,30 +95,30 @@ export function ProfilePage() {
 
       <section>
         <h2 className="mb-2 font-semibold">Enrollment history</h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-muted-foreground">
-              <th className="py-2">Programme</th>
-              <th>Cohort</th>
-              <th>Course</th>
-              <th>Institution</th>
-              <th>Enrollment no.</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Programme</TableHead>
+              <TableHead>Cohort</TableHead>
+              <TableHead>Course</TableHead>
+              <TableHead>Institution</TableHead>
+              <TableHead>Enrollment no.</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {p.enrollments.map((e) => (
-              <tr key={e.id} className="border-t">
-                <td className="py-2">{e.programme}</td>
-                <td>{e.cohort}</td>
-                <td>{e.course}</td>
-                <td>{e.institution}</td>
-                <td>{e.enrollment_no}</td>
-                <td>{e.status}</td>
-              </tr>
+              <TableRow key={e.id}>
+                <TableCell>{e.programme}</TableCell>
+                <TableCell>{e.cohort}</TableCell>
+                <TableCell>{e.course}</TableCell>
+                <TableCell>{e.institution}</TableCell>
+                <TableCell>{e.enrollment_no}</TableCell>
+                <TableCell>{e.status}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </section>
 
       {p.enrollments.some((e) => Object.keys(e.extra ?? {}).length > 0) && (

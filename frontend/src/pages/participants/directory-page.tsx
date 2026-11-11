@@ -3,9 +3,22 @@ import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '@/lib/api';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DataCard,
+  FilterSelect,
+  Pager,
+  ParticipantStatus,
+  SearchBox,
+} from '@/components/data-card';
 import {
   Toolbar,
   ToolbarHeading,
@@ -73,21 +86,6 @@ export function DirectoryPage() {
     (c) =>
       !params.get('programme') || c.programme_id === params.get('programme'),
   );
-  const select = (key: string, label: string, items: Option[]) => (
-    <select
-      aria-label={label}
-      className="h-9 rounded-md border bg-background px-2 text-sm"
-      value={params.get(key) ?? ''}
-      onChange={(e) => set(key, e.target.value)}
-    >
-      <option value="">{label}</option>
-      {items.map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.name}
-        </option>
-      ))}
-    </select>
-  );
   const data = page.data;
   const filtered = FILTERS.some((f) => params.get(f));
 
@@ -107,95 +105,109 @@ export function DirectoryPage() {
         )}
       </Toolbar>
 
-      <div className="flex flex-wrap gap-2">
-        <Input
-          placeholder="Search name or enrollment no."
-          defaultValue={params.get('q') ?? ''}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') set('q', e.currentTarget.value.trim());
-          }}
-          className="max-w-xs"
-        />
-        {select('programme', 'All programmes', options.data?.programmes ?? [])}
-        {select('cohort', 'All cohorts', cohorts)}
-        {select('county', 'All counties', options.data?.counties ?? [])}
-        {select(
-          'status',
-          'Any status',
-          STATUSES.map((s) => ({ id: s, name: s })),
+      <DataCard
+        toolbar={
+          <>
+            <SearchBox
+              placeholder="Search name or enrollment no."
+              defaultValue={params.get('q') ?? ''}
+              onSubmit={(v) => set('q', v)}
+            />
+            <FilterSelect
+              label="All programmes"
+              value={params.get('programme') ?? ''}
+              options={options.data?.programmes ?? []}
+              onChange={(v) => set('programme', v)}
+            />
+            <FilterSelect
+              label="All cohorts"
+              value={params.get('cohort') ?? ''}
+              options={cohorts}
+              onChange={(v) => set('cohort', v)}
+            />
+            <FilterSelect
+              label="All counties"
+              value={params.get('county') ?? ''}
+              options={options.data?.counties ?? []}
+              onChange={(v) => set('county', v)}
+            />
+            <FilterSelect
+              label="Any status"
+              value={params.get('status') ?? ''}
+              options={STATUSES.map((s) => ({ id: s, name: s }))}
+              onChange={(v) => set('status', v)}
+              className="w-36 capitalize"
+            />
+            {filtered && (
+              <Button variant="outline" onClick={() => setParams({})}>
+                Clear
+              </Button>
+            )}
+          </>
+        }
+        footer={
+          data && data.total > 0 ? (
+            <Pager
+              offset={offset}
+              pageSize={data.page_size}
+              total={data.total}
+              onMove={move}
+            />
+          ) : undefined
+        }
+      >
+        {page.isError && (
+          <div className="p-5">
+            <ErrorState error={page.error} onRetry={() => page.refetch()} />
+          </div>
         )}
-        {filtered && (
-          <Button variant="outline" onClick={() => setParams({})}>
-            Clear
-          </Button>
+        {page.isPending && (
+          <div className="p-5">
+            <LoadingState />
+          </div>
         )}
-      </div>
-
-      {page.isError && (
-        <ErrorState error={page.error} onRetry={() => page.refetch()} />
-      )}
-      {page.isPending && <LoadingState />}
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-muted-foreground">
-            <th className="py-2">Name</th>
-            <th>Programme</th>
-            <th>Cohort</th>
-            <th>County</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data?.results.map((p) => (
-            <tr key={p.id} className="border-t">
-              <td className="py-2">
-                <Link className="text-primary" to={`/youth/${p.id}`}>
-                  {p.name}
-                </Link>
-              </td>
-              <td>{p.programmes.join(', ')}</td>
-              <td>{p.cohorts.join(', ')}</td>
-              <td>{p.county}</td>
-              <td>
-                <Badge variant="secondary">{p.status}</Badge>
-              </td>
-            </tr>
-          ))}
-          {data && data.results.length === 0 && (
-            <tr>
-              <td colSpan={5}>
-                <EmptyState
-                  title="No participants match"
-                  hint="Try changing or clearing the filters."
-                />
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-
-      {data && data.total > 0 && (
-        <div className="flex items-center gap-3 text-sm">
-          <span>
-            {offset + 1}-{Math.min(offset + data.page_size, data.total)} of{' '}
-            {data.total}
-          </span>
-          <Button
-            variant="outline"
-            disabled={offset === 0}
-            onClick={() => move(offset - data.page_size)}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            disabled={offset + data.page_size >= data.total}
-            onClick={() => move(offset + data.page_size)}
-          >
-            Next
-          </Button>
-        </div>
-      )}
+        {data && data.results.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40">
+                <TableHead>Name</TableHead>
+                <TableHead>Programme</TableHead>
+                <TableHead>Cohort</TableHead>
+                <TableHead>County</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.results.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell>
+                    <Link
+                      className="font-medium text-foreground hover:text-primary"
+                      to={`/youth/${p.id}`}
+                    >
+                      {p.name}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{p.programmes.join(', ')}</TableCell>
+                  <TableCell>{p.cohorts.join(', ')}</TableCell>
+                  <TableCell>{p.county}</TableCell>
+                  <TableCell>
+                    <ParticipantStatus status={p.status} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        {data && data.results.length === 0 && (
+          <div className="p-5">
+            <EmptyState
+              title="No participants match"
+              hint="Try changing or clearing the filters."
+            />
+          </div>
+        )}
+      </DataCard>
     </div>
   );
 }
