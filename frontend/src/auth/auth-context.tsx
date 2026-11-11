@@ -74,8 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       logout: async () => {
         await post('/auth/logout');
-        qc.clear();
+        // Not qc.clear(): that detaches the mounted `me` observer, so the UI would not notice.
         qc.setQueryData<Me>(ME_KEY, { authenticated: false });
+        qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
       },
       refresh,
     };
