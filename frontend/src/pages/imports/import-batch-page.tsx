@@ -8,6 +8,7 @@ import { api, ApiError, post } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -438,6 +439,7 @@ export function ImportBatchPage() {
   const { can } = useAuth();
   const qc = useQueryClient();
   const [reviewed, setReviewed] = useState(false);
+  const [confirmNew, setConfirmNew] = useState(false);
   const [reason, setReason] = useState('');
 
   const batch = useQuery({
@@ -484,6 +486,13 @@ export function ImportBatchPage() {
           : 3;
   const c = b?.counts ?? {};
   const loadable = (c.create ?? 0) + (c.update ?? 0);
+  const plan = b?.reference_plan ?? [];
+  const KIND: Record<string, string> = {
+    institutions: 'Training centres',
+    cohorts: 'Cohorts',
+    courses: 'Courses',
+    'cohort-courses': 'Course offered in cohort',
+  };
 
   return (
     <>
@@ -585,12 +594,59 @@ export function ImportBatchPage() {
                       import it again.
                     </Notice>
                   ) : (
-                    <Button
-                      disabled={act.isPending}
-                      onClick={() => act.mutate({ verb: 'approve' })}
-                    >
-                      Approve
-                    </Button>
+                    <>
+                      {plan.length > 0 && (
+                        <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+                          <h3 className="text-sm font-medium">
+                            New reference data this file needs
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            These training centres, cohorts and courses are not
+                            in PI 360 yet. Approving creates them (codes are
+                            generated and can be renamed later under Reference
+                            data) and links the youth to them.
+                          </p>
+                          {Object.entries(KIND).map(([kind, title]) => {
+                            const items = plan.filter((i) => i.kind === kind);
+                            return items.length > 0 ? (
+                              <div key={kind} className="text-sm">
+                                <div className="font-medium">
+                                  {title} ({items.length})
+                                </div>
+                                <ul className="list-disc pl-5 text-muted-foreground">
+                                  {items.slice(0, 8).map((i) => (
+                                    <li key={i.label}>{i.label}</li>
+                                  ))}
+                                  {items.length > 8 && (
+                                    <li>and {items.length - 8} more</li>
+                                  )}
+                                </ul>
+                              </div>
+                            ) : null;
+                          })}
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={confirmNew}
+                              onCheckedChange={(v) => setConfirmNew(v === true)}
+                            />
+                            I checked these names and want them created.
+                          </label>
+                        </div>
+                      )}
+                      <Button
+                        disabled={
+                          act.isPending || (plan.length > 0 && !confirmNew)
+                        }
+                        onClick={() =>
+                          act.mutate({
+                            verb: 'approve',
+                            body: { create_reference: plan.length > 0 },
+                          })
+                        }
+                      >
+                        Approve
+                      </Button>
+                    </>
                   )}
                   <Button variant="outline" onClick={() => setReviewed(false)}>
                     Back to review

@@ -89,14 +89,25 @@ def check_row(raw: dict) -> Checked:
     offering_id, prog_id, _inst, problems = configuration.resolve_offering(
         c["programme_code"], c["cohort_code"], c["course_code"]
     )
-    for f, m in problems:
-        err(f, m)
-
     county_id = None
     if c["county_code"]:
         county_id = configuration.county_id_by_code(c["county_code"])
         if county_id is None:
             warn("county_code", f"Unknown county '{c['county_code']}'; left blank.")
+    fixable = {"cohort_code", "course_code"}
+    if problems and {f for f, _m in problems} <= fixable:
+        # The centre, cohort or course is just not in reference data yet: propose creating it
+        # instead of blocking. Nothing is created until the batch is approved.
+        proposal = configuration.propose_reference(
+            c["programme_code"], c["cohort_code"], c["course_code"], county_id
+        )
+        if proposal:
+            problems = []
+            c["_proposed"] = proposal
+            made = ", ".join(f"{i['kind'][:-1].replace('-', ' ')} {i['label']}" for i in proposal)
+            warn("cohort_code", f"New reference data will be created on approval: {made}.")
+    for f, m in problems:
+        err(f, m)
     if c["phone"]:  # spec 15 §4: a warning, never a rewrite (rule N-03 is a proposal)
         digits = sum(ch.isdigit() for ch in c["phone"])
         if digits == 9:
@@ -185,7 +196,7 @@ def import_participant(clean: dict, *, batch_ref: str) -> tuple[str, str, dict, 
     corrected since the last import (R-15, D-005) is not built yet, so updates overwrite.
     """
     refs = clean["_refs"]
-    _o, _p, institution_id, _e = configuration.resolve_offering(
+    offering_id, _p, institution_id, _e = configuration.resolve_offering(
         clean["programme_code"], clean["cohort_code"], clean["course_code"]
     )
     existing = None
@@ -219,7 +230,7 @@ def import_participant(clean: dict, *, batch_ref: str) -> tuple[str, str, dict, 
     )
     e = ParticipantEnrollment.objects.create(
         participant=p,
-        cohort_course_id=refs["offering"],
+        cohort_course_id=offering_id or refs["offering"],
         programme_id=refs["programme"],
         institution_id=institution_id,
         source_enrollment_no=clean["enrollment_no"],
@@ -285,6 +296,21 @@ __all__ = [
     "scan",
     "unmerge",
 ]
+
+
+def create_proposed_reference(*, actor, items):
+    """Create the centres, courses, cohorts and offerings an import proposed (see check_row)."""
+    try:
+        return configuration.create_proposed(actor=actor, items=items)
+    except configuration.ConfigError as exc:
+        raise ValueError(exc.message) from exc
+
+
+def offering_resolves(clean: dict) -> list:
+    """Problems (``[(field, message)]``) still stopping this row's cohort/course resolving."""
+    return configuration.resolve_offering(
+        clean["programme_code"], clean["cohort_code"], clean["course_code"]
+    )[3]
 
 
 def reference_codes():

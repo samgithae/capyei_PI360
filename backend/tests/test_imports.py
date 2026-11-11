@@ -532,3 +532,64 @@ def test_any_other_column_can_be_kept_as_extra_data_and_county_by_name(template,
         services.create_template(actor=steward, source="bad", columns={**COLUMNS, "X": "extra:"})
     seen = services.inspect(file_name="w.csv", data=(head + body).encode())
     assert seen["suggested"]["Organisation"] == "extra:Organisation"
+
+
+# --- new centres / cohorts / courses proposed by a file --------------------------------------
+
+
+def test_unknown_cohort_is_proposed_then_created_on_confirmed_approval(steward):
+    from apps.configuration.models import Cohort, County, Course, Programme, TrainingInstitution
+    from apps.participants.models import ParticipantEnrollment
+
+    Programme.objects.create(code="GB", name="Go Blue")
+    County.objects.get_or_create(code="01", defaults={"name": "Mombasa"})
+    tpl = services.create_template(
+        actor=steward,
+        source="proposal",
+        columns={
+            "n": "full_name", "p": "programme_code", "c": "cohort_code", "k": "course_code",
+            "e": "enrollment_no", "y": "county_code",
+        },
+    )  # fmt: skip
+    label = "Gede VTC - 2021 Batch 1-Phase 1-Year 1"
+    data = f"n,p,c,k,e,y\nAmina,GB,{label},003-Carpentry,E1,Mombasa\n".encode()
+    b = services.upload(actor=steward, template=tpl, file_name="p.csv", data=data)
+    assert b.counts["held"] == 0 and b.counts["create"] == 1
+    assert {i["kind"] for i in b.reference_plan} == {
+        "institutions", "cohorts", "courses", "cohort-courses",
+    }  # fmt: skip
+    assert not Cohort.objects.exists()  # the dry run created nothing
+
+    with pytest.raises(services.ImportFailure):  # needs the explicit confirmation
+        services.approve(actor=steward, batch=b)
+    services.approve(actor=steward, batch=b, create_reference=True)
+    assert TrainingInstitution.objects.get().name == "Gede VTC"
+    assert Cohort.objects.get().intake_year == 2021
+    assert Course.objects.get().code == "003"
+    services.commit(actor=steward, batch=b)
+    e = ParticipantEnrollment.objects.get()
+    assert e.cohort_course.cohort.name == label and e.institution.name == "Gede VTC"
+
+    # a second file with the same labels needs no new records
+    b2 = services.upload(
+        actor=steward, template=tpl, file_name="p2.csv",
+        data=f"n,p,c,k,e,y\nBen,GB,{label},003-Carpentry,E2,Mombasa\n".encode(),
+    )  # fmt: skip
+    assert b2.reference_plan == [] and b2.counts["create"] == 1
+
+
+def test_unparseable_cohort_still_blocks(steward):
+    from apps.configuration.models import Programme
+
+    Programme.objects.create(code="GB", name="Go Blue")
+    tpl = services.create_template(
+        actor=steward,
+        source="noproposal",
+        columns={"n": "full_name", "p": "programme_code", "c": "cohort_code",
+                 "k": "course_code", "e": "enrollment_no"},
+    )  # fmt: skip
+    b = services.upload(
+        actor=steward, template=tpl, file_name="q.csv",
+        data=b"n,p,c,k,e\nAmina,GB,Some odd label,003-Carpentry,E1\n",
+    )  # fmt: skip
+    assert b.counts["held"] == 1 and b.reference_plan == []

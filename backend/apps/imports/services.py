@@ -181,6 +181,7 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
     file_hash = hashlib.sha256(data).hexdigest()
     same = ImportBatch.objects.filter(file_hash=file_hash, status__in=LOADED).first()
     seen_keys: dict[str, int] = {}
+    plan: dict[tuple, dict] = {}
     counts = {"total": len(rows), "create": 0, "update": 0, "held": 0, "skip": 0, "warnings": 0}
     with transaction.atomic():
         batch = ImportBatch.objects.create(
@@ -222,6 +223,9 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
             elif _already_loaded(template.source, checked.source_key, rh):
                 outcome = ImportRow.SKIP
                 checked.warnings.append({"field": "", "message": "Already loaded; skipped."})
+            if outcome in (ImportRow.CREATE, ImportRow.UPDATE):
+                for item in checked.clean.get("_proposed", []):
+                    plan.setdefault((item["kind"], item["label"]), item)
             counts[outcome] += 1
             counts["warnings"] += bool(checked.warnings)
             objs.append(
@@ -241,6 +245,7 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
             )
         ImportRow.objects.bulk_create(objs, batch_size=1000)
         batch.counts = counts
+        batch.reference_plan = list(plan.values())
         batch.status = ImportBatch.VALIDATED
         batch.save()
         audit.record(
@@ -266,14 +271,50 @@ def _already_loaded(source, source_key, row_hash) -> bool:
 # --- approve / commit ------------------------------------------------------
 
 
-def approve(*, actor, batch):
+def approve(*, actor, batch, create_reference=False):
+    """Approve a validated batch. If the file implies new centres, cohorts or courses
+    (``reference_plan``), the approver must confirm them with ``create_reference``; they are
+    created here, then every row that depended on them is re-checked."""
     if batch.status != ImportBatch.VALIDATED:
         raise ImportFailure("Only a validated batch can be approved.", "status")
-    batch.status, batch.approved_by = ImportBatch.APPROVED, actor
-    batch.save()
-    audit.record(
-        actor=actor, action="import.approved", object_type="import_batch", object_id=batch.pk
-    )
+    if batch.reference_plan and not create_reference:
+        raise ImportFailure(
+            f"This file needs {len(batch.reference_plan)} new reference record(s) "
+            "(training centres, cohorts or courses). Confirm them to approve.",
+            "create_reference",
+        )
+    with transaction.atomic():
+        if batch.reference_plan:
+            try:
+                made = participants.create_proposed_reference(
+                    actor=actor, items=batch.reference_plan
+                )
+            except ValueError as exc:
+                raise ImportFailure(str(exc), "create_reference") from exc
+            blocked = 0
+            for row in batch.rows.filter(outcome__in=[ImportRow.CREATE, ImportRow.UPDATE]):
+                if "_proposed" not in row.clean:
+                    continue
+                problems = participants.offering_resolves(row.clean)
+                if problems:
+                    row.outcome = ImportRow.HELD
+                    row.errors = [{"field": f, "message": m} for f, m in problems]
+                    row.save(update_fields=["outcome", "errors"])
+                    batch.counts["held"] += 1
+                    batch.counts["create"] -= 1
+                    blocked += 1
+            audit.record(
+                actor=actor,
+                action="import.reference_created",
+                object_type="import_batch",
+                object_id=batch.pk,
+                after={"records": made, "plan": len(batch.reference_plan), "blocked": blocked},
+            )
+        batch.status, batch.approved_by = ImportBatch.APPROVED, actor
+        batch.save()
+        audit.record(
+            actor=actor, action="import.approved", object_type="import_batch", object_id=batch.pk
+        )
 
 
 def cancel(*, actor, batch):

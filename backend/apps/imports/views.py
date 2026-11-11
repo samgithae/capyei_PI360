@@ -51,6 +51,7 @@ def _batch_out(b):
         "template": str(b.template),
         "counts": b.counts,
         "defaults": b.defaults,
+        "reference_plan": [{"kind": i["kind"], "label": i["label"]} for i in b.reference_plan],
         "duplicate_of": str(b.duplicate_of_id) if b.duplicate_of_id else None,
         "created_at": b.created_at.isoformat(),
         "committed_at": b.committed_at.isoformat() if b.committed_at else None,
@@ -201,6 +202,10 @@ class BatchErrorsView(APIView):
         return resp
 
 
+class ApproveSerializer(serializers.Serializer):
+    create_reference = serializers.BooleanField(required=False, default=False)
+
+
 def _action(name, perm, fn_name, with_reason=False):
     class View(APIView):
         permission_classes = [HasPermission]
@@ -208,7 +213,13 @@ def _action(name, perm, fn_name, with_reason=False):
 
         @extend_schema(
             operation_id=f"imports_batch_{name}",
-            request=RollbackSerializer if with_reason else None,
+            request=(
+                RollbackSerializer
+                if with_reason
+                else ApproveSerializer
+                if name == "approve"
+                else None
+            ),
             responses={200: dict},
         )
         def post(self, request, pk):
@@ -218,6 +229,10 @@ def _action(name, perm, fn_name, with_reason=False):
                 s = RollbackSerializer(data=request.data)
                 s.is_valid(raise_exception=True)
                 kwargs["reason"] = s.validated_data["reason"]
+            if name == "approve":
+                s = ApproveSerializer(data=request.data)
+                s.is_valid(raise_exception=True)
+                kwargs["create_reference"] = s.validated_data["create_reference"]
             _run(getattr(services, fn_name), actor=request.user, batch=batch, **kwargs)
             batch.refresh_from_db()
             return Response(_batch_out(batch))

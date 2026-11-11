@@ -52,6 +52,9 @@ class ImportBatch(models.Model):
     status = models.CharField(max_length=20, choices=STATUSES, default=UPLOADED)
     counts = models.JSONField(default=dict)
     defaults = models.JSONField(default=dict)  # cohort defaults used for empty cells (doc 15 §3)
+    # New centres/cohorts/courses the file implies, to be confirmed at approval:
+    # [{"kind", "label", "data"}]. Nothing is created until then.
+    reference_plan = models.JSONField(default=list)
     duplicate_of = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )

@@ -1,6 +1,7 @@
 """Public interface of apps.configuration: reference data, feature flags, protected settings.
 Other modules import only this module. Every change is audited in the same transaction."""
 
+import re
 import uuid
 
 from django.conf import settings as dj_settings
@@ -357,11 +358,28 @@ def _by_name(model, programme, text):
     return hits[0] if len(hits) == 1 else None
 
 
+def _find_course(prog, text):
+    """A course by code, exact name, or a "<code>-<name>" label whose code and name both match."""
+    from .models import Course
+
+    hit = Course.objects.filter(programme=prog, code__iexact=text, active=True).first() or _by_name(
+        Course, prog, text
+    )
+    if hit is None and (m := COURSE_LABEL.match(text.strip())):
+        hit = Course.objects.filter(
+            programme=prog,
+            code__iexact=m.group(1),
+            name_normalised=norm(m.group(2)),
+            active=True,
+        ).first()
+    return hit
+
+
 def resolve_offering(programme_code, cohort_code, course_code):
     """Find the active programme, cohort and course by code, and the offering joining cohort and
     course. Returns ``(offering_id, programme_id, institution_id, errors)`` where errors is a list
     of ``(field, message)``. Ids are strings (they go into JSON)."""
-    from .models import Cohort, Course, Programme
+    from .models import Cohort, Programme
 
     errors, offering = [], None
     prog = cohort = course = None
@@ -376,9 +394,7 @@ def resolve_offering(programme_code, cohort_code, course_code):
         if cohort is None:
             errors.append(("cohort_code", f"Unknown cohort '{cohort_code}' in this programme."))
     if prog and course_code:
-        course = Course.objects.filter(
-            programme=prog, code__iexact=course_code, active=True
-        ).first() or _by_name(Course, prog, course_code)
+        course = _find_course(prog, course_code)
         if course is None:
             errors.append(("course_code", f"Unknown course '{course_code}' in this programme."))
     if cohort and course:
@@ -391,6 +407,173 @@ def resolve_offering(programme_code, cohort_code, course_code):
         str(cohort.institution_id) if cohort else None,
         errors,
     )
+
+
+# A cohort label such as "Gede VTC - 2021 Batch 1-Phase 1-Year 1" carries the training centre and
+# the cohort identity (D-066 proposal; the pattern is one sheet's convention, extend as others
+# appear). A course label is "<code>-<name>", e.g. "003-Carpentry".
+COHORT_LABEL = re.compile(
+    r"^(.+?)\s+-\s+(\d{4})\s+Batch\s+(\d+)\s*-\s*Phase\s+(\d+)\s*-\s*Year\s+(\d+)$", re.I
+)
+COURSE_LABEL = re.compile(r"^([A-Za-z0-9]+)\s*-\s*(.+)$")
+
+
+def propose_reference(programme_code, cohort_text, course_text, county_id):
+    """What would have to be created for this row's cohort/course to resolve? Returns a list of
+    ``{"kind", "label", "data"}`` items (nothing is written), or None when the row cannot be
+    resolved by creating records (unknown programme, label not in a known shape, or a new
+    training centre with no usable county)."""
+    from .models import Cohort, Programme, TrainingInstitution
+
+    prog = Programme.objects.filter(code__iexact=programme_code, active=True).first()
+    if prog is None:
+        return None
+    cohort_text, course_text = (cohort_text or "").strip(), (course_text or "").strip()
+    cohort = Cohort.objects.filter(
+        programme=prog, code__iexact=cohort_text, active=True
+    ).first() or _by_name(Cohort, prog, cohort_text)
+    course = _find_course(prog, course_text)
+    if cohort and course and cohort.offerings.filter(course=course).exists():
+        return None  # nothing missing
+    items = []
+    if cohort is None:
+        m = COHORT_LABEL.match(cohort_text)
+        if not m:
+            return None
+        inst_name, year, batch, phase, yos = m.groups()
+        inst = TrainingInstitution.objects.filter(
+            name_normalised=norm(inst_name), active=True
+        ).first()
+        if inst is None:
+            if not county_id:
+                return None
+            items.append(
+                {
+                    "kind": "institutions",
+                    "label": inst_name.strip(),
+                    "data": {"name": inst_name.strip(), "county": county_id},
+                }
+            )
+        items.append(
+            {
+                "kind": "cohorts",
+                "label": cohort_text,
+                "data": {
+                    "name": cohort_text,
+                    "programme": prog.code,
+                    "institution": inst_name.strip(),
+                    "intake_year": int(year),
+                    "batch_no": int(batch),
+                    "phase": int(phase),
+                    "year_of_study": int(yos),
+                },
+            }
+        )
+    if course is None:
+        m = COURSE_LABEL.match(course_text)
+        if not m:
+            return None
+        items.append(
+            {
+                "kind": "courses",
+                "label": course_text,
+                "data": {
+                    "code": m.group(1),
+                    "name": m.group(2).strip(),
+                    "programme": prog.code,
+                },
+            }
+        )
+    items.append(
+        {
+            "kind": "cohort-courses",
+            "label": f"{cohort_text} / {course_text}",
+            "data": {"cohort": cohort_text, "course": course_text, "programme": prog.code},
+        }
+    )
+    return items
+
+
+def _next_code(model, prefix, **scope):
+    n = model.objects.filter(**scope, code__startswith=prefix).count() + 1
+    while model.objects.filter(**scope, code=f"{prefix}{n:02d}").exists():
+        n += 1
+    return f"{prefix}{n:02d}"
+
+
+@transaction.atomic
+def create_proposed(*, actor, items):
+    """Create the records a validated import proposed, each only if still missing (so it is safe
+    to call twice). Order matters: centres, courses, cohorts, then the offerings joining them.
+    Codes are generated here (centre ``I01``, cohort ``<centre>-21B1P1Y1``); CAP-YEI may rename
+    them in Reference data. Returns the number of records created."""
+    from .models import Cohort, CohortCourse, Course, Programme, TrainingInstitution
+
+    order = {"institutions": 0, "courses": 1, "cohorts": 2, "cohort-courses": 3}
+    made = 0
+    for it in sorted(items, key=lambda i: order[i["kind"]]):
+        d = it["data"]
+        kind = it["kind"]
+        prog = Programme.objects.get(code__iexact=d["programme"]) if "programme" in d else None
+        if kind == "institutions":
+            if TrainingInstitution.objects.filter(name_normalised=norm(d["name"])).exists():
+                continue
+            create_reference(
+                actor=actor,
+                key="institutions",
+                data={
+                    "name": d["name"],
+                    "code": _next_code(TrainingInstitution, "I"),
+                    "county": d["county"],
+                    "kind": "vtc" if "vtc" in d["name"].lower() else "other",
+                },
+            )
+        elif kind == "courses":
+            if Course.objects.filter(programme=prog, code__iexact=d["code"]).exists():
+                continue
+            create_reference(
+                actor=actor,
+                key="courses",
+                data={"code": d["code"], "name": d["name"], "programme": str(prog.pk)},
+            )
+        elif kind == "cohorts":
+            if Cohort.objects.filter(programme=prog, name_normalised=norm(d["name"])).exists():
+                continue
+            inst = TrainingInstitution.objects.get(name_normalised=norm(d["institution"]))
+            yy = f"{d['intake_year'] % 100:02d}"
+            create_reference(
+                actor=actor,
+                key="cohorts",
+                data={
+                    "name": d["name"],
+                    "code": f"{inst.code}-{yy}B{d['batch_no']}P{d['phase']}Y{d['year_of_study']}",
+                    "programme": str(prog.pk),
+                    "institution": str(inst.pk),
+                    "intake_year": d["intake_year"],
+                    "batch_no": d["batch_no"],
+                    "phase": d["phase"],
+                    "year_of_study": d["year_of_study"],
+                },
+            )
+        else:
+            cohort = (
+                Cohort.objects.filter(programme=prog, active=True)
+                .filter(name_normalised=norm(d["cohort"]))
+                .first()
+                or Cohort.objects.filter(programme=prog, code__iexact=d["cohort"]).first()
+            )
+            course = _find_course(prog, d["course"])
+            if cohort is None or course is None:
+                raise ConfigError("cohort_code", "A proposed record could not be matched.")
+            if CohortCourse.objects.filter(cohort=cohort, course=course).exists():
+                continue
+            create_reference(
+                actor=actor,
+                key="cohort-courses",
+                data={"cohort": str(cohort.pk), "course": str(course.pk)},
+            )
+        made += 1
+    return made
 
 
 def county_id_by_code(code):

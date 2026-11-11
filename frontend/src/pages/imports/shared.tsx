@@ -53,6 +53,7 @@ export interface Batch {
     skip?: number;
     warnings?: number;
   };
+  reference_plan: { kind: string; label: string }[];
   duplicate_of: string | null;
   created_at: string;
   committed_at: string | null;
