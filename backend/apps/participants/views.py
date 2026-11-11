@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.api.access import HasPermission, has_permission
+from apps.api.archive import ARCHIVE, BulkArchiveView
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
@@ -20,8 +21,8 @@ VIEW, EDIT, CONTACT = "participants.view", "participants.edit", "participants.vi
 PAGE = 50
 
 
-def _visible(request):
-    return Participant.objects.visible_to(request.user)
+def _visible(request, archived=False):
+    return Participant.objects.visible_to(request.user, archived=archived)
 
 
 def _summary(p):
@@ -32,6 +33,7 @@ def _summary(p):
         "gender": p.gender,
         "age": p.age_at_source,
         "status": p.status,
+        "archived": p.archived_at is not None,
         "county": p.origin_county.name if p.origin_county_id else "",
         "programmes": sorted({e.programme.name for e in enrollments}),
         "cohorts": sorted({e.cohort_course.cohort.name for e in enrollments}),
@@ -97,12 +99,13 @@ class ParticipantListView(APIView):
         operation_id="participants_list",
         parameters=[
             OpenApiParameter(n, str)
-            for n in ("q", "status", "programme", "cohort", "county", "offset")
+            for n in ("q", "status", "programme", "cohort", "county", "archived", "offset")
         ],
         responses={200: dict},
     )
     def get(self, request):
-        qs, g = _visible(request), request.query_params
+        g = request.query_params
+        qs = _visible(request, archived=g.get("archived") == "1")
         try:
             if g.get("programme"):
                 qs = qs.filter(enrollments__programme_id=uuid.UUID(g["programme"]))
@@ -141,17 +144,31 @@ class ParticipantEditSerializer(serializers.Serializer):
 
 class ParticipantDetailView(APIView):
     permission_classes = [HasPermission]
-    required_permission = {"GET": VIEW, "PATCH": EDIT}
+    required_permission = {"GET": VIEW, "PATCH": EDIT, "DELETE": ARCHIVE}
 
     def _get(self, request, pk):
         try:
-            return _visible(request).get(pk=pk)
+            return _visible(request, archived=None).get(pk=pk)
         except Participant.DoesNotExist:
             raise NotFound from None
 
     @extend_schema(operation_id="participants_detail", responses={200: dict})
     def get(self, request, pk):
         return Response(_detail(self._get(request, pk), request.user))
+
+    @extend_schema(operation_id="participants_archive", responses={200: dict})
+    def delete(self, request, pk):
+        """Archive (soft delete). Restore with POST /participants/restore."""
+        self._get(request, pk)  # 404 outside the caller's scope
+        return Response(
+            audit.set_archived(
+                actor=request.user,
+                queryset=_visible(request, archived=None),
+                ids=[pk],
+                archive=True,
+                object_type="participant",
+            )
+        )
 
     @extend_schema(request=ParticipantEditSerializer, responses={200: dict})
     def patch(self, request, pk):
@@ -173,3 +190,19 @@ class ParticipantDetailView(APIView):
                 after=after,
             )
         return Response(_detail(p, request.user))
+
+
+class ParticipantArchiveView(BulkArchiveView):
+    def run(self, request, ids, reason):
+        return audit.set_archived(
+            actor=request.user,
+            queryset=_visible(request, archived=None),
+            ids=ids,
+            archive=self.archive,
+            object_type="participant",
+            reason=reason,
+        )
+
+
+class ParticipantRestoreView(ParticipantArchiveView):
+    archive = False

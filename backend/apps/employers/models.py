@@ -31,6 +31,7 @@ class Employer(models.Model):
     status = models.CharField(max_length=10, choices=STATUSES, default=ACTIVE)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    archived_at = models.DateTimeField(null=True, blank=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -100,6 +101,7 @@ class Opportunity(models.Model):
     start_date = models.DateField(null=True, blank=True)
     closing_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUSES, default=DRAFT, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -529,6 +529,10 @@ paths:
       operationId: employers_list
       parameters:
       - in: query
+        name: archived
+        schema:
+          type: string
+      - in: query
         name: county
         schema:
           type: string
@@ -654,6 +658,28 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+    delete:
+      operationId: employers_archive
+      description: Archive (soft delete). Restore with POST /employers/restore.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/employers/{id}/contacts:
     post:
       operationId: employers_contacts_create
@@ -771,6 +797,34 @@ paths:
                 type: array
                 items: {}
           description: ''
+  /api/v1/employers/archive:
+    post:
+      operationId: employers_archive_create
+      description: POST {ids, reason?}. Subclasses set ``archive`` and implement ``run``.
+      tags:
+      - employers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/employers/check-name:
     get:
       operationId: employers_check_name
@@ -801,6 +855,34 @@ paths:
       operationId: employers_filters
       tags:
       - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employers/restore:
+    post:
+      operationId: employers_restore_create
+      description: POST {ids, reason?}. Subclasses set ``archive`` and implement ``run``.
+      tags:
+      - employers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -1814,6 +1896,10 @@ paths:
       operationId: opportunities_list
       parameters:
       - in: query
+        name: archived
+        schema:
+          type: string
+      - in: query
         name: employer
         schema:
           type: string
@@ -1933,6 +2019,28 @@ paths:
                 additionalProperties: {}
           description: ''
         '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: opportunities_archive
+      description: Archive (soft delete). Restore with POST /opportunities/restore.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - opportunities
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
           content:
             application/json:
               schema:
@@ -2118,10 +2226,70 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/opportunities/archive:
+    post:
+      operationId: opportunities_archive_create
+      description: POST {ids, reason?}. Subclasses set ``archive`` and implement ``run``.
+      tags:
+      - opportunities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/opportunities/restore:
+    post:
+      operationId: opportunities_restore_create
+      description: POST {ids, reason?}. Subclasses set ``archive`` and implement ``run``.
+      tags:
+      - opportunities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants:
     get:
       operationId: participants_list
       parameters:
+      - in: query
+        name: archived
+        schema:
+          type: string
       - in: query
         name: cohort
         schema:
@@ -2202,6 +2370,56 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/PatchedParticipantEdit'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: participants_archive
+      description: Archive (soft delete). Restore with POST /participants/restore.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/archive:
+    post:
+      operationId: participants_archive_create
+      description: POST {ids, reason?}. Subclasses set ``archive`` and implement ``run``.
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -2393,6 +2611,34 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/restore:
+    post:
+      operationId: participants_restore_create
+      description: POST {ids, reason?}. Subclasses set ``archive`` and implement ``run``.
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Bulk'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
 components:
   schemas:
     ActionEnum:
@@ -2483,6 +2729,22 @@ components:
       - object_type
       - reason
       - request_id
+    Bulk:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 200
+          minItems: 1
+        reason:
+          type: string
+          default: ''
+          maxLength: 300
+      required:
+      - ids
     ClusterDecision:
       type: object
       properties:

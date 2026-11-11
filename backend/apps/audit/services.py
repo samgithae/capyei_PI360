@@ -99,3 +99,32 @@ def history(object_type: str, object_id, limit: int = 200) -> list[dict]:
         }
         for e in events.order_by("-at", "-pk")[:limit]
     ]
+
+
+def set_archived(*, actor, queryset, ids, archive: bool, object_type: str, reason: str = ""):
+    """Archive or restore the records in ``queryset`` whose pk is in ``ids``."""
+    found = {str(o.pk): o for o in queryset.filter(pk__in=ids)}
+    changed, skipped = [], []
+    with transaction.atomic():
+        for pk in dict.fromkeys(str(i) for i in ids):
+            obj = found.get(pk)
+            if obj is None:
+                skipped.append({"id": pk, "reason": "Not found."})
+            elif (obj.archived_at is not None) == archive:
+                skipped.append(
+                    {"id": pk, "reason": "Already archived." if archive else "Not archived."}
+                )
+            else:
+                obj.archived_at = timezone.now() if archive else None
+                obj.save(update_fields=["archived_at"])
+                record(
+                    actor=actor,
+                    action=f"{object_type}.{'archived' if archive else 'restored'}",
+                    object_type=object_type,
+                    object_id=obj.pk,
+                    before={"archived": not archive},
+                    after={"archived": archive},
+                    reason=reason,
+                )
+                changed.append(pk)
+    return {"changed": changed, "skipped": skipped}

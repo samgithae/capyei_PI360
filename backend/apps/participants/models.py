@@ -14,11 +14,15 @@ from apps.api.access import ScopedQuerySet
 
 
 class ParticipantQuerySet(ScopedQuerySet):
-    def visible_to(self, user):
+    def visible_to(self, user, *, archived=False):
+        # ``archived``: False hides archived records (soft delete), True shows only them, None both.
         # Programme and cohort scope go through enrollments, a one-to-many join that can repeat a
         # participant, so the result is de-duplicated.
         # Records absorbed by a merge (T-041) are hidden; unmerging brings them back.
-        return super().visible_to(user).filter(merged_into__isnull=True).distinct()
+        qs = super().visible_to(user).filter(merged_into__isnull=True)
+        if archived is not None:
+            qs = qs.filter(archived_at__isnull=not archived)
+        return qs.distinct()
 
 
 class Participant(models.Model):
@@ -48,6 +52,7 @@ class Participant(models.Model):
     merged_into = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    archived_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

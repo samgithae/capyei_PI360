@@ -44,6 +44,7 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("imports.commit", "Approve and commit imports", "Data"),
     Permission("duplicates.review", "Review duplicate candidates", "Data"),
     Permission("duplicates.merge", "Merge and unmerge records", "Data"),
+    Permission("records.archive", "Archive and restore records", "Data"),
     Permission("ydm.view", "View YDM assessments", "YDM"),
     Permission("ydm.assess", "Record YDM assessments", "YDM"),
     Permission("ydm.manage", "Manage YDM instruments", "YDM"),

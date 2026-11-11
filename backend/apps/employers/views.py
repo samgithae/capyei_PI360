@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.api.access import HasPermission
+from apps.api.archive import ARCHIVE, BulkArchiveView, archived_filter
+from apps.audit import services as audit
 from apps.configuration import services as configuration
 
 from . import services
@@ -18,6 +20,47 @@ VIEW, EDIT = "employers.view", "employers.edit"
 PAGE = 50
 
 
+def _archive_one(request, queryset, pk, object_type):
+    result = audit.set_archived(
+        actor=request.user, queryset=queryset, ids=[pk], archive=True, object_type=object_type
+    )
+    if not result["changed"] and result["skipped"][0]["reason"] == "Not found.":
+        raise NotFound
+    return result
+
+
+class EmployerArchiveView(BulkArchiveView):
+    def run(self, request, ids, reason):
+        return audit.set_archived(
+            actor=request.user,
+            queryset=Employer.objects.all(),
+            ids=ids,
+            archive=self.archive,
+            object_type="employer",
+            reason=reason,
+        )
+
+
+class EmployerRestoreView(EmployerArchiveView):
+    archive = False
+
+
+class OpportunityArchiveView(BulkArchiveView):
+    def run(self, request, ids, reason):
+        return audit.set_archived(
+            actor=request.user,
+            queryset=Opportunity.objects.all(),
+            ids=ids,
+            archive=self.archive,
+            object_type="opportunity",
+            reason=reason,
+        )
+
+
+class OpportunityRestoreView(OpportunityArchiveView):
+    archive = False
+
+
 def _summary(e):
     return {
         "id": str(e.pk),
@@ -25,6 +68,7 @@ def _summary(e):
         "status": e.status,
         "sector": e.sector.name if e.sector_id else "",
         "county": e.county.name if e.county_id else "",
+        "archived": e.archived_at is not None,
     }
 
 
@@ -121,12 +165,14 @@ class EmployerListView(APIView):
     @extend_schema(
         operation_id="employers_list",
         parameters=[
-            OpenApiParameter(n, str) for n in ("q", "status", "sector", "county", "offset")
+            OpenApiParameter(n, str)
+            for n in ("q", "status", "sector", "county", "archived", "offset")
         ],
         responses={200: dict},
     )
     def get(self, request):
-        qs, g = Employer.objects.select_related("sector", "county"), request.query_params
+        g = request.query_params
+        qs = archived_filter(Employer.objects.select_related("sector", "county"), g)
         if q := g.get("q", "").strip():
             qs = qs.filter(name_normalised__contains=services.norm(q))
         if g.get("status") in {s for s, _ in Employer.STATUSES}:
@@ -160,11 +206,16 @@ class EmployerListView(APIView):
 
 class EmployerDetailView(APIView):
     permission_classes = [HasPermission]
-    required_permission = {"GET": VIEW, "PATCH": EDIT}
+    required_permission = {"GET": VIEW, "PATCH": EDIT, "DELETE": ARCHIVE}
 
     @extend_schema(operation_id="employers_detail", responses={200: dict})
     def get(self, request, pk):
         return Response(_detail(_get(pk)))
+
+    @extend_schema(operation_id="employers_archive", responses={200: dict})
+    def delete(self, request, pk):
+        """Archive (soft delete). Restore with POST /employers/restore."""
+        return Response(_archive_one(request, Employer.objects.all(), pk, "employer"))
 
     @extend_schema(request=EmployerSerializer, responses={200: dict, 409: dict})
     def patch(self, request, pk):
@@ -284,6 +335,7 @@ def _opp_summary(o):
         "county": o.county.name if o.county_id else "",
         "positions": o.positions,
         "closing_date": o.closing_date.isoformat() if o.closing_date else None,
+        "archived": o.archived_at is not None,
     }
 
 
@@ -341,13 +393,16 @@ class OpportunityListView(APIView):
     @extend_schema(
         operation_id="opportunities_list",
         parameters=[
-            OpenApiParameter(n, str) for n in ("q", "status", "employer", "kind", "offset")
+            OpenApiParameter(n, str)
+            for n in ("q", "status", "employer", "kind", "archived", "offset")
         ],
         responses={200: dict},
     )
     def get(self, request):
-        qs = Opportunity.objects.select_related("employer", "county")
         g = request.query_params
+        qs = archived_filter(Opportunity.objects.select_related("employer", "county"), g)
+        if g.get("archived") != "1":  # an archived employer takes its opportunities with it
+            qs = qs.filter(employer__archived_at__isnull=True)
         if q := g.get("q", "").strip():
             qs = qs.filter(title__icontains=q)
         if g.get("status") in {s for s, _ in Opportunity.STATUSES}:
@@ -383,11 +438,16 @@ class OpportunityListView(APIView):
 
 class OpportunityDetailView(APIView):
     permission_classes = [HasPermission]
-    required_permission = {"GET": VIEW, "PATCH": EDIT}
+    required_permission = {"GET": VIEW, "PATCH": EDIT, "DELETE": ARCHIVE}
 
     @extend_schema(operation_id="opportunities_detail", responses={200: dict})
     def get(self, request, pk):
         return Response(_opp_detail(_opp(pk)))
+
+    @extend_schema(operation_id="opportunities_archive", responses={200: dict})
+    def delete(self, request, pk):
+        """Archive (soft delete). Restore with POST /opportunities/restore."""
+        return Response(_archive_one(request, Opportunity.objects.all(), pk, "opportunity"))
 
     @extend_schema(request=OpportunitySerializer, responses={200: dict, 409: dict})
     def patch(self, request, pk):

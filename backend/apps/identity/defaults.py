@@ -9,6 +9,24 @@ STAFF_VIEW = [
     "employers.view",
 ]
 
+# An administrator can do everything a steward or officer can (referral approval stays a manager
+# action) and is the only default role that may archive. Editable in Roles like any other.
+ADMIN_ALSO = [
+    "participants.edit",
+    "participants.import",
+    "placements.edit",
+    "employers.edit",
+    "imports.run",
+    "imports.commit",
+    "duplicates.review",
+    "duplicates.merge",
+    "referrals.view",
+    "referrals.edit",
+    "intelligence.view",
+    "reports.view_aggregate",
+    "records.archive",
+]
+
 DEFAULT_ROLES = [
     {
         "name": "Administrator",
@@ -24,11 +42,9 @@ DEFAULT_ROLES = [
             "config.manage",
             "config.manage_protected",
             "reference.manage",
-            "participants.view",
-            "placements.view",
-            "employers.view",
-            "reports.view_aggregate",
-        ],
+        ]
+        + STAFF_VIEW
+        + ADMIN_ALSO,
     },
     {
         "name": "Data steward",
