@@ -18,12 +18,12 @@ export function SidebarHeader() {
         to="/"
         className="flex items-center gap-2.5 font-semibold text-mono"
       >
-        <span
+        <img
+          src="/media/app/cap-mark.png"
+          alt=""
           aria-hidden
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground"
-        >
-          PI
-        </span>
+          className="size-8 shrink-0 object-contain"
+        />
         <span className="default-logo truncate text-sm leading-tight">
           {generalSettings.appName}
         </span>

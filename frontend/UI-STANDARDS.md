@@ -45,3 +45,7 @@ activity/history. Detail pages use a 2/3 + 1/3 grid: information on the left, ac
 - Dark mode: no bright backgrounds on the main list/overview/import pages (scripted check); detail pages and dialogs spot-checked only.
 - Non-steward permission views, the users-page role select, the "Save anyway" duplicate path and API-error states are untested.
 - Empty states verified for opportunities, employers and youth searches.
+
+## Brand colours
+
+CAP-YEI palette (from the logo) lives in `src/styles/globals.css` as `--brand-blue #1e3f95`, `--brand-yellow #fbc30f`, `--brand-red #da251c`, `--brand-green #86c127`. Blue is `--primary` (a lighter blue in dark mode), red is `--destructive`, and charts use all four. Use the semantic tokens (`bg-primary`, `text-destructive`), never raw hex in components. Logo, mark and favicons are in `public/media/app/`.

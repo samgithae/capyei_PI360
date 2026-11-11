@@ -20,3 +20,9 @@ def make_user(db):
         return user
 
     return _make
+
+
+@pytest.fixture(autouse=True)
+def _production_mfa_rule(settings):
+    """Dev runs (DJANGO_DEBUG=1) switch MFA off for convenience; tests check the real rule."""
+    settings.AUTH_MFA_ROLES = ["Administrator"]
