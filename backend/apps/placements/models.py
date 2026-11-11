@@ -63,3 +63,29 @@ class Placement(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValueError("A placement is append-only and cannot be deleted.")
+
+
+class PlacementStatusMapping(models.Model):
+    """What a source "placement status" value means (T-087 stage C, doc 14 §6, D-061).
+
+    Data, not code: stewards change it without a release. Ships empty; until a value is mapped,
+    rows carrying it stay held and nothing is derived. ``is_placement`` False marks a value that
+    is a referral outcome (e.g. an offer declined), not a placement."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source_value = models.CharField(max_length=100)  # as first mapped, for display
+    source_key = models.CharField(max_length=100, unique=True, editable=False)
+    pathway = models.CharField(max_length=25, choices=Placement.PATHWAYS, blank=True)
+    status = models.CharField(max_length=30)
+    is_placement = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+    mapped_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="+"
+    )
+    mapped_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["source_value"]
+
+    def __str__(self):
+        return f"{self.source_value} -> {self.status}"
