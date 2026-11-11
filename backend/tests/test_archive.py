@@ -120,3 +120,41 @@ def test_admin_can_edit_every_participant_field_and_enrollment(admin, people):
         content_type=JSON,
     )
     assert bad.status_code == 400
+
+
+def test_contacts_and_residence_can_be_replaced(admin, people):
+    from apps.configuration.models import County
+
+    pid = str(people[0].pk)
+    r = admin.put(
+        f"/api/v1/participants/{pid}/contacts",
+        {
+            "contacts": [
+                {"kind": "phone", "value": "0700000000", "primary": True},
+                {"kind": "email", "value": "a@example.com", "primary": True},
+            ]
+        },
+        content_type=JSON,
+    )
+    assert r.status_code == 200, r.content
+    assert len(r.json()["contacts"]) == 2
+    two = admin.put(
+        f"/api/v1/participants/{pid}/contacts",
+        {
+            "contacts": [
+                {"kind": "phone", "value": "1", "primary": True},
+                {"kind": "phone", "value": "2", "primary": True},
+            ]
+        },
+        content_type=JSON,
+    )
+    assert two.status_code == 400
+    county = County.objects.first()
+    body = {"sub_county": "Likoni", "ward": "Timbwani"}
+    if county:
+        body["county_id"] = str(county.pk)
+    one = admin.put(f"/api/v1/participants/{pid}/residence", body, content_type=JSON)
+    assert one.status_code == 200, one.content
+    two = admin.put(f"/api/v1/participants/{pid}/residence", {"ward": "Other"}, content_type=JSON)
+    rows = two.json()["residences"]
+    assert len(rows) == 2 and sum(1 for x in rows if x["current"]) == 1

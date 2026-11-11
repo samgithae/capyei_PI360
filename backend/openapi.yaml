@@ -2402,6 +2402,42 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/{id}/contacts:
+    put:
+      operationId: participants_contacts_replace
+      description: Replace a participant's contact list. Needs participants.edit and
+        view_contact.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipantContacts'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ParticipantContacts'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ParticipantContacts'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/{id}/enrollments/{enrollment_id}:
     patch:
       operationId: participants_enrollment_edit
@@ -2431,6 +2467,41 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/PatchedEnrollmentEdit'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/{id}/residence:
+    put:
+      operationId: participants_residence_set
+      description: Set the current residence. The previous one is closed, so the history
+        is kept.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Residence'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Residence'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Residence'
       security:
       - cookieAuth: []
       responses:
@@ -3131,6 +3202,37 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AuditEvent'
+    ParticipantContact:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/ParticipantContactKindEnum'
+        value:
+          type: string
+          maxLength: 200
+        primary:
+          type: boolean
+          default: false
+      required:
+      - kind
+      - value
+    ParticipantContactKindEnum:
+      enum:
+      - phone
+      - email
+      type: string
+      description: |-
+        * `phone` - phone
+        * `email` - email
+    ParticipantContacts:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParticipantContact'
+      required:
+      - contacts
     ParticipantEditStatusEnum:
       enum:
       - active
@@ -3439,6 +3541,19 @@ components:
       required:
       - description
       - factor
+    Residence:
+      type: object
+      properties:
+        county_id:
+          type: string
+          format: uuid
+          nullable: true
+        sub_county:
+          type: string
+          maxLength: 100
+        ward:
+          type: string
+          maxLength: 100
     Role:
       type: object
       properties:

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, ApiError } from '@/lib/api';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FormModal } from '@/components/shared/modals';
@@ -19,7 +21,20 @@ interface Enrollment {
   completed_on: string | null;
   exit_reason: string;
 }
+interface Contact {
+  kind: string;
+  value: string;
+  primary: boolean;
+}
+interface Residence {
+  county_id: string;
+  sub_county: string;
+  ward: string;
+  current: boolean;
+}
 interface Detail {
+  contacts?: Contact[];
+  residences: Residence[];
   name: string;
   given_name: string;
   family_name: string;
@@ -64,7 +79,20 @@ export function EditParticipant({
   const [core, setCore] = useState<Partial<Core>>({});
   const [enr, setEnr] = useState<EnrollmentDraft>({});
   const [error, setError] = useState('');
+  const [contacts, setContacts] = useState<Contact[] | null>(null);
+  const [home, setHome] = useState<Partial<Residence>>({});
   const d = detail.data;
+  const list = contacts ?? d?.contacts ?? [];
+  const current = d?.residences.find((r) => r.current);
+  const res = {
+    county_id: '',
+    sub_county: '',
+    ward: '',
+    ...current,
+    ...home,
+  };
+  const setContact = (i: number, p: Partial<Contact>) =>
+    setContacts(list.map((c, j) => (j === i ? { ...c, ...p } : c)));
   const v = d ? { ...d, ...core } : null;
   const patchEnr = (eid: string, p: Partial<Enrollment>) =>
     setEnr((x) => ({ ...x, [eid]: { ...x[eid], ...p } }));
@@ -86,6 +114,22 @@ export function EditParticipant({
         await api(`/participants/${id}`, {
           method: 'PATCH',
           body: JSON.stringify(body),
+        });
+      }
+      if (contacts) {
+        await api(`/participants/${id}/contacts`, {
+          method: 'PUT',
+          body: JSON.stringify({ contacts }),
+        });
+      }
+      if (Object.keys(home).length > 0) {
+        await api(`/participants/${id}/residence`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            sub_county: res.sub_county,
+            ward: res.ward,
+            county_id: res.county_id || null,
+          }),
         });
       }
       for (const [eid, change] of Object.entries(enr)) {
@@ -138,6 +182,8 @@ export function EditParticipant({
       error={error}
       onSubmit={() => {
         setError('');
+        if (contacts?.some((c) => !c.value.trim()))
+          return setError('Fill in or remove the empty contact.');
         if (v && !v.name.trim()) return setError('Enter the full name.');
         save.mutate();
       }}
@@ -225,6 +271,112 @@ export function EditParticipant({
               />
             </div>
           </div>
+
+          <fieldset className="space-y-3 rounded-lg border border-border p-3">
+            <legend className="px-1 text-sm font-medium">
+              Current residence
+            </legend>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label>County</Label>
+                <SelectField
+                  label="Residence county"
+                  value={res.county_id || NO_COUNTY}
+                  options={[
+                    { id: NO_COUNTY, name: 'Not recorded' },
+                    ...(filters.data?.counties ?? []),
+                  ]}
+                  onChange={(x) =>
+                    setHome((h) => ({
+                      ...h,
+                      county_id: x === NO_COUNTY ? '' : x,
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="res-sub">Sub-county</Label>
+                <Input
+                  id="res-sub"
+                  value={res.sub_county}
+                  onChange={(e) =>
+                    setHome((h) => ({ ...h, sub_county: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="res-ward">Ward</Label>
+                <Input
+                  id="res-ward"
+                  value={res.ward}
+                  onChange={(e) =>
+                    setHome((h) => ({ ...h, ward: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              A change closes the old address and keeps it in the history.
+            </p>
+          </fieldset>
+
+          {d!.contacts && (
+            <fieldset className="space-y-3 rounded-lg border border-border p-3">
+              <legend className="px-1 text-sm font-medium">Contacts</legend>
+              {list.map((c, i) => (
+                <div key={i} className="flex flex-wrap items-center gap-2">
+                  <div className="w-28">
+                    <SelectField
+                      label="Contact type"
+                      value={c.kind}
+                      options={opts(['phone', 'email'])}
+                      onChange={(x) => setContact(i, { kind: x })}
+                      className="capitalize"
+                    />
+                  </div>
+                  <Input
+                    aria-label="Contact value"
+                    className="min-w-48 flex-1"
+                    value={c.value}
+                    onChange={(e) => setContact(i, { value: e.target.value })}
+                  />
+                  <label className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={c.primary}
+                      onChange={(e) =>
+                        setContact(i, { primary: e.target.checked })
+                      }
+                    />
+                    Primary
+                  </label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    mode="icon"
+                    size="sm"
+                    aria-label="Remove contact"
+                    onClick={() => setContacts(list.filter((_, j) => j !== i))}
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setContacts([
+                    ...list,
+                    { kind: 'phone', value: '', primary: false },
+                  ])
+                }
+              >
+                <Plus /> Add contact
+              </Button>
+            </fieldset>
+          )}
 
           {d!.enrollments.map((e) => {
             const m = { ...e, ...enr[e.id] };

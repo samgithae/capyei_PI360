@@ -3,10 +3,12 @@ caller (SEC-06); records outside scope are 404. Contact details need participant
 
 import uuid
 
+from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -15,7 +17,12 @@ from apps.api.archive import ARCHIVE, BulkArchiveView
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
-from .models import Participant, ParticipantEnrollment
+from .models import (
+    Participant,
+    ParticipantContact,
+    ParticipantEnrollment,
+    ParticipantResidence,
+)
 
 VIEW, EDIT, CONTACT = "participants.view", "participants.edit", "participants.view_contact"
 PAGE = 50
@@ -71,6 +78,7 @@ def _detail(p, user):
         residences=[
             {
                 "county": r.county.name if r.county_id else "",
+                "county_id": str(r.county_id) if r.county_id else "",
                 "sub_county": r.sub_county_source,
                 "ward": r.ward_source,
                 "current": r.valid_to is None,
@@ -270,6 +278,127 @@ class EnrollmentDetailView(APIView):
                 before={k: plain(before[k]) for k in after},
                 after={k: plain(v) for k, v in after.items()},
             )
+        return Response(_detail(p, request.user))
+
+
+class ParticipantContactSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=[ParticipantContact.PHONE, ParticipantContact.EMAIL])
+    value = serializers.CharField(max_length=200)
+    primary = serializers.BooleanField(default=False)
+
+
+class ParticipantContactsSerializer(serializers.Serializer):
+    contacts = ParticipantContactSerializer(many=True, max_length=20)
+
+    def validate_contacts(self, rows):
+        for kind in (ParticipantContact.PHONE, ParticipantContact.EMAIL):
+            if sum(1 for r in rows if r["kind"] == kind and r["primary"]) > 1:
+                raise serializers.ValidationError(f"Only one primary {kind} is allowed.")
+        return rows
+
+
+class ContactsView(APIView):
+    """Replace a participant's contact list. Needs participants.edit and view_contact."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"PUT": EDIT}
+
+    @extend_schema(
+        operation_id="participants_contacts_replace",
+        request=ParticipantContactsSerializer,
+        responses={200: dict},
+    )
+    def put(self, request, pk):
+        if not has_permission(request.user, CONTACT):
+            raise PermissionDenied
+        try:
+            p = _visible(request, archived=None).get(pk=pk)
+        except Participant.DoesNotExist:
+            raise NotFound from None
+        s = ParticipantContactsSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        rows = s.validated_data["contacts"]
+        old = [{"kind": c.kind, "primary": c.is_primary} for c in p.contacts.all()]
+        new = [{"kind": r["kind"], "primary": r["primary"]} for r in rows]
+        with transaction.atomic():
+            p.contacts.all().delete()
+            ParticipantContact.objects.bulk_create(
+                ParticipantContact(
+                    participant=p, kind=r["kind"], value=r["value"].strip(), is_primary=r["primary"]
+                )
+                for r in rows
+            )
+            # Values are personal data, so the audit trail records counts and kinds, not numbers.
+            audit.record(
+                actor=request.user,
+                action="participant.contacts_edited",
+                object_type="participant",
+                object_id=p.pk,
+                before={"contacts": old},
+                after={"contacts": new},
+            )
+        return Response(_detail(p, request.user))
+
+
+class ResidenceSerializer(serializers.Serializer):
+    county_id = serializers.UUIDField(allow_null=True, required=False)
+    sub_county = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    ward = serializers.CharField(max_length=100, allow_blank=True, required=False)
+
+    def validate_county_id(self, value):
+        if value is not None and not configuration.county_exists(value):
+            raise serializers.ValidationError("Unknown county.")
+        return value
+
+
+class ResidenceView(APIView):
+    """Set the current residence. The previous one is closed, so the history is kept."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"PUT": EDIT}
+
+    @extend_schema(
+        operation_id="participants_residence_set",
+        request=ResidenceSerializer,
+        responses={200: dict},
+    )
+    def put(self, request, pk):
+        try:
+            p = _visible(request, archived=None).get(pk=pk)
+        except Participant.DoesNotExist:
+            raise NotFound from None
+        s = ResidenceSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        current = p.residences.filter(valid_to__isnull=True).first()
+        county_id = d.get("county_id", current.county_id if current else None)
+        sub = d.get("sub_county", current.sub_county_source if current else "")
+        ward = d.get("ward", current.ward_source if current else "")
+        same = current and (current.county_id, current.sub_county_source, current.ward_source) == (
+            county_id,
+            sub,
+            ward,
+        )
+        if not same:
+            with transaction.atomic():
+                if current:
+                    current.valid_to = timezone.localdate()
+                    current.save(update_fields=["valid_to"])
+                ParticipantResidence.objects.create(
+                    participant=p,
+                    county_id=county_id,
+                    sub_county_source=sub,
+                    ward_source=ward,
+                    valid_from=timezone.localdate(),
+                )
+                audit.record(
+                    actor=request.user,
+                    action="participant.residence_edited",
+                    object_type="participant",
+                    object_id=p.pk,
+                    before={"county_id": str(current.county_id or "") if current else ""},
+                    after={"county_id": str(county_id or "")},
+                )
         return Response(_detail(p, request.user))
 
 

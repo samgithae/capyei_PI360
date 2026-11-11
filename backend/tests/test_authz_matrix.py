@@ -54,6 +54,8 @@ MATRIX = {
         "DELETE": "records.archive",
     },
     "participants/<uuid:pk>/enrollments/<uuid:enrollment_id>": {"PATCH": "participants.edit"},
+    "participants/<uuid:pk>/contacts": {"PUT": "participants.edit"},
+    "participants/<uuid:pk>/residence": {"PUT": "participants.edit"},
     "participants/archive": {"POST": "records.archive"},
     "participants/restore": {"POST": "records.archive"},
     "participants/duplicates": {"GET": "duplicates.review"},
