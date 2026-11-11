@@ -14,9 +14,19 @@ export function SidebarHeader() {
 
   return (
     <div className="sidebar-header hidden lg:flex items-center relative justify-between px-3 lg:px-6 shrink-0">
-      <Link to="/" className="font-semibold text-mono">
-        <span className="default-logo">{generalSettings.appName}</span>
-        <span className="small-logo">{generalSettings.shortName}</span>
+      <Link
+        to="/"
+        className="flex items-center gap-2.5 font-semibold text-mono"
+      >
+        <span
+          aria-hidden
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground"
+        >
+          PI
+        </span>
+        <span className="default-logo truncate text-sm leading-tight">
+          {generalSettings.appName}
+        </span>
       </Link>
       <Button
         onClick={handleToggleClick}

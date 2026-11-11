@@ -1,12 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
-import { Menu } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { generalSettings } from '@/config/general.config';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useScrollPosition } from '@/hooks/use-scroll-position';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Sheet,
   SheetBody,
@@ -15,7 +24,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Breadcrumb } from './breadcrumb';
 import { SidebarMenu } from './sidebar-menu';
 
 // The kit's search, notifications, chat, apps and user menus are not shipped
@@ -71,23 +79,45 @@ export function Header() {
           )}
         </div>
 
-        <div className="hidden lg:flex items-center">
-          <Breadcrumb />
-        </div>
-
-        <div className="flex items-center gap-3 text-sm">
-          <span className="text-muted-foreground" title={me?.roles?.join(', ')}>
-            {me?.username}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              void logout().then(() => navigate('/login', { replace: true }))
-            }
-          >
-            Sign out
-          </Button>
+        <div className="ms-auto flex items-center gap-3 text-sm">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="gap-2 px-2"
+                aria-label="Account menu"
+              >
+                <Avatar className="size-7">
+                  <AvatarFallback className="bg-primary/10 text-xs font-medium uppercase text-primary">
+                    {me?.username?.slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden sm:inline text-foreground">
+                  {me?.username}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="space-y-0.5">
+                <div className="text-sm font-medium text-foreground">
+                  {me?.username}
+                </div>
+                <div className="text-xs font-normal capitalize text-muted-foreground">
+                  {me?.roles?.length ? me.roles.join(', ') : 'No role assigned'}
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() =>
+                  void logout().then(() =>
+                    navigate('/login', { replace: true }),
+                  )
+                }
+              >
+                <LogOut /> Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
