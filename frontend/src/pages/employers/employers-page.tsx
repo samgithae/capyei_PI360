@@ -20,6 +20,7 @@ import {
   ParticipantStatus,
   SearchBox,
 } from '@/components/data-card';
+import { DialogShell } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EmployerForm, EmployerValues, EMPTY, Options } from './employer-form';
@@ -77,22 +78,28 @@ export function EmployersPage() {
         title="Employers"
         description="Partner employers and their contacts."
         actions={
-          can('employers.edit') &&
-          !adding && (
+          can('employers.edit') && (
             <Button onClick={() => setAdding(true)}>Add employer</Button>
           )
         }
       />
 
       {adding && (
-        <EmployerForm
-          initial={EMPTY}
-          options={options.data}
-          onCancel={() => setAdding(false)}
-          onSave={async (v, confirm) => {
-            await create.mutateAsync({ v, confirm });
-          }}
-        />
+        <DialogShell
+          open
+          onOpenChange={(o) => !o && setAdding(false)}
+          title="Add employer"
+          description="Similar existing names are flagged before saving."
+        >
+          <EmployerForm
+            initial={EMPTY}
+            options={options.data}
+            onCancel={() => setAdding(false)}
+            onSave={async (v, confirm) => {
+              await create.mutateAsync({ v, confirm });
+            }}
+          />
+        </DialogShell>
       )}
 
       <DataCard

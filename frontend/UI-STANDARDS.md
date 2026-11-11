@@ -43,4 +43,4 @@ activity/history. Detail pages use a 2/3 + 1/3 grid: information on the left, ac
 - Sidebar and header are still stock Metronic layout-1 (not restyled).
 - Every page header uses `PageHeader`, but its breadcrumb is a single crumb on top-level pages.
 - Dark mode and non-steward permission views have not been checked page by page.
-- The employer add form sits under the page header rather than in a `FormModal`.
+- Dark mode and mobile menu spot-checked only on a few pages.

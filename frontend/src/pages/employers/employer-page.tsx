@@ -19,7 +19,11 @@ import {
 } from '@/components/ui/table';
 import { ActivityTimeline } from '@/components/shared/activity-timeline';
 import { DetailList, Section } from '@/components/shared/info-card';
-import { ConfirmDialog, FormModal } from '@/components/shared/modals';
+import {
+  ConfirmDialog,
+  DialogShell,
+  FormModal,
+} from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
@@ -168,8 +172,7 @@ export function EmployerPage() {
           </>
         }
         actions={
-          canEdit &&
-          !editing && (
+          canEdit && (
             <Button variant="outline" onClick={() => setEditing(true)}>
               <Pencil /> Edit employer
             </Button>
@@ -178,24 +181,30 @@ export function EmployerPage() {
       />
 
       {editing && (
-        <EmployerForm
-          initial={{
-            name: e.name,
-            sector_id: e.sector_id,
-            county_id: e.county_id,
-            sub_county: e.sub_county,
-            address: e.address,
-            website: e.website,
-            status: e.status,
-            notes: e.notes,
-          }}
-          employerId={e.id}
-          options={options.data}
-          onCancel={() => setEditing(false)}
-          onSave={async (v, confirm) => {
-            await save.mutateAsync({ v, confirm });
-          }}
-        />
+        <DialogShell
+          open
+          onOpenChange={(o) => !o && setEditing(false)}
+          title="Edit employer"
+        >
+          <EmployerForm
+            initial={{
+              name: e.name,
+              sector_id: e.sector_id,
+              county_id: e.county_id,
+              sub_county: e.sub_county,
+              address: e.address,
+              website: e.website,
+              status: e.status,
+              notes: e.notes,
+            }}
+            employerId={e.id}
+            options={options.data}
+            onCancel={() => setEditing(false)}
+            onSave={async (v, confirm) => {
+              await save.mutateAsync({ v, confirm });
+            }}
+          />
+        </DialogShell>
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">

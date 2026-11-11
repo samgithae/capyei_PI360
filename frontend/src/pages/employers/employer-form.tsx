@@ -100,7 +100,7 @@ export function EmployerForm({
   );
 
   return (
-    <form onSubmit={submit} className="max-w-xl space-y-3">
+    <form onSubmit={submit} className="space-y-3">
       <Input
         aria-label="Employer name"
         placeholder="Employer name"
@@ -121,21 +121,25 @@ export function EmployerForm({
         )}
       </div>
       <Input
+        aria-label="Sub-county"
         placeholder="Sub-county"
         value={v.sub_county}
         onChange={(e) => set('sub_county', e.target.value)}
       />
       <Input
+        aria-label="Address"
         placeholder="Address"
         value={v.address}
         onChange={(e) => set('address', e.target.value)}
       />
       <Input
+        aria-label="Website"
         placeholder="Website"
         value={v.website}
         onChange={(e) => set('website', e.target.value)}
       />
       <Input
+        aria-label="Notes"
         placeholder="Notes"
         value={v.notes}
         onChange={(e) => set('notes', e.target.value)}
@@ -161,7 +165,11 @@ export function EmployerForm({
           </Button>
         </div>
       )}
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
       <div className="flex gap-2">
         <Button type="submit" disabled={busy || matches.length > 0}>
           Save
