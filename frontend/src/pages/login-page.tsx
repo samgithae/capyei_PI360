@@ -78,7 +78,7 @@ export function LoginPage() {
         : 'Enter the 6-digit code from your authenticator app.';
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid min-h-screen w-full lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Helmet>
         <title>Sign in | PI 360</title>
       </Helmet>
