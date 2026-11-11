@@ -90,7 +90,8 @@ def create_template(*, actor, source, columns, target="participants") -> Mapping
 
 # Extra header spellings seen in source files (doc 15 §3 step 3). Proposals pending D-050/D-062.
 SYNONYMS = {
-    "name": "full_name", "trainee": "full_name", "traineecontact": "phone", "fullname": "full_name", "traineename": "full_name",
+    "name": "full_name", "fullname": "full_name", "traineename": "full_name",
+    "trainee": "full_name", "traineecontact": "phone",
     "programme": "programme_code", "program": "programme_code", "prog": "programme_code",
     "cohort": "cohort_code", "course": "course_code", "enrollmentnumber": "enrollment_no",
     "enrolmentno": "enrollment_no", "enrolno": "enrollment_no", "enrollmentno": "enrollment_no",
