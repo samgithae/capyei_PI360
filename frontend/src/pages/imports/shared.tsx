@@ -24,6 +24,7 @@ export interface Template {
   id: string;
   source: string;
   version: number;
+  target?: string;
   columns: Record<string, string>;
 }
 export interface Inspection {
@@ -39,12 +40,15 @@ export interface Inspection {
     { code: string; name: string; programme?: string }[]
   >;
   already_loaded: boolean;
+  target?: string;
+  defaultable?: string[];
 }
 export interface Batch {
   id: string;
   file_name: string;
   status: string;
   template: string;
+  target?: string;
   counts: {
     total?: number;
     create?: number;

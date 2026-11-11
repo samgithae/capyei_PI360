@@ -16,6 +16,7 @@ from apps.api import runtime
 from apps.audit import services as audit
 from apps.employers import services as employers
 from apps.participants import services as participants
+from apps.placements import services as placements
 
 from . import placement_rows
 from .models import (
@@ -651,3 +652,81 @@ def contract(template) -> dict:
         if template.target == "placements"
         else participants.IMPORT_RULES,
     }
+
+
+# --- placement review (T-087 stage D2) -------------------------------------------------------
+
+
+def _need_placements(batch):
+    if batch.template.target != "placements":
+        raise ImportFailure("This review applies to placement imports only.")
+    if batch.status != ImportBatch.VALIDATED:
+        raise ImportFailure("Review is possible before the batch is approved.", "status")
+
+
+def placement_review(batch) -> dict:
+    """What a steward must settle before loading a placement batch: the organisation spellings
+    grouped into suggested employers (D-064) and the status values with no meaning yet (D-061)."""
+    _need_placements(batch)
+    rows = batch.rows.exclude(outcome=ImportRow.SKIP).values_list("clean", flat=True)
+    orgs = [c.get("organisation", "") for c in rows]
+    statuses = [c.get("placement_status", "") for c in batch.rows.values_list("clean", flat=True)]
+    return {
+        "clusters": employers.build_clusters(
+            [o for o in orgs if o and employers.resolve_name(o) is None]
+        ),
+        "unmapped_statuses": placements.unmapped_values(statuses),
+        "held": batch.rows.filter(outcome=ImportRow.HELD).count(),
+    }
+
+
+def decide_employer_group(*, actor, batch, key, spellings, action, employer_id=None) -> dict:
+    """A steward's decision on one name group; it is tied to the batch so a rollback reverses it."""
+    _need_placements(batch)
+    try:
+        employers.decide_cluster(
+            actor=actor, key=key, spellings=spellings, action=action,
+            employer_id=employer_id, source=str(batch.pk),
+        )  # fmt: skip
+    except ValueError as exc:
+        raise ImportFailure(str(exc), "action") from exc
+    return placement_review(batch)
+
+
+def map_placement_status(
+    *, actor, batch, source_value, status, pathway="", is_placement=True
+) -> dict:
+    _need_placements(batch)
+    try:
+        placements.map_status(
+            actor=actor, source_value=source_value, status=status,
+            pathway=pathway, is_placement=is_placement,
+        )  # fmt: skip
+    except ValueError as exc:
+        raise ImportFailure(str(exc), "status") from exc
+    return placement_review(batch)
+
+
+@transaction.atomic
+def recheck(*, actor, batch) -> ImportBatch:
+    """Re-run the checks on held rows after the steward mapped a status or loaded people, so
+    rows can move from held to ready without uploading the file again."""
+    _need_placements(batch)
+    moved = 0
+    for row in batch.rows.filter(outcome=ImportRow.HELD):
+        checked = placement_rows.check_row(row.clean)
+        row.errors, row.warnings, row.clean = checked.errors, checked.warnings, checked.clean
+        if not checked.errors:
+            row.outcome = ImportRow.SKIP if checked.clean.get("_skip") else ImportRow.CREATE
+            moved += 1
+        row.save(update_fields=["errors", "warnings", "clean", "outcome"])
+    batch.counts = {
+        **batch.counts,
+        **{k: batch.rows.filter(outcome=k).count() for k in ("create", "update", "held", "skip")},
+    }
+    batch.save(update_fields=["counts"])
+    audit.record(
+        actor=actor, action="import.rechecked", object_type="import_batch",
+        object_id=batch.pk, after={"released": moved},
+    )  # fmt: skip
+    return batch

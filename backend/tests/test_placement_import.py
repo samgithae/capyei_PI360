@@ -124,3 +124,34 @@ def test_rollback_refused_for_verified_placement(tpl, steward):  # noqa: F811
 def test_participant_templates_unaffected(db):
     with pytest.raises(services.ImportFailure):
         services.create_template(actor=None, source="x", columns={"A": "nope"}, target="bogus")
+
+
+def test_review_lists_groups_and_unmapped_then_recheck_releases_rows(people, steward):  # noqa: F811
+    t = services.create_template(
+        actor=steward, source="placements", columns=COLS, target="placements"
+    )
+    b = up(
+        steward, t,
+        "P1,E-001,Employment,Acme Ltd,,,,",
+        "P1,E-002,Self Hire,Acme Limited,,,,",
+    )  # fmt: skip
+    review = services.placement_review(b)
+    assert review["held"] == 2  # nothing mapped yet
+    assert {u["value"] for u in review["unmapped_statuses"]} == {"Employment", "Self Hire"}
+    assert len(review["clusters"]) == 1  # both spellings group under one key
+    services.map_placement_status(
+        actor=steward, batch=b, source_value="Employment", status="placed", pathway="wage"
+    )
+    services.map_placement_status(
+        actor=steward, batch=b, source_value="Self Hire", status="placed",
+        pathway="self_employment",
+    )  # fmt: skip
+    b = services.recheck(actor=steward, batch=b)
+    assert b.counts["create"] == 2 and b.counts["held"] == 0
+
+
+def test_review_refused_for_participant_batches_and_after_approval(tpl, steward):  # noqa: F811
+    b = up(steward, tpl, "P1,E-001,Employment,Acme,,,,")
+    services.approve(actor=steward, batch=b)
+    with pytest.raises(services.ImportFailure):
+        services.placement_review(b)

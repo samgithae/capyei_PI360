@@ -49,6 +49,7 @@ def _batch_out(b):
         "file_name": b.file_name,
         "status": b.status,
         "template": str(b.template),
+        "target": b.template.target,
         "counts": b.counts,
         "defaults": b.defaults,
         "reference_plan": [{"kind": i["kind"], "label": i["label"]} for i in b.reference_plan],
@@ -72,6 +73,21 @@ class UploadSerializer(serializers.Serializer):
 
 class InspectSerializer(serializers.Serializer):
     file = serializers.FileField()
+    target = serializers.ChoiceField(choices=services.TARGETS, default="participants")
+
+
+class ClusterDecisionSerializer(serializers.Serializer):
+    key = serializers.CharField(max_length=200)
+    spellings = serializers.ListField(child=serializers.CharField(max_length=300), min_length=1)
+    action = serializers.ChoiceField(choices=["link", "create", "apart"])
+    employer_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class StatusMapSerializer(serializers.Serializer):
+    source_value = serializers.CharField(max_length=200)
+    status = serializers.CharField(max_length=40, allow_blank=True)
+    pathway = serializers.CharField(max_length=40, required=False, allow_blank=True, default="")
+    is_placement = serializers.BooleanField(required=False, default=True)
 
 
 class RollbackSerializer(serializers.Serializer):
@@ -108,7 +124,11 @@ class InspectView(APIView):
         s = InspectSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         f = s.validated_data["file"]
-        return Response(_run(services.inspect, file_name=f.name, data=f.read()))
+        return Response(
+            _run(
+                services.inspect, file_name=f.name, data=f.read(), target=s.validated_data["target"]
+            )
+        )
 
 
 class BatchListView(APIView):
@@ -315,3 +335,58 @@ class TemplateContractView(APIView):
     def get(self, request, pk):
         template = get_object_or_404(MappingTemplate, pk=pk)
         return Response(services.contract(template))
+
+
+class PlacementReviewView(APIView):
+    """Name groups and unmapped statuses for a placement batch; stewards settle them here."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": RUN}
+
+    @extend_schema(operation_id="imports_batch_review", responses={200: dict})
+    def get(self, request, pk):
+        return Response(_run(services.placement_review, batch=_batch(pk)))
+
+
+class PlacementEmployerDecisionView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"POST": COMMIT}
+
+    @extend_schema(request=ClusterDecisionSerializer, responses={200: dict})
+    def post(self, request, pk):
+        s = ClusterDecisionSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        employer_id = str(d["employer_id"]) if d.get("employer_id") else None
+        return Response(
+            _run(
+                services.decide_employer_group,
+                actor=request.user,
+                batch=_batch(pk),
+                key=d["key"],
+                spellings=d["spellings"],
+                action=d["action"],
+                employer_id=employer_id,
+            )  # fmt: skip
+        )
+
+
+class PlacementStatusMapView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"POST": COMMIT}
+
+    @extend_schema(request=StatusMapSerializer, responses={200: dict})
+    def post(self, request, pk):
+        s = StatusMapSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        return Response(
+            _run(
+                services.map_placement_status,
+                actor=request.user,
+                batch=_batch(pk),
+                **s.validated_data,
+            )  # fmt: skip
+        )
+
+
+BatchRecheckView = _action("recheck", COMMIT, "recheck")

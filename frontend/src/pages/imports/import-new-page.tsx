@@ -35,7 +35,12 @@ import {
   type Template,
 } from './shared';
 
-const DEFAULTABLE = ['programme_code', 'cohort_code', 'course_code'];
+const PARTICIPANT_DEFAULTABLE = [
+  'programme_code',
+  'cohort_code',
+  'course_code',
+];
+const PLACEMENT_DEFAULTABLE = ['programme_code'];
 const IGNORE = '';
 const NEW = 'new';
 const SKIP = '__skip__'; // Radix Select cannot hold an empty value
@@ -50,6 +55,11 @@ export function ImportNewPage() {
   const [choice, setChoice] = useState<string>(NEW); // a saved template id, or NEW
   const [source, setSource] = useState('');
   const [defaults, setDefaults] = useState<Record<string, string>>({});
+  const [target, setTarget] = useState<'participants' | 'placements'>(
+    'participants',
+  );
+  const DEFAULTABLE =
+    target === 'placements' ? PLACEMENT_DEFAULTABLE : PARTICIPANT_DEFAULTABLE;
 
   const templates = useQuery({
     queryKey: ['import-templates'],
@@ -58,7 +68,7 @@ export function ImportNewPage() {
 
   const inspect = useMutation({
     mutationFn: (f: File) =>
-      upload<Inspection>('/imports/inspect', { file: f }),
+      upload<Inspection>('/imports/inspect', { file: f, target }),
     onSuccess: (data, f) => {
       setSeen(data);
       setMapping(data.suggested);
@@ -87,7 +97,7 @@ export function ImportNewPage() {
           !(DEFAULTABLE.includes(f.field) && defaults[f.field]?.trim()),
       )
       .map((f) => f.field);
-  }, [seen, mapping, defaults]);
+  }, [seen, mapping, defaults, DEFAULTABLE]);
 
   // A saved mapping that leaves out programme/cohort/course needs a default for each.
   const savedTemplate = fitting.find((t) => t.id === choice);
@@ -106,6 +116,7 @@ export function ImportNewPage() {
       if (choice === NEW) {
         const t = await post<Template>('/imports/templates', {
           source,
+          target,
           columns: Object.fromEntries(
             Object.entries(mapping).filter(([, f]) => f !== IGNORE),
           ),
@@ -155,6 +166,21 @@ export function ImportNewPage() {
           <Card className="max-w-xl">
             <CardContent className="space-y-3">
               <h2 className="font-medium">1. Choose the file</h2>
+              <label className="block text-sm">
+                What is in the file?
+                <select
+                  className="mt-1 block w-full rounded-md border bg-background p-2"
+                  value={target}
+                  onChange={(e) =>
+                    setTarget(e.target.value as 'participants' | 'placements')
+                  }
+                >
+                  <option value="participants">People (enrollments)</option>
+                  <option value="placements">
+                    Placements (employers and outcomes)
+                  </option>
+                </select>
+              </label>
               <p className="text-sm text-muted-foreground">
                 A .csv or .xlsx file (first sheet, headers in the first row).
                 Choosing it only reads the headers. Nothing is saved yet.

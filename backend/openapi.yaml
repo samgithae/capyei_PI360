@@ -1368,6 +1368,28 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/imports/batches/{id}/recheck:
+    post:
+      operationId: imports_batch_recheck
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/imports/batches/{id}/reconciliation:
     get:
       operationId: imports_batch_reconciliation
@@ -1384,6 +1406,98 @@ paths:
         required: true
       tags:
       - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/batches/{id}/review:
+    get:
+      operationId: imports_batch_review
+      description: Name groups and unmapped statuses for a placement batch; stewards
+        settle them here.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/batches/{id}/review/employers:
+    post:
+      operationId: imports_batches_review_employers_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterDecision'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClusterDecision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClusterDecision'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/batches/{id}/review/statuses:
+    post:
+      operationId: imports_batches_review_statuses_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusMap'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StatusMap'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StatusMap'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -2207,6 +2321,16 @@ paths:
           description: ''
 components:
   schemas:
+    ActionEnum:
+      enum:
+      - link
+      - create
+      - apart
+      type: string
+      description: |-
+        * `link` - link
+        * `create` - create
+        * `apart` - apart
     Alias:
       type: object
       properties:
@@ -2285,6 +2409,28 @@ components:
       - object_type
       - reason
       - request_id
+    ClusterDecision:
+      type: object
+      properties:
+        key:
+          type: string
+          maxLength: 200
+        spellings:
+          type: array
+          items:
+            type: string
+            maxLength: 300
+          minItems: 1
+        action:
+          $ref: '#/components/schemas/ActionEnum'
+        employer_id:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - action
+      - key
+      - spellings
     Contact:
       type: object
       properties:
@@ -2442,6 +2588,10 @@ components:
         file:
           type: string
           format: uri
+        target:
+          allOf:
+          - $ref: '#/components/schemas/TargetEnum'
+          default: participants
       required:
       - file
     Login:
@@ -2986,6 +3136,33 @@ components:
       - signed_on
       - signer_name
       - signer_role
+    StatusMap:
+      type: object
+      properties:
+        source_value:
+          type: string
+          maxLength: 200
+        status:
+          type: string
+          maxLength: 40
+        pathway:
+          type: string
+          default: ''
+          maxLength: 40
+        is_placement:
+          type: boolean
+          default: true
+      required:
+      - source_value
+      - status
+    TargetEnum:
+      enum:
+      - participants
+      - placements
+      type: string
+      description: |-
+        * `participants` - participants
+        * `placements` - placements
     TemplateInput:
       type: object
       properties:

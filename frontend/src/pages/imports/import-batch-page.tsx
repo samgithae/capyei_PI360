@@ -29,6 +29,7 @@ import {
   LoadingState,
   Notice,
 } from '@/components/states';
+import { PlacementReview } from './placement-review';
 import {
   ImportStepper,
   StatusBadge,
@@ -555,6 +556,9 @@ export function ImportBatchPage() {
 
             {status === 'validated' && step === 3 && (
               <>
+                {b?.target === 'placements' && (
+                  <PlacementReview id={id} canDecide={canCommit} />
+                )}
                 <h2 className="font-medium">Review the rows</h2>
                 <RowsTable id={id} loaded={false} />
                 <div className="flex gap-2">
