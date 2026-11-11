@@ -236,6 +236,10 @@ On "Say what each column means" every column shows the value from the first data
 
 A cohort or course may also be given by its exact name (case, spacing and punctuation ignored) instead of its code, when the name is unique within the programme.
 
+### Placement import and promoting extra data (T-087)
+
+Imports > New import > "Placements" loads outcomes for people already on file (matched by programme and enrollment number). After validation a steward settles employer name groups (link, create or keep apart) and maps status values (or loads the proposed map), re-checks, approves and loads. Placements are append-only; rollback removes what the batch created and is refused once a placement is verified. Imports > "Placements from extra data" does the same from placement columns already stored as extra data: choose a programme, say what each label means, and validate. Working decisions D-061, D-011, D-064, D-066 and D-063 are recorded in planning doc 15 §8 and await CAP-YEI confirmation.
+
 ### Importing any column (extra data)
 
 Every column in a file can be imported. Core fields (name, enrollment number, programme, cohort, course, gender, age, county, phone, email, status) go to their proper place. Any other column is mapped to "Keep as extra data" and stored on the enrollment under its own label (`ParticipantEnrollment.extra`), shown on the profile as "Other details from the source file". The wizard suggests this by default for unrecognised columns that contain data, so nothing is dropped unless you choose Ignore. A county may be a name or a code. Extra data is excluded from rules and reports until a column is promoted to a real field (T-075, T-065 placements, T-087 employers); no data migration is needed to add new columns to a file.
