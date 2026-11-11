@@ -429,6 +429,10 @@ class OpportunityListView(APIView):
         s.is_valid(raise_exception=True)
         data = dict(s.validated_data)
         employer = _get(data.pop("employer_id"))
+        if employer.archived_at is not None:
+            raise serializers.ValidationError(
+                {"employer_id": "This employer is archived. Restore it first."}
+            )
         try:
             o = services.create_opportunity(actor=request.user, employer=employer, data=data)
         except services.RuleViolation as exc:

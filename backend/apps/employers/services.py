@@ -37,7 +37,7 @@ def find_similar(name, *, exclude=None):
     if not key:
         return []
     out = []
-    for e in Employer.objects.exclude(pk=exclude):
+    for e in Employer.objects.filter(archived_at__isnull=True).exclude(pk=exclude):
         ratio = (
             1.0
             if e.name_normalised == key
@@ -292,9 +292,11 @@ def build_clusters(names):
     for text, n in spellings.items():
         groups.setdefault(cluster_key(text), []).append((text, n))
     existing = {}
-    for e in Employer.objects.all():
+    for e in Employer.objects.filter(archived_at__isnull=True):
         existing.setdefault(cluster_key(e.name), {})[str(e.pk)] = e.name
-    for a in EmployerAlias.objects.select_related("employer"):
+    for a in EmployerAlias.objects.select_related("employer").filter(
+        employer__archived_at__isnull=True
+    ):
         existing.setdefault(a.name_key, {})[str(a.employer_id)] = a.employer.name
     clusters = []
     for key, members in groups.items():
@@ -338,7 +340,7 @@ def decide_cluster(*, actor, key, spellings, action, employer_id=None, source=""
     )
     created = []
     if action == ClusterDecision.LINK:
-        employer = Employer.objects.filter(pk=employer_id).first()
+        employer = Employer.objects.filter(pk=employer_id, archived_at__isnull=True).first()
         if employer is None:
             raise ClusterError("Choose the existing employer to link to.")
         for t in texts:

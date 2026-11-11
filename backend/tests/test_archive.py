@@ -158,3 +158,18 @@ def test_contacts_and_residence_can_be_replaced(admin, people):
     two = admin.put(f"/api/v1/participants/{pid}/residence", {"ward": "Other"}, content_type=JSON)
     rows = two.json()["residences"]
     assert len(rows) == 2 and sum(1 for x in rows if x["current"]) == 1
+
+
+def test_archived_employers_are_ignored_by_duplicate_checks_and_opportunity_pickers(admin, db):
+    e = Employer.objects.create(name="Zebra Logistics")
+    admin.post("/api/v1/employers/archive", {"ids": [str(e.pk)]}, content_type=JSON)
+    # a same-name employer is no longer flagged as a duplicate of the archived one
+    r = admin.post("/api/v1/employers", {"name": "Zebra Logistics"}, content_type=JSON)
+    assert r.status_code == 201
+    # an opportunity cannot be added under an archived employer
+    r = admin.post(
+        "/api/v1/opportunities",
+        {"employer_id": str(e.pk), "title": "Driver", "kind": "job", "positions": 1},
+        content_type=JSON,
+    )
+    assert r.status_code == 400

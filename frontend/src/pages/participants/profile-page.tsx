@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
 import { useQuery } from '@tanstack/react-query';
-import { Pencil } from 'lucide-react';
+import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useParams } from 'react-router';
 import { api, ApiError } from '@/lib/api';
@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DataCard, ParticipantStatus } from '@/components/data-card';
+import { useArchiveFlow } from '@/components/shared/bulk';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EditParticipant } from './participant-edit';
@@ -33,6 +34,7 @@ interface Enrollment {
   completed_on: string | null;
 }
 interface Detail {
+  archived: boolean;
   id: string;
   name: string;
   gender: string;
@@ -53,6 +55,12 @@ export function ProfilePage() {
   const { id } = useParams();
   const { can } = useAuth();
   const [editing, setEditing] = useState(false);
+  const archive = useArchiveFlow({
+    path: '/participants',
+    noun: 'participant',
+    nounPlural: 'participants',
+    queryKeys: ['participant', 'participants'],
+  });
   const q = useQuery({
     queryKey: ['participant', id],
     queryFn: () => api<Detail>(`/participants/${id}`),
@@ -89,13 +97,37 @@ export function ProfilePage() {
         crumbs={[{ label: p.name }]}
         title={p.name}
         actions={
-          can('participants.edit') && (
-            <Button onClick={() => setEditing(true)}>
-              <Pencil /> Edit
-            </Button>
-          )
+          <div className="flex gap-2">
+            {can('records.archive') &&
+              (p.archived ? (
+                <Button
+                  variant="outline"
+                  onClick={() => archive.request([p.id], false)}
+                >
+                  <ArchiveRestore /> Restore
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => archive.request([p.id], true)}
+                >
+                  <Archive /> Archive
+                </Button>
+              ))}
+            {can('participants.edit') && (
+              <Button onClick={() => setEditing(true)}>
+                <Pencil /> Edit
+              </Button>
+            )}
+          </div>
         }
       />
+      {archive.dialog}
+      {p.archived && (
+        <p className="rounded-md border border-border bg-muted/40 p-3 text-sm">
+          This participant is archived and hidden from lists and reports.
+        </p>
+      )}
       {editing && (
         <EditParticipant id={p.id} onClose={() => setEditing(false)} />
       )}
