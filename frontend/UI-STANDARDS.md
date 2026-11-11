@@ -40,7 +40,8 @@ activity/history. Detail pages use a 2/3 + 1/3 grid: information on the left, ac
 
 ## Known gaps
 
-- Sidebar and header are still stock Metronic layout-1 (not restyled).
+- Sidebar and header are restyled (brand mark, section labels, account menu); the collapsed-sidebar look is unchecked.
 - Every page header uses `PageHeader`, but its breadcrumb is a single crumb on top-level pages.
-- Dark mode and non-steward permission views have not been checked page by page.
-- Dark mode and mobile menu spot-checked only on a few pages.
+- Dark mode: no bright backgrounds on the main list/overview/import pages (scripted check); detail pages and dialogs spot-checked only.
+- Non-steward permission views, the users-page role select, the "Save anyway" duplicate path and API-error states are untested.
+- Empty states verified for opportunities, employers and youth searches.
