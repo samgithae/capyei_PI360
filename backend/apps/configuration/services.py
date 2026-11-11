@@ -397,6 +397,9 @@ def county_id_by_code(code):
     from .models import County
 
     row = County.objects.filter(code=code).first()
+    if row is None:  # sheets usually say "Kisumu", not "42"
+        hits = list(County.objects.filter(name_normalised=norm(code))[:2])
+        row = hits[0] if len(hits) == 1 else None
     return str(row.pk) if row else None
 
 

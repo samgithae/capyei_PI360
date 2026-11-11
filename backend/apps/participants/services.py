@@ -28,6 +28,17 @@ FIELDS = {
     "status": False,
     "source_id": False,
 }
+EXTRA = "extra:"  # a mapping target: keep this column under its own label
+MAX_EXTRA_LABEL, MAX_EXTRA_VALUE = 60, 500
+
+
+def is_target(name: str) -> bool:
+    """A valid mapping target: a core field, or ``extra:<label>`` for any other column."""
+    return name in FIELDS or (
+        name.startswith(EXTRA) and 0 < len(name[len(EXTRA) :].strip()) <= MAX_EXTRA_LABEL
+    )
+
+
 GENDERS = {"f": "female", "female": "female", "m": "male", "male": "male", "other": "other"}
 IMPORT_RULES = [
     "A row is held (not loaded) if full name or enrollment number is missing (D-050), or if "
@@ -65,6 +76,11 @@ def check_row(raw: dict) -> Checked:
     err = lambda f, m: out.errors.append({"field": f, "message": m})  # noqa: E731
     warn = lambda f, m: out.warnings.append({"field": f, "message": m})  # noqa: E731
     c = out.clean
+    c["extra"] = {
+        k[len(EXTRA) :].strip(): _text(raw, k)[:MAX_EXTRA_VALUE]
+        for k in raw
+        if k.startswith(EXTRA) and _text(raw, k)
+    }
     for f, required in FIELDS.items():
         c[f] = _text(raw, f)
         if required and not c[f]:
@@ -208,6 +224,7 @@ def import_participant(clean: dict, *, batch_ref: str) -> tuple[str, str, dict, 
         institution_id=institution_id,
         source_enrollment_no=clean["enrollment_no"],
         status=clean["status"],
+        extra=clean.get("extra") or {},
     )
     if clean["phone"]:
         ParticipantContact.objects.create(

@@ -52,7 +52,7 @@ def create_template(*, actor, source, columns, target="participants") -> Mapping
         raise ImportFailure("Only the participants target exists so far.", "target")
     if not isinstance(columns, dict) or not columns:
         raise ImportFailure("Give a mapping of source column to field.", "columns")
-    unknown = sorted(set(columns.values()) - set(participants.FIELDS))
+    unknown = sorted(t for t in set(columns.values()) if not participants.is_target(t))
     if unknown:
         raise ImportFailure(f"Unknown target field(s): {', '.join(unknown)}.", "columns")
     missing = [
@@ -125,6 +125,9 @@ def inspect(*, file_name, data: bytes) -> dict:
         if field and field not in taken:
             suggested[h] = field
             taken.add(field)
+        elif len(h) <= participants.MAX_EXTRA_LABEL and any(r.get(h) for r in rows):
+            # Nothing is dropped by default: an unrecognised column with data is kept as extra.
+            suggested[h] = participants.EXTRA + h
     fits = [
         t for t in MappingTemplate.objects.filter(active=True).order_by("source", "-version")
         if all(c in headers for c in t.columns)

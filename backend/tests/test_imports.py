@@ -508,3 +508,27 @@ def test_cohort_and_course_given_by_name_resolve_like_codes(template, steward):
     assert b.counts["create"] == 1 and b.counts["held"] == 0
     bad = upload(steward, template, "Test Two,P1,Cohort 9,C1,E-002,F,21,01", name="g.csv")
     assert bad.counts["held"] == 1
+
+
+@pytest.mark.django_db
+def test_any_other_column_can_be_kept_as_extra_data_and_county_by_name(template, steward):
+    cols = {
+        **COLUMNS,
+        "Organisation": "extra:Organisation",
+        "Placement Date": "extra:Placement Date",
+    }
+    tpl = services.create_template(actor=steward, source="wide", columns=cols)
+    head = HEAD.strip() + ",Organisation,Placement Date\n"
+    county = County.objects.get(code="01").name
+    body = f"Test One,P1,K1,C1,E-001,F,21,{county},Acme Ltd,2026-01-05\n"
+    b = services.upload(actor=steward, template=tpl, file_name="w.csv", data=(head + body).encode())
+    assert b.counts["create"] == 1 and b.counts["warnings"] == 0
+    services.approve(actor=steward, batch=b)
+    services.commit(actor=steward, batch=b)
+    e = ParticipantEnrollment.objects.get(source_enrollment_no="E-001")
+    assert e.extra == {"Organisation": "Acme Ltd", "Placement Date": "2026-01-05"}
+    assert e.participant.origin_county.code == "01"
+    with pytest.raises(services.ImportFailure):  # an empty label is not a target
+        services.create_template(actor=steward, source="bad", columns={**COLUMNS, "X": "extra:"})
+    seen = services.inspect(file_name="w.csv", data=(head + body).encode())
+    assert seen["suggested"]["Organisation"] == "extra:Organisation"

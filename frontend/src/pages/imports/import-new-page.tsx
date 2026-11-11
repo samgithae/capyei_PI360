@@ -237,6 +237,9 @@ export function ImportNewPage() {
                               }
                             >
                               <option value={IGNORE}>Ignore this column</option>
+                              <option value={`extra:${h}`}>
+                                Keep as extra data (&ldquo;{h}&rdquo;)
+                              </option>
                               {seen.fields.map((f) => (
                                 <option
                                   key={f.field}

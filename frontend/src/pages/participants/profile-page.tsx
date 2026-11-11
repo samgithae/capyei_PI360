@@ -17,6 +17,7 @@ interface Enrollment {
   course: string;
   institution: string;
   enrollment_no: string;
+  extra?: Record<string, string>;
   status: string;
   enrolled_on: string | null;
   completed_on: string | null;
@@ -111,6 +112,27 @@ export function ProfilePage() {
           </tbody>
         </table>
       </section>
+
+      {p.enrollments.some((e) => Object.keys(e.extra ?? {}).length > 0) && (
+        <section>
+          <h2 className="mb-2 font-semibold">
+            Other details from the source file
+          </h2>
+          {p.enrollments.map((e) => (
+            <dl
+              key={e.id}
+              className="grid grid-cols-[14rem_1fr] gap-x-4 gap-y-1 text-sm"
+            >
+              {Object.entries(e.extra ?? {}).map(([k, v]) => (
+                <div key={k} className="contents">
+                  <dt className="text-muted-foreground">{k}</dt>
+                  <dd>{v}</dd>
+                </div>
+              ))}
+            </dl>
+          ))}
+        </section>
+      )}
 
       {p.contacts && (
         <section>

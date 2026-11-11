@@ -92,6 +92,9 @@ class ParticipantEnrollment(models.Model):
     enrolled_on = models.DateField(null=True, blank=True)
     completed_on = models.DateField(null=True, blank=True)
     exit_reason = models.CharField(max_length=200, blank=True)
+    # Source columns kept as-is under their own labels (import mapping 'extra:<label>').
+    # Promoted to real fields later (T-075, T-065, T-087); until then excluded from rules.
+    extra = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

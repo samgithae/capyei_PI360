@@ -54,6 +54,7 @@ def _detail(p, user):
                 "course": e.cohort_course.course.name,
                 "institution": e.institution.name,
                 "enrollment_no": e.source_enrollment_no,
+                "extra": e.extra,
                 "status": e.status,
                 "enrolled_on": e.enrolled_on.isoformat() if e.enrolled_on else None,
                 "completed_on": e.completed_on.isoformat() if e.completed_on else None,
