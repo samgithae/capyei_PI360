@@ -127,4 +127,8 @@ for title in ("Sales assistant", "Data entry clerk"):
             "closing_date": date.today() + timedelta(days=60),
         },
     )
+# Draft rule versions for the product owner to review (T-048). Safe to run again.
+from apps.intelligence import initial_rules  # noqa: E402
+
+initial_rules.load()
 print("seeded")

@@ -37,6 +37,7 @@ import {
   expected,
   show,
   useRefreshRules,
+  weightText,
   when,
   type Definition,
   type Operator,
@@ -379,6 +380,11 @@ export function RuleVersionPage() {
                             {f.code}
                             {f.enabled === false && ' · switched off'}
                           </p>
+                          {f.note && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {f.note}
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell className="whitespace-normal">
                           <p>
@@ -399,9 +405,14 @@ export function RuleVersionPage() {
                               Mandatory
                             </Badge>
                           ) : f.mandatory_from_requirement ? (
-                            'Set by the opportunity'
+                            <>
+                              Set by the opportunity
+                              <p className="text-xs text-muted-foreground">
+                                Weight when preferred: {weightText(f, d)}
+                              </p>
+                            </>
                           ) : (
-                            `Preferred, weight ${f.weight ?? 1}`
+                            `Preferred, weight ${weightText(f, d)}`
                           )}
                         </TableCell>
                         <TableCell>
@@ -501,6 +512,14 @@ export function RuleVersionPage() {
               </div>
             )}
           </Section>
+
+          {d.notes && (
+            <Section title="Notes">
+              <p className="whitespace-pre-line text-sm text-foreground">
+                {d.notes}
+              </p>
+            </Section>
+          )}
         </div>
 
         <div className="space-y-5">
@@ -514,7 +533,7 @@ export function RuleVersionPage() {
                   ),
                 },
                 { label: 'What changed', value: v.change_notes },
-                { label: 'Created by', value: v.created_by },
+                { label: 'Created by', value: v.created_by || 'System' },
                 { label: 'Created', value: when(v.created_at) },
                 { label: 'Sent for review by', value: v.submitted_by },
                 { label: 'Approved by', value: v.approved_by },

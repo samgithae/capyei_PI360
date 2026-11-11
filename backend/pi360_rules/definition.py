@@ -15,7 +15,9 @@ be sent for review (doc 07 §2.1).
     }
 
 A factor's ``value`` is a literal, ``{"param": name}`` (a threshold from ``parameters``) or
-``{"field": name}`` (another field of the snapshot, such as an opportunity requirement)."""
+``{"field": name}`` (another field of the snapshot, such as an opportunity requirement).
+A factor's ``weight`` is a number or ``{"param": name}``, so an undecided weight is listed
+with the other parameters that wait for a decision."""
 
 from .operators import OPERATORS
 
@@ -101,8 +103,13 @@ def validate(definition) -> list[dict]:
         elif (name := _ref(f["value"], "param")) is not None and name not in parameters:
             problems.append(_problem(f"{path}.value", f"Parameter {name} is not defined."))
         weight = f.get("weight", 1)
-        if not _is_number(weight) or weight < 0:
-            problems.append(_problem(f"{path}.weight", "Must be a number, zero or more."))
+        if (name := _ref(weight, "param")) is not None:
+            if name not in parameters:
+                problems.append(_problem(f"{path}.weight", f"Parameter {name} is not defined."))
+        elif not _is_number(weight) or weight < 0:
+            problems.append(
+                _problem(f"{path}.weight", "Must be a number, zero or more, or a parameter.")
+            )
         for flag in ("mandatory", "mandatory_from_requirement", "enabled"):
             if not isinstance(f.get(flag, False), bool):
                 problems.append(_problem(f"{path}.{flag}", "Must be true or false."))

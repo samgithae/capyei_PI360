@@ -22,7 +22,7 @@ the import, directory and admin tooling. Everything below is on `main` at
 | Row actions + bulk select on /youth, /opportunities, /employers | Done | this phase |
 | Referral workflow (stages, reason codes, corrections, reassign) | Done; stage list and reason codes await D-037 | T-046 |
 | Rules engine and rule versions (draft, review, approve, activate; a version in force is never edited; every step audited) | Done; who approves awaits D-009 (Administrator holds both rule permissions for now) | T-047 |
-| Initial rule configuration (draft versions for the product owner) | **Not started** | T-048 |
+| Initial rule configuration (three draft rule sets, one per module, loaded by `load_initial_rules`) | Done as drafts; every value awaits D-008, D-009, D-013, D-026, D-028 | T-048 |
 | YDM assessment capture | Not started, optional, gated | T-049 |
 | Modules A/B/C, dashboard, exports, case management, follow-up | Not started (M3) | T-060..T-071 |
 
@@ -81,14 +81,11 @@ duplicates a live one is not checked; official CAP-YEI SVG logo (PNG in use).
 **Finish M2: the intelligence foundation, then start M3.** See section 4 of the chat hand-off or
 `../planning/01_Implementation_Plan.md` §5 and `02_WBS.md`.
 
-1. **T-046 Referral workflow** (Must, 8-10 pd): referral state machine, reason codes for
-   unsuccessful close, history-preserving corrections. Working defaults: D-007 (b) staff
-   referral, D-037 stages from Blueprint v2 §6.2 with configurable reason codes.
-2. **T-047 Rules engine core and versioning** (Must, 6-8 pd): draft/active versions, active
-   version immutable, activation audited, approval permission (D-009).
-3. **T-048 Initial rule configuration** (Must, 2-3 pd): draft rule versions for the product owner.
-4. **T-050/T-051 QA**: synthetic data covering all entities; iteration QA.
-5. **T-052 M2 review**: demo and acceptance.
-6. Then M3 (I05): T-064 interventions/case queues, T-065 placements and employment episodes,
+1. **T-050/T-051 QA** (next): synthetic data covering all entities; iteration QA.
+2. **T-052 M2 review**: demo and acceptance.
+3. Then M3 (I05): T-064 interventions/case queues, T-065 placements and employment episodes,
    T-060 compatibility engine (Module B), T-063 support priority (Module A), T-067 employer
    reliability (Module C), T-054/T-055 consent and duplicate warnings.
+
+Done in this phase: T-046 referral workflow, T-047 rules engine and versioning, T-048 initial
+draft rules.

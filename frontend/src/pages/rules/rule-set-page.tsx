@@ -132,7 +132,7 @@ export function RuleSetPage() {
                 <TableCell>{v.factors}</TableCell>
                 <TableCell>{v.waiting || 'None'}</TableCell>
                 <TableCell>
-                  {v.created_by}
+                  {v.created_by || 'System'}
                   <p className="text-xs text-muted-foreground">
                     {when(v.created_at)}
                   </p>

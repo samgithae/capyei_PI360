@@ -48,6 +48,15 @@ def _expected(factor: dict, definition: dict, snapshot: dict):
     return value, "the rule's value is not set"
 
 
+def _weight(factor: dict, definition: dict):
+    """The factor's weight: a number, or the value of the parameter it names (None while that
+    parameter is undecided)."""
+    weight = factor.get("weight", 1)
+    if isinstance(weight, dict) and set(weight) == {"param"}:
+        return ((definition.get("parameters") or {}).get(weight["param"]) or {}).get("value")
+    return weight
+
+
 def check_factor(factor: dict, definition: dict, snapshot: dict, today: date) -> dict:
     field = _field(snapshot, factor["field"])
     expected, missing_note = _expected(factor, definition, snapshot)
@@ -66,7 +75,7 @@ def check_factor(factor: dict, definition: dict, snapshot: dict, today: date) ->
         "type": factor.get("type", ""),
         "operator": factor["operator"],
         "mandatory": bool(factor.get("mandatory", False)),
-        "weight": factor.get("weight", 1),
+        "weight": _weight(factor, definition),
         "unknown_policy": factor.get("unknown_policy", "flag"),
         "outcome": result.outcome,
         "score": result.score,

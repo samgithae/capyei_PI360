@@ -44,7 +44,7 @@ export interface Factor {
   value: unknown;
   mandatory?: boolean;
   mandatory_from_requirement?: boolean;
-  weight?: number;
+  weight?: number | { param: string };
   unknown_policy?: string;
   max_age_days?: number;
   enabled?: boolean;
@@ -133,6 +133,16 @@ export function expected(f: Factor, d: Definition): string {
       return `the value of ${ref.field}`;
   }
   return show(v);
+}
+
+/** A factor's weight: a number, or the parameter that will hold it once decided. */
+export function weightText(f: Factor, d: Definition): string {
+  const w = f.weight ?? 1;
+  if (typeof w === 'number') return String(w);
+  const p = d.parameters?.[w.param];
+  return p && p.value !== null && p.value !== undefined
+    ? `${show(p.value)} (parameter ${w.param})`
+    : `not decided yet (parameter ${w.param})`;
 }
 
 /** After any change to a rule version, refetch every rules query (list, set, version, history). */

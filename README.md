@@ -179,6 +179,20 @@ Requirements: typed by factor (skill, qualification, location, availability, oth
 
 Assumptions pending D-008/D-010: the draft state, "closing date required to open", and the field list. Not built: matching against requirements (T-060), employer-facing portal, owner officer.
 
+## Rules engine and rule versions (T-047, T-048)
+
+Two parts. `backend/pi360_rules/` is the engine (CMP-08): pure Python, no Django, ten fixed operators, and a three-way result for every check (pass, fail, unknown). `apps/intelligence` (CMP-09) stores rule sets and their numbered versions and runs the lifecycle. Permissions: `intelligence.view`, `intelligence.manage_rules` (write drafts) and `intelligence.approve_rules` (approve, activate, deactivate). Only the Administrator role holds the last two until D-009 says who approves.
+
+API: `/api/v1/rules` (list, create), `/rules/operators`, `/rules/<id>`, `/rules/versions/<id>` (get, patch, delete a draft), and `/rules/versions/<id>/submit|return|approve|activate|deactivate|clone|history`.
+
+Lifecycle: `draft -> in_review -> approved -> active -> retired`. Only a draft can be edited. A version cannot be approved while any parameter is undecided. Activating a version retires the one in force, so one rule set has at most one active version. To change rules in force, copy a version, edit the copy and send it through review again. Every step is audited with the actor.
+
+A definition is JSON: `factors` (code, operator, field, value, mandatory or preferred, weight), `parameters` (label, value, approved, decision id, unit) and `notes`. A factor's value or weight may name a parameter (`{"param": "theta_time"}`), so one decision sets the number in one place.
+
+Initial drafts (T-048): `python manage.py load_initial_rules` creates three draft rule sets, one per module: `support-priority` (A), `compatibility-default` (B) and `employer-reliability` (C). It is safe to run again; a rule set that exists is left alone. `scripts/seed_dev.py` runs it too. The drafts hold structure only. Every threshold, weight and minimum count is an undecided parameter tagged with its decision (D-008, D-009, D-013, D-026, D-028), so none can be approved or activated until CAP-YEI sets the values. The drafts live in `apps/intelligence/initial_rules.py`.
+
+Not built: working anything out from the rules (T-060 Module B, T-063 Module A, T-067 Module C). The snapshot field names in the drafts are proposals for those tasks.
+
 ## Duplicates, merge and reconciliation (T-041, T-042)
 
 Lives in `apps/participants` (`duplicates.py`, `duplicate_views.py`) and `apps/imports`. Permissions: `duplicates.review` (see the queue, scan, dismiss, history) and `duplicates.merge` (merge, undo).
