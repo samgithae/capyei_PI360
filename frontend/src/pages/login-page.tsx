@@ -176,9 +176,9 @@ export function LoginPage() {
         </Card>
       </div>
 
-      {/* Branded panel (Metronic: rounded, bordered, inset on desktop) */}
+      {/* Branded panel (Metronic BrandedLayout: rounded, bordered, inset on desktop) */}
       <div className="order-1 flex flex-col overflow-hidden border-border bg-gradient-to-b from-primary/10 via-muted/40 to-background lg:order-2 lg:m-5 lg:rounded-xl lg:border">
-        <div className="flex flex-col gap-4 p-8 lg:p-12">
+        <div className="flex flex-col gap-4 p-8 lg:p-16">
           <img
             src="/media/app/cap-logo.png"
             alt="CAP Youth Empowerment Institute, Kenya"
@@ -190,25 +190,25 @@ export function LoginPage() {
             <span className="flex-1 bg-[#86c127]" />
           </div>
           <div className="flex flex-col gap-3">
-            <h2 className="text-2xl font-semibold">
+            <h3 className="text-2xl font-semibold text-foreground">
               Placement Intelligence 360
-            </h2>
-            <p className="text-base font-medium text-secondary-foreground">
+            </h3>
+            <div className="text-base font-medium text-secondary-foreground">
               Linking learning and livelihood,{' '}
               <span className="font-semibold text-foreground">
                 tracked in one place
               </span>
               . Import trainee data, match young people to opportunities and see
               outcomes across programmes and counties.
-            </p>
+            </div>
           </div>
         </div>
         {/* Photo card, cropped at the bottom like the template's app preview */}
-        <div className="mt-auto hidden px-12 lg:block">
+        <div className="mt-auto hidden px-16 lg:block">
           <img
             src="/media/app/login-hero.webp"
             alt=""
-            className="h-72 w-full rounded-t-xl border border-b-0 border-border object-cover object-top shadow-lg"
+            className="h-64 w-full rounded-t-xl border border-b-0 border-border object-cover object-top shadow-lg"
           />
         </div>
       </div>
