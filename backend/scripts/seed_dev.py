@@ -30,6 +30,14 @@ User = get_user_model()
 if not User.objects.filter(username="dev.steward").exists():
     u = User.objects.create_user("dev.steward", "dev@example.org", "dev-steward-password-1")
     services.assign_role(actor=None, user=u, role=Role.objects.get(name="Data steward"))
+# Extra dev-only accounts for checking what other roles can see (Administrator can open Users).
+for _name, _role, _pw in (
+    ("dev.admin", "Administrator", "dev-admin-password-1"),
+    ("dev.viewer", "Manager", "dev-viewer-password-1"),
+):
+    if not User.objects.filter(username=_name).exists():
+        _u = User.objects.create_user(_name, f"{_name}@example.org", _pw)
+        services.assign_role(actor=None, user=_u, role=Role.objects.get(name=_role))
 inst, _ = TrainingInstitution.objects.get_or_create(
     code="I1", defaults={"name": "Synthetic College", "county": County.objects.get(code="01")}
 )
