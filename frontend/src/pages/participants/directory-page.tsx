@@ -19,11 +19,7 @@ import {
   ParticipantStatus,
   SearchBox,
 } from '@/components/data-card';
-import {
-  Toolbar,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 
 interface Row {
@@ -94,16 +90,19 @@ export function DirectoryPage() {
       <Helmet>
         <title>Youth | PI 360</title>
       </Helmet>
-      <Toolbar>
-        <ToolbarHeading>
-          <ToolbarPageTitle>Youth</ToolbarPageTitle>
-        </ToolbarHeading>
-        {can('imports.run') && (
-          <Button asChild>
-            <Link to="/imports/new">Import participants</Link>
-          </Button>
-        )}
-      </Toolbar>
+      <PageHeader
+        crumbs={[{ label: 'Youth' }]}
+        title="Youth"
+        actions={
+          <>
+            {can('imports.run') && (
+              <Button asChild>
+                <Link to="/imports/new">Import participants</Link>
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <DataCard
         toolbar={

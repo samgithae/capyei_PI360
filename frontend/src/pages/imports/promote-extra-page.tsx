@@ -21,11 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Toolbar,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { PageHeader } from '@/components/shared/page-header';
 import { Notice } from '@/components/states';
 import { ImportStepper, type Batch } from './shared';
 
@@ -86,11 +82,10 @@ export function PromoteExtraPage() {
         <title>Promote extra data - PI 360</title>
       </Helmet>
       <div className="container-fluid space-y-5">
-        <Toolbar>
-          <ToolbarHeading>
-            <ToolbarPageTitle text="Create placements from extra data" />
-          </ToolbarHeading>
-        </Toolbar>
+        <PageHeader
+          crumbs={[{ label: 'Create placements from extra data' }]}
+          title="Create placements from extra data"
+        />
         <ImportStepper current={1} />
 
         {error && (

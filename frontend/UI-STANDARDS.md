@@ -17,6 +17,7 @@ Do not add another template or UI kit. Check in this order before building anyth
 | `SummaryStatCard` | A headline count. Real API numbers only, never hard-coded |
 | `StatusBadge` | Any status. One colour map; add new statuses there |
 | `FormModal` | Add/edit forms: labels, `*` on required, error line, Cancel/Save |
+| `SelectField` | A single-value dropdown in forms (wraps Metronic Select; `emptyLabel` adds a none option) |
 | `ConfirmDialog` | Before any delete or hard-to-undo change |
 | `ActivityTimeline` | Audit history (`/history` endpoints) |
 | `DataCard`, `SearchBox`, `FilterSelect`, `Pager` | List pages (`components/data-card.tsx`) |
@@ -39,6 +40,7 @@ activity/history. Detail pages use a 2/3 + 1/3 grid: information on the left, ac
 
 ## Known gaps
 
-`import-new-page`, `users-page` and `employer-form` still use a native `<select>`;
-`duplicates-page` has a hand-picked badge; `profile-page`, `directory-page` and import pages
-use `Toolbar` rather than `PageHeader`. Migrate them when each page is next touched.
+- Sidebar and header are still stock Metronic layout-1 (not restyled).
+- Every page header uses `PageHeader`, but its breadcrumb is a single crumb on top-level pages.
+- Dark mode and non-steward permission views have not been checked page by page.
+- The employer add form sits under the page header rather than in a `FormModal`.

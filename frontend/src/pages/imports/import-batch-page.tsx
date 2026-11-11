@@ -18,11 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Toolbar,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { PageHeader } from '@/components/shared/page-header';
 import {
   EmptyState,
   ErrorState,
@@ -501,14 +497,17 @@ export function ImportBatchPage() {
         <title>Import - PI 360</title>
       </Helmet>
       <div className="container-fluid space-y-5">
-        <Toolbar>
-          <ToolbarHeading>
-            <ToolbarPageTitle text={b ? b.file_name : 'Import'} />
-          </ToolbarHeading>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/imports">All imports</Link>
-          </Button>
-        </Toolbar>
+        <PageHeader
+          crumbs={[{ label: b ? b.file_name : 'Import' }]}
+          title={b ? b.file_name : 'Import'}
+          actions={
+            <>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/imports">All imports</Link>
+              </Button>
+            </>
+          }
+        />
 
         {batch.isPending && <LoadingState />}
         {batch.isError && (

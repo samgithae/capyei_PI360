@@ -15,11 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Toolbar,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 
 interface Person {
@@ -305,14 +301,17 @@ export function DuplicatesPage() {
       <Helmet>
         <title>Duplicates | PI 360</title>
       </Helmet>
-      <Toolbar>
-        <ToolbarHeading>
-          <ToolbarPageTitle>Possible duplicates</ToolbarPageTitle>
-        </ToolbarHeading>
-        <Button variant="outline" onClick={() => scan.mutate()}>
-          Scan for duplicates
-        </Button>
-      </Toolbar>
+      <PageHeader
+        crumbs={[{ label: 'Possible duplicates' }]}
+        title="Possible duplicates"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => scan.mutate()}>
+              Scan for duplicates
+            </Button>
+          </>
+        }
+      />
       <p className="text-sm text-muted-foreground">
         Nothing here merges on its own. You decide, and every merge can be
         undone. The matching rules are proposals until the data-readiness audit

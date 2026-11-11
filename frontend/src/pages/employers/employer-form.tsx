@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SelectField } from '@/components/shared/select-field';
 
 export interface Option {
   id: string;
@@ -88,19 +89,14 @@ export function EmployerForm({
     label: string,
     items: Option[],
   ) => (
-    <select
-      aria-label={label}
-      className="h-8.5 rounded-md border border-input bg-background px-3 text-[0.8125rem] text-foreground shadow-xs shadow-black/5 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
+    <SelectField
+      label={label}
+      className="w-44"
       value={v[k] ?? ''}
-      onChange={(e) => set(k, e.target.value)}
-    >
-      {k !== 'status' && <option value="">{label}</option>}
-      {items.map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.name}
-        </option>
-      ))}
-    </select>
+      emptyLabel={k !== 'status' ? label : undefined}
+      options={items}
+      onChange={(x) => set(k, x)}
+    />
   );
 
   return (

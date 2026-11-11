@@ -12,11 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DataCard, ParticipantStatus } from '@/components/data-card';
-import {
-  Toolbar,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 
 interface Enrollment {
@@ -82,11 +78,7 @@ export function ProfilePage() {
       <Helmet>
         <title>{p.name} | PI 360</title>
       </Helmet>
-      <Toolbar>
-        <ToolbarHeading>
-          <ToolbarPageTitle>{p.name}</ToolbarPageTitle>
-        </ToolbarHeading>
-      </Toolbar>
+      <PageHeader crumbs={[{ label: p.name }]} title={p.name} />
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <ParticipantStatus status={p.status} />
         <span>{p.gender}</span>

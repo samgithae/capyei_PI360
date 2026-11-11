@@ -21,11 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Toolbar,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { PageHeader } from '@/components/shared/page-header';
+import { SelectField } from '@/components/shared/select-field';
 import { Notice } from '@/components/states';
 import { CodePicker } from './code-picker';
 import {
@@ -147,11 +144,7 @@ export function ImportNewPage() {
         <title>New import - PI 360</title>
       </Helmet>
       <div className="container-fluid space-y-5">
-        <Toolbar>
-          <ToolbarHeading>
-            <ToolbarPageTitle text="New import" />
-          </ToolbarHeading>
-        </Toolbar>
+        <PageHeader crumbs={[{ label: 'New import' }]} title="New import" />
         <ImportStepper current={step} />
 
         {error && (
@@ -166,21 +159,23 @@ export function ImportNewPage() {
           <Card className="max-w-xl">
             <CardContent className="space-y-3">
               <h2 className="font-medium">1. Choose the file</h2>
-              <label className="block text-sm">
-                What is in the file?
-                <select
-                  className="mt-1 block w-full rounded-md border bg-background p-2"
+              <div className="space-y-1.5 text-sm">
+                <span>What is in the file?</span>
+                <SelectField
+                  label="What is in the file?"
                   value={target}
-                  onChange={(e) =>
-                    setTarget(e.target.value as 'participants' | 'placements')
+                  options={[
+                    { id: 'participants', name: 'People (enrollments)' },
+                    {
+                      id: 'placements',
+                      name: 'Placements (employers and outcomes)',
+                    },
+                  ]}
+                  onChange={(x) =>
+                    setTarget(x as 'participants' | 'placements')
                   }
-                >
-                  <option value="participants">People (enrollments)</option>
-                  <option value="placements">
-                    Placements (employers and outcomes)
-                  </option>
-                </select>
-              </label>
+                />
+              </div>
               <p className="text-sm text-muted-foreground">
                 A .csv or .xlsx file (first sheet, headers in the first row).
                 Choosing it only reads the headers. Nothing is saved yet.

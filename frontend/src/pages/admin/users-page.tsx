@@ -16,11 +16,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DataCard } from '@/components/data-card';
-import {
-  Toolbar,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { PageHeader } from '@/components/shared/page-header';
+import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
 
 interface StaffUser {
@@ -88,11 +85,10 @@ export function UsersPage() {
       <Helmet>
         <title>Staff accounts | PI 360</title>
       </Helmet>
-      <Toolbar>
-        <ToolbarHeading>
-          <ToolbarPageTitle>Staff accounts</ToolbarPageTitle>
-        </ToolbarHeading>
-      </Toolbar>
+      <PageHeader
+        crumbs={[{ label: 'Staff accounts' }]}
+        title="Staff accounts"
+      />
 
       {canManage && <CreateUser roles={roles.data ?? []} />}
 
@@ -279,20 +275,14 @@ function CreateUser({ roles }: { roles: Role[] }) {
         onChange={set('last_name')}
       />
       {roles.length > 0 && (
-        <select
-          className="h-8.5 rounded-md border bg-background px-2 text-sm"
+        <SelectField
+          label="Role"
+          className="w-48"
           value={form.role}
-          onChange={set('role')}
-        >
-          <option value="">No role yet</option>
-          {roles
-            .filter((r) => r.active)
-            .map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-        </select>
+          emptyLabel="No role yet"
+          options={roles.filter((r) => r.active)}
+          onChange={(x) => setForm({ ...form, role: x })}
+        />
       )}
       {error && (
         <p role="alert" className="sm:col-span-2 text-sm text-destructive">

@@ -13,11 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DataCard } from '@/components/data-card';
-import {
-  Toolbar,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { StatusBadge, type Batch } from './shared';
 
@@ -47,12 +43,11 @@ export function ImportsPage() {
         <title>Imports - PI 360</title>
       </Helmet>
       <div className="container-fluid space-y-5">
-        <Toolbar>
-          <ToolbarHeading>
-            <ToolbarPageTitle text="Imports" />
-          </ToolbarHeading>
-          {newButton}
-        </Toolbar>
+        <PageHeader
+          crumbs={[{ label: 'Imports' }]}
+          title="Imports"
+          actions={<>{newButton}</>}
+        />
         {list.isPending && <LoadingState />}
         {list.isError && (
           <ErrorState error={list.error} onRetry={() => list.refetch()} />

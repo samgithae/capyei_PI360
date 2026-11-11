@@ -17,11 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DataCard } from '@/components/data-card';
-import {
-  Toolbar,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge, type Batch } from './imports/shared';
 
 type Total = { total: number };
@@ -102,34 +98,37 @@ export function OverviewPage() {
         <title>Overview | PI 360</title>
       </Helmet>
       <div className="container-fluid space-y-5">
-        <Toolbar>
-          <ToolbarHeading>
-            <ToolbarPageTitle>Overview</ToolbarPageTitle>
-          </ToolbarHeading>
-          <div className="flex items-center gap-2">
-            <Badge
-              variant={
-                health.isError
-                  ? 'destructive'
-                  : health.data
-                    ? 'success'
-                    : 'secondary'
-              }
-              appearance="light"
-            >
-              {health.isError
-                ? 'API unreachable'
-                : health.data
-                  ? `API ${health.data.status} · v${health.data.version}`
-                  : 'Checking API'}
-            </Badge>
-            {seeImports && (
-              <Button asChild size="sm">
-                <Link to="/imports/new">New import</Link>
-              </Button>
-            )}
-          </div>
-        </Toolbar>
+        <PageHeader
+          crumbs={[{ label: 'Overview' }]}
+          title="Overview"
+          actions={
+            <>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={
+                    health.isError
+                      ? 'destructive'
+                      : health.data
+                        ? 'success'
+                        : 'secondary'
+                  }
+                  appearance="light"
+                >
+                  {health.isError
+                    ? 'API unreachable'
+                    : health.data
+                      ? `API ${health.data.status} · v${health.data.version}`
+                      : 'Checking API'}
+                </Badge>
+                {seeImports && (
+                  <Button asChild size="sm">
+                    <Link to="/imports/new">New import</Link>
+                  </Button>
+                )}
+              </div>
+            </>
+          }
+        />
 
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {seeYouth && (

@@ -1,10 +1,5 @@
 import { Helmet } from 'react-helmet-async';
-import {
-  Toolbar,
-  ToolbarDescription,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState } from '@/components/states';
 
 export function PlaceholderPage({ title }: { title: string }) {
@@ -13,14 +8,11 @@ export function PlaceholderPage({ title }: { title: string }) {
       <Helmet>
         <title>{`${title} | PI 360`}</title>
       </Helmet>
-      <Toolbar>
-        <ToolbarHeading>
-          <ToolbarPageTitle>{title}</ToolbarPageTitle>
-          <ToolbarDescription>
-            Not built yet. Screens wait for the design sign-off (G2).
-          </ToolbarDescription>
-        </ToolbarHeading>
-      </Toolbar>
+      <PageHeader
+        crumbs={[{ label: title }]}
+        title={title}
+        description="Not built yet. Screens wait for the design sign-off (G2)."
+      />
       <EmptyState
         title="Not built yet"
         hint="This screen is planned; see the work breakdown."
