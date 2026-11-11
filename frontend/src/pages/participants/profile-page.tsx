@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { Link, useParams } from 'react-router';
 import { api, ApiError } from '@/lib/api';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DataCard, ParticipantStatus } from '@/components/data-card';
 import {
   Toolbar,
   ToolbarHeading,
@@ -86,18 +87,17 @@ export function ProfilePage() {
           <ToolbarPageTitle>{p.name}</ToolbarPageTitle>
         </ToolbarHeading>
       </Toolbar>
-      <div className="flex flex-wrap gap-2 text-sm">
-        <Badge variant="secondary">{p.status}</Badge>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <ParticipantStatus status={p.status} />
         <span>{p.gender}</span>
         {p.age !== null && <span>Age {p.age}</span>}
         {p.county && <span>{p.county}</span>}
       </div>
 
-      <section>
-        <h2 className="mb-2 font-semibold">Enrollment history</h2>
+      <DataCard title="Enrollment history">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/40">
               <TableHead>Programme</TableHead>
               <TableHead>Cohort</TableHead>
               <TableHead>Course</TableHead>
@@ -114,46 +114,54 @@ export function ProfilePage() {
                 <TableCell>{e.course}</TableCell>
                 <TableCell>{e.institution}</TableCell>
                 <TableCell>{e.enrollment_no}</TableCell>
-                <TableCell>{e.status}</TableCell>
+                <TableCell>
+                  <ParticipantStatus status={e.status} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </section>
+      </DataCard>
 
       {p.enrollments.some((e) => Object.keys(e.extra ?? {}).length > 0) && (
-        <section>
-          <h2 className="mb-2 font-semibold">
-            Other details from the source file
-          </h2>
-          {p.enrollments.map((e) => (
-            <dl
-              key={e.id}
-              className="grid grid-cols-[14rem_1fr] gap-x-4 gap-y-1 text-sm"
-            >
-              {Object.entries(e.extra ?? {}).map(([k, v]) => (
-                <div key={k} className="contents">
-                  <dt className="text-muted-foreground">{k}</dt>
-                  <dd>{v}</dd>
-                </div>
-              ))}
-            </dl>
-          ))}
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Other details from the source file</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {p.enrollments.map((e) => (
+              <dl
+                key={e.id}
+                className="grid grid-cols-[14rem_1fr] gap-x-4 gap-y-1 text-sm"
+              >
+                {Object.entries(e.extra ?? {}).map(([k, v]) => (
+                  <div key={k} className="contents">
+                    <dt className="text-muted-foreground">{k}</dt>
+                    <dd>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       {p.contacts && (
-        <section>
-          <h2 className="mb-2 font-semibold">Contact</h2>
-          <ul className="text-sm">
-            {p.contacts.map((c, i) => (
-              <li key={i}>
-                {c.kind}: {c.value}
-                {c.primary && ' (primary)'}
-              </li>
-            ))}
-          </ul>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Contact</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1 text-sm">
+              {p.contacts.map((c, i) => (
+                <li key={i}>
+                  {c.kind}: {c.value}
+                  {c.primary && ' (primary)'}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       )}
       <Link className="text-primary text-sm" to="/youth">
         Back to directory

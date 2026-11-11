@@ -79,7 +79,7 @@ function Count({
   hint: string;
 }) {
   return (
-    <div className="rounded-lg border p-3">
+    <div className="rounded-xl border bg-card p-4 shadow-xs shadow-black/5">
       <div className="text-2xl font-semibold">{value ?? 0}</div>
       <div className="text-sm font-medium">{label}</div>
       <div className="text-xs text-muted-foreground">{hint}</div>
@@ -134,82 +134,86 @@ function RowsTable({ id, loaded }: { id: string; loaded: boolean }) {
       )}
       {rows.data && rows.data.rows.length > 0 && (
         <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Row</TableHead>
-                <TableHead>Result</TableHead>
-                <TableHead>Key</TableHead>
-                <TableHead>Why</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.data.rows.map((r) => (
-                <TableRow key={r.row}>
-                  <TableCell>{r.row}</TableCell>
-                  <TableCell>
-                    <Badge
-                      appearance="light"
-                      variant={
-                        r.outcome === 'held'
-                          ? 'destructive'
-                          : r.outcome === 'skip'
-                            ? 'secondary'
-                            : 'success'
-                      }
-                    >
-                      {(loaded && LOADED_LABEL[r.outcome]) ||
-                        OUTCOME_LABEL[r.outcome] ||
-                        r.outcome}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{r.source_key || '-'}</TableCell>
-                  <TableCell>
-                    {r.errors.map((e, i) => (
-                      <div key={`e${i}`}>
-                        <span className="font-medium">Blocking</span>{' '}
-                        {e.field && `${e.field}: `}
-                        {e.message}
-                      </div>
-                    ))}
-                    {r.warnings.map((e, i) => (
-                      <div key={`w${i}`} className="text-muted-foreground">
-                        <span className="font-medium">Warning</span>{' '}
-                        {e.field && `${e.field}: `}
-                        {e.message}
-                      </div>
-                    ))}
-                    {r.diff.length > 0 && (
-                      <div className="mt-1 rounded border p-2">
-                        <div className="font-medium">
-                          Differs from the stored record (not applied; imports
-                          add new people only)
-                        </div>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Field</TableHead>
-                              <TableHead>In PI 360</TableHead>
-                              <TableHead>In the file</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {r.diff.map((d) => (
-                              <TableRow key={d.field}>
-                                <TableCell>{d.field}</TableCell>
-                                <TableCell>{d.current || '(blank)'}</TableCell>
-                                <TableCell>{d.incoming}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </TableCell>
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40">
+                  <TableHead>Row</TableHead>
+                  <TableHead>Result</TableHead>
+                  <TableHead>Key</TableHead>
+                  <TableHead>Why</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {rows.data.rows.map((r) => (
+                  <TableRow key={r.row}>
+                    <TableCell>{r.row}</TableCell>
+                    <TableCell>
+                      <Badge
+                        appearance="light"
+                        variant={
+                          r.outcome === 'held'
+                            ? 'destructive'
+                            : r.outcome === 'skip'
+                              ? 'secondary'
+                              : 'success'
+                        }
+                      >
+                        {(loaded && LOADED_LABEL[r.outcome]) ||
+                          OUTCOME_LABEL[r.outcome] ||
+                          r.outcome}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{r.source_key || '-'}</TableCell>
+                    <TableCell>
+                      {r.errors.map((e, i) => (
+                        <div key={`e${i}`}>
+                          <span className="font-medium">Blocking</span>{' '}
+                          {e.field && `${e.field}: `}
+                          {e.message}
+                        </div>
+                      ))}
+                      {r.warnings.map((e, i) => (
+                        <div key={`w${i}`} className="text-muted-foreground">
+                          <span className="font-medium">Warning</span>{' '}
+                          {e.field && `${e.field}: `}
+                          {e.message}
+                        </div>
+                      ))}
+                      {r.diff.length > 0 && (
+                        <div className="mt-1 rounded border p-2">
+                          <div className="font-medium">
+                            Differs from the stored record (not applied; imports
+                            add new people only)
+                          </div>
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/40">
+                                <TableHead>Field</TableHead>
+                                <TableHead>In PI 360</TableHead>
+                                <TableHead>In the file</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {r.diff.map((d) => (
+                                <TableRow key={d.field}>
+                                  <TableCell>{d.field}</TableCell>
+                                  <TableCell>
+                                    {d.current || '(blank)'}
+                                  </TableCell>
+                                  <TableCell>{d.incoming}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
           <div className="flex items-center gap-2 text-sm">
             <Button
               size="sm"
@@ -380,26 +384,28 @@ function ReconciliationPanel({ id }: { id: string }) {
           />
         </div>
         {r.controls.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cohort</TableHead>
-                <TableHead>In the file</TableHead>
-                <TableHead>In PI 360</TableHead>
-                <TableHead>Check</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {r.controls.map((c) => (
-                <TableRow key={c.cohort}>
-                  <TableCell>{c.cohort || '(none)'}</TableCell>
-                  <TableCell>{c.source}</TableCell>
-                  <TableCell>{c.pi360}</TableCell>
-                  <TableCell>{c.matches ? 'Matches' : 'Differs'}</TableCell>
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40">
+                  <TableHead>Cohort</TableHead>
+                  <TableHead>In the file</TableHead>
+                  <TableHead>In PI 360</TableHead>
+                  <TableHead>Check</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {r.controls.map((c) => (
+                  <TableRow key={c.cohort}>
+                    <TableCell>{c.cohort || '(none)'}</TableCell>
+                    <TableCell>{c.source}</TableCell>
+                    <TableCell>{c.pi360}</TableCell>
+                    <TableCell>{c.matches ? 'Matches' : 'Differs'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
         <div className="flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline">

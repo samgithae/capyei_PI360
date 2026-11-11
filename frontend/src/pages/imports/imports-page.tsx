@@ -58,7 +58,7 @@ export function ImportsPage() {
           />
         )}
         {list.data && list.data.length > 0 && (
-          <DataCard title="Import history" toolbar={newButton || undefined}>
+          <DataCard title="Import history">
             <Table>
               <TableHeader>
                 <TableRow>

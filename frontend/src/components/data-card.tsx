@@ -41,7 +41,7 @@ export function DataCard({
   return (
     <Card>
       {(title || toolbar) && (
-        <CardHeader className="py-4">
+        <CardHeader className={title ? 'py-4' : 'justify-start py-4'}>
           <CardHeading>
             {title && <CardTitle>{title}</CardTitle>}
             {description && (

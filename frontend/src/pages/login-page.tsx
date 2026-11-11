@@ -1,10 +1,14 @@
 import { FormEvent, useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
+import { TriangleAlert } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Navigate } from 'react-router';
 import { ApiError, post } from '@/lib/api';
+import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type Step = 'credentials' | 'verify' | 'enrol';
 
@@ -59,71 +63,127 @@ export function LoginPage() {
     });
   };
 
+  const title =
+    step === 'credentials'
+      ? 'Sign in'
+      : step === 'enrol'
+        ? 'Set up your authenticator'
+        : 'Two-step verification';
+  const subtitle =
+    step === 'credentials'
+      ? 'Use your PI 360 staff account.'
+      : step === 'enrol'
+        ? 'Add the key below to an authenticator app, then enter the code.'
+        : 'Enter the 6-digit code from your authenticator app.';
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <div className="grid min-h-screen lg:grid-cols-2">
       <Helmet>
         <title>Sign in | PI 360</title>
       </Helmet>
-      <form onSubmit={submit} className="w-full max-w-sm space-y-4" noValidate>
-        <h1 className="text-2xl font-semibold">Sign in to PI 360</h1>
-        {step === 'credentials' && (
-          <>
-            <label className="block space-y-1 text-sm">
-              <span>Username</span>
-              <Input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                autoFocus
-                required
-              />
-            </label>
-            <label className="block space-y-1 text-sm">
-              <span>Password</span>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </label>
-          </>
-        )}
-        {step === 'enrol' && (
-          <div className="text-sm space-y-2">
-            <p>
-              Set up an authenticator app. Add this key to it, then enter the
-              6-digit code.
-            </p>
-            <code className="block break-all rounded bg-muted p-2 text-xs">
-              {setupUrl}
-            </code>
-          </div>
-        )}
-        {step !== 'credentials' && (
-          <label className="block space-y-1 text-sm">
-            <span>Authenticator code</span>
-            <Input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              autoFocus
-              required
-            />
-          </label>
-        )}
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
+
+      {/* Form side: Metronic "branded" sign-in, a card on a muted background */}
+      <div className="flex items-center justify-center bg-muted/40 p-6">
+        <Card className="w-full max-w-100">
+          <CardContent className="p-8">
+            <form onSubmit={submit} className="space-y-5" noValidate>
+              <div className="space-y-1.5 text-center">
+                <div className="mb-3 text-sm font-semibold tracking-wide text-primary">
+                  Placement Intelligence 360
+                </div>
+                <h1 className="text-2xl font-semibold tracking-tight">
+                  {title}
+                </h1>
+                <p className="text-sm text-muted-foreground">{subtitle}</p>
+              </div>
+
+              {error && (
+                <Alert variant="destructive" appearance="light" role="alert">
+                  <AlertIcon>
+                    <TriangleAlert />
+                  </AlertIcon>
+                  <AlertTitle>{error}</AlertTitle>
+                </Alert>
+              )}
+
+              {step === 'credentials' && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Username</Label>
+                    <Input
+                      id="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      autoComplete="username"
+                      autoFocus
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+              {step === 'enrol' && (
+                <code className="block break-all rounded-md bg-muted p-3 text-xs">
+                  {setupUrl}
+                </code>
+              )}
+              {step !== 'credentials' && (
+                <div className="space-y-2">
+                  <Label htmlFor="code">Authenticator code</Label>
+                  <Input
+                    id="code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    autoFocus
+                    required
+                  />
+                </div>
+              )}
+              <Button type="submit" className="w-full" disabled={busy}>
+                {busy
+                  ? 'Please wait...'
+                  : step === 'credentials'
+                    ? 'Continue'
+                    : 'Verify'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Brand side: hidden on small screens, as in the Metronic demo */}
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-primary p-12 text-primary-foreground lg:flex">
+        <div className="absolute -right-24 -top-24 size-96 rounded-full bg-white/10" />
+        <div className="absolute -bottom-32 -left-20 size-112 rounded-full bg-white/5" />
+        <div className="relative text-lg font-semibold">CAP-YEI</div>
+        <div className="relative space-y-4">
+          <h2 className="text-3xl font-semibold leading-tight">
+            From training to employment,
+            <br />
+            tracked in one place.
+          </h2>
+          <p className="max-w-md text-primary-foreground/80">
+            Import trainee data, match young people to opportunities and see
+            placement outcomes across programmes and counties.
           </p>
-        )}
-        <Button type="submit" className="w-full" disabled={busy}>
-          {step === 'credentials' ? 'Continue' : 'Verify'}
-        </Button>
-      </form>
+        </div>
+        <div className="relative text-sm text-primary-foreground/70">
+          &copy; {new Date().getFullYear()} CAP-YEI
+        </div>
+      </div>
     </div>
   );
 }
