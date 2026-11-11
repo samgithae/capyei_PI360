@@ -1,6 +1,5 @@
 import { type ReactNode } from 'react';
 import { Search } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -19,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 // Metronic 9 "table in a card" pattern (as in the demo's user/team tables): a Card with a
 // header (title + search/filters), a borderless table region, and a footer with the pager.
@@ -160,27 +160,7 @@ export function Pager({
   );
 }
 
-const PARTICIPANT_TONE: Record<
-  string,
-  'success' | 'info' | 'warning' | 'secondary'
-> = {
-  active: 'success',
-  completed: 'info',
-  withdrawn: 'warning',
-  unknown: 'secondary',
-  inactive: 'secondary',
-  prospect: 'info',
-};
-
-/** Participant status as a light Metronic badge with a dot, colour always paired with text. */
+/** Kept for existing imports; delegates to the shared StatusBadge so one colour map rules. */
 export function ParticipantStatus({ status }: { status: string }) {
-  return (
-    <Badge
-      variant={PARTICIPANT_TONE[status] ?? 'secondary'}
-      appearance="light"
-      className="capitalize"
-    >
-      {status}
-    </Badge>
-  );
+  return <StatusBadge status={status} />;
 }

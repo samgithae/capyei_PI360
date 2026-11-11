@@ -20,11 +20,7 @@ import {
   ParticipantStatus,
   SearchBox,
 } from '@/components/data-card';
-import {
-  Toolbar,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EmployerForm, EmployerValues, EMPTY, Options } from './employer-form';
 
@@ -76,14 +72,17 @@ export function EmployersPage() {
       <Helmet>
         <title>Employers | PI 360</title>
       </Helmet>
-      <Toolbar>
-        <ToolbarHeading>
-          <ToolbarPageTitle>Employers</ToolbarPageTitle>
-        </ToolbarHeading>
-        {can('employers.edit') && !adding && (
-          <Button onClick={() => setAdding(true)}>Add employer</Button>
-        )}
-      </Toolbar>
+      <PageHeader
+        crumbs={[{ label: 'Employers' }]}
+        title="Employers"
+        description="Partner employers and their contacts."
+        actions={
+          can('employers.edit') &&
+          !adding && (
+            <Button onClick={() => setAdding(true)}>Add employer</Button>
+          )
+        }
+      />
 
       {adding && (
         <EmployerForm

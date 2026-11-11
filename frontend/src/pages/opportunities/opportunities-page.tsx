@@ -1,11 +1,21 @@
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { Plus } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate, useSearchParams } from 'react-router';
+import { toast } from 'sonner';
 import { api, ApiError, post } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -18,14 +28,12 @@ import {
   DataCard,
   FilterSelect,
   Pager,
-  ParticipantStatus,
   SearchBox,
 } from '@/components/data-card';
-import {
-  Toolbar,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from '@/components/layouts/layout-1/components/toolbar';
+import { SummaryStatCard } from '@/components/shared/info-card';
+import { FormModal } from '@/components/shared/modals';
+import { PageHeader } from '@/components/shared/page-header';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 
 interface Row {
@@ -50,7 +58,13 @@ interface EmployerPage {
 const KINDS = ['job', 'internship', 'apprenticeship', 'other'];
 const STATUSES = ['draft', 'open', 'closed', 'expired'];
 
-function AddForm({ onCancel }: { onCancel: () => void }) {
+function AddOpportunity({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const nav = useNavigate();
   const [search, setSearch] = useState('');
   const [v, setV] = useState({
@@ -65,6 +79,7 @@ function AddForm({ onCancel }: { onCancel: () => void }) {
     queryKey: ['employer-search', search],
     queryFn: () =>
       api<EmployerPage>(`/employers?q=${encodeURIComponent(search)}`),
+    enabled: open,
   });
   const create = useMutation({
     mutationFn: () =>
@@ -73,81 +88,115 @@ function AddForm({ onCancel }: { onCancel: () => void }) {
         positions: Number(v.positions),
         closing_date: v.closing_date || null,
       }),
-    onSuccess: (o) => nav(`/opportunities/${o.id}`),
+    onSuccess: (o) => {
+      toast.success('Opportunity saved as a draft.');
+      nav(`/opportunities/${o.id}`);
+    },
     onError: (e) =>
       setError(e instanceof ApiError ? e.message : 'Could not save.'),
   });
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    create.mutate();
-  };
   return (
-    <form onSubmit={submit} className="max-w-xl space-y-3">
-      <Input
-        placeholder="Find employer by name"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      <select
-        aria-label="Employer"
-        required
-        className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-        value={v.employer_id}
-        onChange={(e) => setV({ ...v, employer_id: e.target.value })}
-      >
-        <option value="">Choose employer</option>
-        {employers.data?.results.map((e) => (
-          <option key={e.id} value={e.id}>
-            {e.name}
-          </option>
-        ))}
-      </select>
-      <Input
-        aria-label="Title"
-        placeholder="Title"
-        required
-        value={v.title}
-        onChange={(e) => setV({ ...v, title: e.target.value })}
-      />
-      <div className="flex flex-wrap gap-2">
-        <select
-          aria-label="Type"
-          className="h-8.5 rounded-md border border-input bg-background px-3 text-[0.8125rem] text-foreground shadow-xs shadow-black/5 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
-          value={v.kind}
-          onChange={(e) => setV({ ...v, kind: e.target.value })}
+    <FormModal
+      open={open}
+      onOpenChange={(o) => {
+        onOpenChange(o);
+        if (!o) setError('');
+      }}
+      title="Add opportunity"
+      description="It is saved as a draft. Add requirements, then open it."
+      submitLabel="Save as draft"
+      pending={create.isPending}
+      error={error}
+      onSubmit={() => {
+        if (!v.employer_id) return setError('Choose an employer.');
+        setError('');
+        create.mutate();
+      }}
+    >
+      <div className="space-y-1.5">
+        <Label htmlFor="opp-employer-search">
+          Employer <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          id="opp-employer-search"
+          placeholder="Search employers by name"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <Select
+          value={v.employer_id}
+          onValueChange={(x) => setV({ ...v, employer_id: x })}
         >
-          {KINDS.map((k) => (
-            <option key={k}>{k}</option>
-          ))}
-        </select>
+          <SelectTrigger aria-label="Employer">
+            <SelectValue placeholder="Choose employer" />
+          </SelectTrigger>
+          <SelectContent>
+            {employers.data?.results.map((e) => (
+              <SelectItem key={e.id} value={e.id}>
+                {e.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="opp-title">
+          Title <span className="text-destructive">*</span>
+        </Label>
         <Input
-          aria-label="Positions"
-          type="number"
-          min={1}
-          className="w-24"
-          value={v.positions}
-          onChange={(e) => setV({ ...v, positions: e.target.value })}
-        />
-        <Input
-          aria-label="Closing date"
-          type="date"
-          className="w-44"
-          value={v.closing_date}
-          onChange={(e) => setV({ ...v, closing_date: e.target.value })}
+          id="opp-title"
+          required
+          value={v.title}
+          onChange={(e) => setV({ ...v, title: e.target.value })}
         />
       </div>
-      {error && <p role="alert">{error}</p>}
-      <div className="flex gap-2">
-        <Button type="submit" disabled={create.isPending}>
-          Save as draft
-        </Button>
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <Label>Type</Label>
+          <Select value={v.kind} onValueChange={(x) => setV({ ...v, kind: x })}>
+            <SelectTrigger aria-label="Type" className="capitalize">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {KINDS.map((k) => (
+                <SelectItem key={k} value={k} className="capitalize">
+                  {k}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="opp-positions">Positions</Label>
+          <Input
+            id="opp-positions"
+            type="number"
+            min={1}
+            value={v.positions}
+            onChange={(e) => setV({ ...v, positions: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="opp-closing">Closing date</Label>
+          <Input
+            id="opp-closing"
+            type="date"
+            value={v.closing_date}
+            onChange={(e) => setV({ ...v, closing_date: e.target.value })}
+          />
+        </div>
       </div>
-    </form>
+    </FormModal>
   );
+}
+
+function useCount(status?: string) {
+  const qs = status ? `?status=${status}` : '';
+  return useQuery({
+    queryKey: ['opportunity-count', status ?? 'all'],
+    queryFn: () => api<Page>(`/opportunities${qs}`),
+    select: (d) => d.total,
+  });
 }
 
 export function OpportunitiesPage() {
@@ -167,20 +216,46 @@ export function OpportunitiesPage() {
     setParams(next);
   };
   const data = page.data;
+  const total = useCount();
+  const open = useCount('open');
+  const draft = useCount('draft');
+  const closed = useCount('closed');
+  const expired = useCount('expired');
   return (
     <div className="container-fluid space-y-5">
       <Helmet>
         <title>Opportunities | PI 360</title>
       </Helmet>
-      <Toolbar>
-        <ToolbarHeading>
-          <ToolbarPageTitle>Opportunities</ToolbarPageTitle>
-        </ToolbarHeading>
-        {can('employers.edit') && !adding && (
-          <Button onClick={() => setAdding(true)}>Add opportunity</Button>
-        )}
-      </Toolbar>
-      {adding && <AddForm onCancel={() => setAdding(false)} />}
+      <PageHeader
+        crumbs={[{ label: 'Opportunities' }]}
+        title="Opportunities"
+        description={
+          total.data !== undefined
+            ? `${total.data} ${total.data === 1 ? 'opportunity' : 'opportunities'} across all employers.`
+            : 'Jobs, internships and apprenticeships from partner employers.'
+        }
+        actions={
+          can('employers.edit') && (
+            <Button onClick={() => setAdding(true)}>
+              <Plus /> Add opportunity
+            </Button>
+          )
+        }
+      />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <SummaryStatCard label="Total" value={total.data} />
+        <SummaryStatCard label="Open" value={open.data} />
+        <SummaryStatCard label="Draft" value={draft.data} />
+        <SummaryStatCard
+          label="Closed or expired"
+          value={
+            closed.data !== undefined && expired.data !== undefined
+              ? closed.data + expired.data
+              : undefined
+          }
+        />
+      </div>
+      <AddOpportunity open={adding} onOpenChange={setAdding} />
       <DataCard
         footer={
           data && data.total > data.page_size ? (
@@ -240,6 +315,9 @@ export function OpportunitiesPage() {
                 <TableHead>Positions</TableHead>
                 <TableHead>Closes</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="w-20">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -258,7 +336,12 @@ export function OpportunitiesPage() {
                   <TableCell>{o.positions}</TableCell>
                   <TableCell>{o.closing_date ?? ''}</TableCell>
                   <TableCell>
-                    <ParticipantStatus status={o.status} />
+                    <StatusBadge status={o.status} />
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link to={`/opportunities/${o.id}`}>View</Link>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
