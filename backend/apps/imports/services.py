@@ -229,6 +229,7 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
                     outcome=outcome,
                     errors=errors,
                     warnings=checked.warnings,
+                    diff=checked.diff,
                 )
             )
         ImportRow.objects.bulk_create(objs, batch_size=1000)

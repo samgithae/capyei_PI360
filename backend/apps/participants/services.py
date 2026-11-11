@@ -53,6 +53,7 @@ class Checked:
     warnings: list = field(default_factory=list)
     source_key: str = ""
     match: str = "new"  # new | exact (same programme + enrollment number already loaded)
+    diff: list = field(default_factory=list)  # [{"field","current","incoming"}] for exact matches
 
 
 def _text(raw, key):
@@ -102,16 +103,46 @@ def check_row(raw: dict) -> Checked:
 
     if prog_id and c["enrollment_no"]:
         out.source_key = f"{c['programme_code'].upper()}|{c['enrollment_no']}"
-        if ParticipantEnrollment.objects.filter(
-            programme_id=prog_id, source_enrollment_no=c["enrollment_no"]
-        ).exists():
+        existing = (
+            ParticipantEnrollment.objects.select_related("participant__origin_county")
+            .filter(programme_id=prog_id, source_enrollment_no=c["enrollment_no"])
+            .first()
+        )
+        if existing:
             out.match = "exact"
+            out.diff = _diff(existing, c)
     c["_refs"] = {
         "offering": offering_id,
         "programme": prog_id,
         "county": county_id,
     }
     return out
+
+
+def _diff(e: ParticipantEnrollment, c: dict) -> list:
+    """Field-by-field differences between the stored person and the file row (spec 15 §5).
+
+    Read-only: D-059 means imports never update, so this is information for the steward. A field
+    is compared only when the file actually supplies a usable value, so blanks and "unknown"
+    never show as differences."""
+    p = e.participant
+    phone = p.contacts.filter(kind="phone").values_list("value", flat=True).first() or ""
+    email = p.contacts.filter(kind="email").values_list("value", flat=True).first() or ""
+    pairs = [
+        ("full_name", p.full_name_source, c["full_name"]),
+        ("gender", p.gender, c["gender"] if c["gender"] != "unknown" else None),
+        ("age", p.age_at_source, c["age"]),
+        ("status", e.status, c["status"] if c["status"] != "unknown" else None),
+        ("county_code", p.origin_county.code if p.origin_county else "", c["county_code"] or None),
+        ("phone", phone, c["phone"] or None),
+        ("email", email, c["email"] or None),
+    ]
+    return [
+        {"field": f, "current": "" if cur is None else str(cur), "incoming": str(new)}
+        for f, cur, new in pairs
+        if new is not None
+        and str(cur if cur is not None else "").strip().lower() != str(new).strip().lower()
+    ]
 
 
 def _snapshot(p: Participant, e: ParticipantEnrollment) -> dict:

@@ -181,6 +181,7 @@ class BatchRowsView(APIView):
                         "source_key": r.source_key,
                         "errors": r.errors,
                         "warnings": r.warnings,
+                        "diff": r.diff,
                         "committed": r.committed,
                     }
                     for r in page

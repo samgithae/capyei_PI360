@@ -33,6 +33,7 @@ interface Row {
   source_key: string;
   errors: { field: string; message: string }[];
   warnings: { field: string; message: string }[];
+  diff: { field: string; current: string; incoming: string }[];
 }
 
 const PAGE = 200;
@@ -169,6 +170,32 @@ function RowsTable({ id, loaded }: { id: string; loaded: boolean }) {
                         {e.message}
                       </div>
                     ))}
+                    {r.diff.length > 0 && (
+                      <div className="mt-1 rounded border p-2">
+                        <div className="font-medium">
+                          Differs from the stored record (not applied; imports
+                          add new people only)
+                        </div>
+                        <table className="mt-1 w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-muted-foreground">
+                              <th className="w-32">Field</th>
+                              <th>In PI 360</th>
+                              <th>In the file</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {r.diff.map((d) => (
+                              <tr key={d.field}>
+                                <td>{d.field}</td>
+                                <td>{d.current || '(blank)'}</td>
+                                <td>{d.incoming}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

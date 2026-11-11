@@ -221,3 +221,7 @@ A loaded import batch can be signed off once by the data owner (`POST /api/v1/im
 ## Cohort defaults (wizard step 4)
 
 Programme, cohort and course may be left out of a mapping and set once per file instead (`defaults` on `POST /imports/batches`, stored on the batch). A default fills empty cells only, never a value in the file. A mapping that omits one of them needs a default at upload time. Everything else required (name, enrollment number) must still be a mapped column.
+
+### Field-difference review (wizard step 6)
+
+When a file row matches a stored person (same programme + enrollment number), validation compares the file with the stored record and keeps the differences on the row (`ImportRow.diff`, migration `imports.0004`). The review table lists them as "In PI 360" vs "In the file". Compared: name, gender, age, status, county, phone, email; a field is compared only when the file supplies a usable value, so blanks and "unknown" never show. This is **read-only**: D-059 means imports never update, so nothing is applied and there is no accept/reject yet (that arrives only if updates are approved). The differences are the steward's conflict list (spec 15 §5).

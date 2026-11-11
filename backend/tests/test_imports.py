@@ -138,6 +138,21 @@ def test_existing_person_is_skipped_not_updated(template, steward):  # D-059
 
 
 @pytest.mark.django_db
+def test_matched_row_lists_field_differences_without_applying_them(template, steward):
+    load(steward, upload(steward, template, *GOOD))
+    b = upload(steward, template, "Test One Renamed,P1,K1,C1,E-001,M,21,01")
+    row = b.rows.get()
+    assert row.outcome == "skip" and row.match == "exact"
+    diff = {d["field"]: d for d in row.diff}
+    assert set(diff) == {"full_name", "gender"}  # age and county are unchanged
+    assert diff["full_name"] == {
+        "field": "full_name", "current": "Test One", "incoming": "Test One Renamed"
+    }  # fmt: skip
+    same = upload(steward, template, GOOD[0], name="again.csv")
+    assert same.rows.get().diff == []  # an identical row has nothing to review
+
+
+@pytest.mark.django_db
 def test_update_path_still_works_when_enabled(template, steward, monkeypatch):
     monkeypatch.setattr(services, "ALLOW_UPDATES", True)
     load(steward, upload(steward, template, *GOOD))

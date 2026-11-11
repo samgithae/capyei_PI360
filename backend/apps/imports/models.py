@@ -89,6 +89,7 @@ class ImportRow(models.Model):
     outcome = models.CharField(max_length=10, default=CREATE)
     errors = models.JSONField(default=list)
     warnings = models.JSONField(default=list)
+    diff = models.JSONField(default=list)  # field-by-field differences from the stored record
     committed = models.BooleanField(default=False)
     record_id = models.CharField(max_length=40, blank=True)
 
