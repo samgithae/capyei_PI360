@@ -99,6 +99,12 @@ DATABASES = {
         conn_max_age=60,
     )
 }
+# SQLite is only used for local runs and tests. Taking the write lock when a transaction
+# starts (not at its first write) stops "database is locked" when two requests overlap.
+if DATABASES["default"]["ENGINE"].endswith("sqlite3"):
+    DATABASES["default"].setdefault("OPTIONS", {}).update(
+        {"transaction_mode": "IMMEDIATE", "timeout": 20}
+    )
 
 # Argon2 first (CMP-03).
 PASSWORD_HASHERS = [

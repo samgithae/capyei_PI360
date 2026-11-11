@@ -16,6 +16,9 @@ import { ProfilePage } from '@/pages/participants/profile-page';
 import { PlaceholderPage } from '@/pages/placeholder-page';
 import { ReferralPage } from '@/pages/referrals/referral-page';
 import { ReferralsPage } from '@/pages/referrals/referrals-page';
+import { RuleSetPage } from '@/pages/rules/rule-set-page';
+import { RuleVersionPage } from '@/pages/rules/rule-version-page';
+import { RulesPage } from '@/pages/rules/rules-page';
 import { Navigate, Route, Routes } from 'react-router';
 import { Layout1 } from '@/components/layouts/layout-1';
 
@@ -61,6 +64,11 @@ export function AppRoutingSetup() {
           <Route element={<RequirePermission permission="referrals.view" />}>
             <Route path="/referrals" element={<ReferralsPage />} />
             <Route path="/referrals/:id" element={<ReferralPage />} />
+          </Route>
+          <Route element={<RequirePermission permission="intelligence.view" />}>
+            <Route path="/rules" element={<RulesPage />} />
+            <Route path="/rules/:id" element={<RuleSetPage />} />
+            <Route path="/rules/versions/:id" element={<RuleVersionPage />} />
           </Route>
           <Route
             element={<RequirePermission permission="identity.view_users" />}

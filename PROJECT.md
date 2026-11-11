@@ -21,7 +21,8 @@ the import, directory and admin tooling. Everything below is on `main` at
 | **Archive/restore** (soft delete) for participants, employers, opportunities; admin parity with steward | Done | this phase |
 | Row actions + bulk select on /youth, /opportunities, /employers | Done | this phase |
 | Referral workflow (stages, reason codes, corrections, reassign) | Done; stage list and reason codes await D-037 | T-046 |
-| Rules engine, rule versions, initial rules | **Not started** (`apps/intelligence` is an empty stub) | T-047, T-048 |
+| Rules engine and rule versions (draft, review, approve, activate; a version in force is never edited; every step audited) | Done; who approves awaits D-009 (Administrator holds both rule permissions for now) | T-047 |
+| Initial rule configuration (draft versions for the product owner) | **Not started** | T-048 |
 | YDM assessment capture | Not started, optional, gated | T-049 |
 | Modules A/B/C, dashboard, exports, case management, follow-up | Not started (M3) | T-060..T-071 |
 

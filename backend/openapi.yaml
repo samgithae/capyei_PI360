@@ -3043,6 +3043,450 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/rules:
+    get:
+      operationId: rules_list
+      tags:
+      - rules
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+    post:
+      operationId: rules_create
+      tags:
+      - rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RuleSetCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RuleSetCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RuleSetCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/rules/{id}:
+    get:
+      operationId: rules_detail
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/rules/operators:
+    get:
+      operationId: rules_operators
+      description: The fixed operators a factor may use, for the rules screen.
+      tags:
+      - rules
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+  /api/v1/rules/versions/{id}:
+    get:
+      operationId: rules_version
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: rules_versions_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVersionEdit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVersionEdit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVersionEdit'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: rules_version_discard
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/rules/versions/{id}/activate:
+    post:
+      operationId: rules_versions_activate_create
+      description: One lifecycle step. Subclasses name the permission and the service
+        call.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Note'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Note'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Note'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/rules/versions/{id}/approve:
+    post:
+      operationId: rules_versions_approve_create
+      description: One lifecycle step. Subclasses name the permission and the service
+        call.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Note'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Note'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Note'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/rules/versions/{id}/clone:
+    post:
+      operationId: rules_versions_clone_create
+      description: One lifecycle step. Subclasses name the permission and the service
+        call.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Note'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Note'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Note'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/rules/versions/{id}/deactivate:
+    post:
+      operationId: rules_versions_deactivate_create
+      description: Answers with the deactivated version; its rule set page shows what
+        is now in force.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Note'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Note'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Note'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/rules/versions/{id}/history:
+    get:
+      operationId: rules_version_history
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+  /api/v1/rules/versions/{id}/return:
+    post:
+      operationId: rules_versions_return_create
+      description: One lifecycle step. Subclasses name the permission and the service
+        call.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Note'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Note'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Note'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/rules/versions/{id}/submit:
+    post:
+      operationId: rules_versions_submit_create
+      description: One lifecycle step. Subclasses name the permission and the service
+        call.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Note'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Note'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Note'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
 components:
   schemas:
     ActionEnum:
@@ -3426,6 +3870,23 @@ components:
           type: string
       required:
       - config_url
+    ModuleEnum:
+      enum:
+      - A
+      - B
+      - C
+      type: string
+      description: |-
+        * `A` - A
+        * `B` - B
+        * `C` - C
+    Note:
+      type: object
+      properties:
+        note:
+          type: string
+          default: ''
+          maxLength: 2000
     OpportunityCreate:
       type: object
       properties:
@@ -3779,6 +4240,13 @@ components:
         last_name:
           type: string
           maxLength: 150
+    PatchedVersionEdit:
+      type: object
+      properties:
+        definition: {}
+        change_notes:
+          type: string
+          maxLength: 4000
     Permission:
       type: object
       properties:
@@ -3955,6 +4423,26 @@ components:
           maxLength: 500
       required:
       - reason
+    RuleSetCreate:
+      type: object
+      properties:
+        module:
+          $ref: '#/components/schemas/ModuleEnum'
+        code:
+          type: string
+          maxLength: 60
+          pattern: ^[-a-zA-Z0-9_]+$
+        name:
+          type: string
+          maxLength: 120
+        purpose:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - code
+      - module
+      - name
     ScopeItem:
       type: object
       properties:

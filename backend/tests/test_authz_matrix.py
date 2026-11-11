@@ -89,6 +89,21 @@ MATRIX = {
     "referrals/<uuid:pk>/correct": {"POST": "referrals.view"},  # + stage check in view
     "referrals/<uuid:pk>/assign": {"POST": "caseload.reassign"},
     "referrals/<uuid:pk>/history": {"GET": "referrals.view"},
+    "rules": {"GET": "intelligence.view", "POST": "intelligence.manage_rules"},
+    "rules/operators": {"GET": "intelligence.view"},
+    "rules/<uuid:pk>": {"GET": "intelligence.view"},
+    "rules/versions/<uuid:pk>": {
+        "GET": "intelligence.view",
+        "PATCH": "intelligence.manage_rules",
+        "DELETE": "intelligence.manage_rules",
+    },
+    "rules/versions/<uuid:pk>/clone": {"POST": "intelligence.manage_rules"},
+    "rules/versions/<uuid:pk>/submit": {"POST": "intelligence.manage_rules"},
+    "rules/versions/<uuid:pk>/return": {"POST": "intelligence.approve_rules"},
+    "rules/versions/<uuid:pk>/approve": {"POST": "intelligence.approve_rules"},
+    "rules/versions/<uuid:pk>/activate": {"POST": "intelligence.approve_rules"},
+    "rules/versions/<uuid:pk>/deactivate": {"POST": "intelligence.approve_rules"},
+    "rules/versions/<uuid:pk>/history": {"GET": "intelligence.view"},
     "opportunities": {"GET": "employers.view", "POST": "employers.edit"},
     "opportunities/<uuid:pk>": {
         "GET": "employers.view",

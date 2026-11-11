@@ -49,7 +49,8 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("ydm.assess", "Record YDM assessments", "YDM"),
     Permission("ydm.manage", "Manage YDM instruments", "YDM"),
     Permission("intelligence.view", "View flags and recommendations", "Intelligence"),
-    Permission("intelligence.manage_rules", "Manage rule versions", "Intelligence"),
+    Permission("intelligence.manage_rules", "Draft and edit rule versions", "Intelligence"),
+    Permission("intelligence.approve_rules", "Approve and activate rule versions", "Intelligence"),
     Permission("reports.view_aggregate", "View aggregate indicators", "Reporting"),
     Permission("exports.deidentified", "Export de-identified data", "Reporting"),
     # Restricted: only by grant (purpose + expiry), never through a role.

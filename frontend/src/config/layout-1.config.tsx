@@ -7,6 +7,7 @@ import {
   GitMerge,
   LayoutDashboard,
   LifeBuoy,
+  Scale,
   Settings,
   Users,
 } from 'lucide-react';
@@ -69,6 +70,12 @@ export const MENU_SIDEBAR: MenuConfig = [
     permission: 'reports.view_aggregate',
   },
   { heading: 'System' },
+  {
+    title: 'Rules',
+    icon: Scale,
+    path: '/rules',
+    permission: 'intelligence.view',
+  },
   {
     title: 'Administration',
     icon: Settings,

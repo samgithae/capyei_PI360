@@ -27,6 +27,10 @@ ADMIN_ALSO = [
     "records.archive",
 ]
 
+# Rule versions (T-047). Who approves rules is D-009; until it is answered the administrator
+# both drafts and approves. Split the two permissions across roles to get a second pair of eyes.
+RULES = ["intelligence.manage_rules", "intelligence.approve_rules"]
+
 DEFAULT_ROLES = [
     {
         "name": "Administrator",
@@ -43,6 +47,7 @@ DEFAULT_ROLES = [
             "config.manage_protected",
             "reference.manage",
         ]
+        + RULES
         + STAFF_VIEW
         + ADMIN_ALSO,
     },

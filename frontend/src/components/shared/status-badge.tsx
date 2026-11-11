@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 type Tone = 'success' | 'info' | 'warning' | 'secondary' | 'destructive';
 
 // One colour map for every status the application uses (employer, opportunity, participant,
-// referral stage).
+// referral stage, rule version).
 // Colour is always paired with the status text (NFR-02). Unknown values fall back to neutral,
 // so a new backend status never breaks a page; add it here to give it a colour.
 const TONE: Record<string, Tone> = {
@@ -27,6 +27,9 @@ const TONE: Record<string, Tone> = {
   selected: 'success',
   placed: 'success',
   no_response: 'warning',
+  // Rule versions (T-047)
+  in_review: 'info',
+  retired: 'secondary',
 };
 
 /** Status as a light Metronic badge. Use this everywhere instead of hand-picking a variant. */
