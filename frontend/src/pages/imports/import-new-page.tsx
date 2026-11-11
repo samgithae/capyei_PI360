@@ -11,6 +11,7 @@ import {
   ToolbarPageTitle,
 } from '@/components/layouts/layout-1/components/toolbar';
 import { Notice } from '@/components/states';
+import { CodePicker } from './code-picker';
 import {
   ImportStepper,
   type Batch,
@@ -272,63 +273,39 @@ export function ImportNewPage() {
                 A programme (e.g. Go Blue), a cohort (an intake at one
                 institution) and a course are set up in PI 360 reference data
                 and each has a short code. They are usually not a column in your
-                sheet, so type or click the code that applies to the whole file.
+                sheet, so search and pick the ones that apply to the whole file.
                 A default fills empty cells only and never replaces a value that
                 is in the file.
               </p>
               <div className="flex flex-wrap gap-2">
-                {DEFAULTABLE.map((f) => (
-                  <Input
-                    key={f}
-                    className="max-w-48"
-                    placeholder={f.replace('_code', '')}
-                    aria-label={`Default ${f.replace('_', ' ')}`}
-                    value={defaults[f] ?? ''}
-                    onChange={(e) =>
-                      setDefaults({ ...defaults, [f]: e.target.value })
-                    }
-                  />
-                ))}
+                {DEFAULTABLE.map((f) => {
+                  // Cohort and course codes belong to a programme: once one is chosen, only
+                  // show that programme's.
+                  const prog = defaults.programme_code;
+                  const options = (seen.reference_codes[f] ?? []).filter(
+                    (o) =>
+                      f === 'programme_code' || !prog || o.programme === prog,
+                  );
+                  return (
+                    <CodePicker
+                      key={f}
+                      label={f.replace('_code', '')}
+                      options={options}
+                      value={defaults[f] ?? ''}
+                      onChange={(code) =>
+                        setDefaults({
+                          ...defaults,
+                          [f]: code,
+                          // a new programme invalidates the cohort and course picked before
+                          ...(f === 'programme_code'
+                            ? { cohort_code: '', course_code: '' }
+                            : {}),
+                        })
+                      }
+                    />
+                  );
+                })}
               </div>
-              {DEFAULTABLE.map((f) => {
-                const codes = seen.reference_codes[f] ?? [];
-                return (
-                  <div key={f} className="text-sm">
-                    <div className="text-muted-foreground">
-                      Existing {f.replace('_code', '')} codes
-                      {codes.length === 0 &&
-                        ': none set up yet (add them under Reference data)'}
-                    </div>
-                    <div className="mt-1 flex flex-wrap gap-1.5">
-                      {codes.slice(0, 40).map((c) => (
-                        <button
-                          type="button"
-                          key={`${c.programme ?? ''}${c.code}`}
-                          title={
-                            c.programme
-                              ? `${c.name} (programme ${c.programme})`
-                              : c.name
-                          }
-                          className="rounded border px-2 py-0.5 text-xs hover:bg-muted"
-                          onClick={() =>
-                            setDefaults({ ...defaults, [f]: c.code })
-                          }
-                        >
-                          {c.code}{' '}
-                          <span className="text-muted-foreground">
-                            {c.name}
-                          </span>
-                        </button>
-                      ))}
-                      {codes.length > 40 && (
-                        <span className="text-xs text-muted-foreground">
-                          and {codes.length - 40} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
               {defaultsNeeded.length > 0 && (
                 <Notice tone="warning" title="This mapping needs defaults">
                   {defaultsNeeded.join(', ')} are not columns in the saved
