@@ -14,8 +14,10 @@ from django.utils import timezone
 
 from apps.api import runtime
 from apps.audit import services as audit
+from apps.employers import services as employers
 from apps.participants import services as participants
 
+from . import placement_rows
 from .models import (
     ImportBatch,
     ImportRow,
@@ -47,18 +49,37 @@ ALLOW_UPDATES = False
 DEFAULTABLE = ("programme_code", "cohort_code", "course_code")
 
 
+TARGETS = ("participants", "placements")
+
+
+def _fields(target):
+    return placement_rows.FIELDS if target == "placements" else participants.FIELDS
+
+
+def _is_target(target, name):
+    return (placement_rows if target == "placements" else participants).is_target(name)
+
+
+def _defaultable(target):
+    return placement_rows.DEFAULTABLE if target == "placements" else DEFAULTABLE
+
+
+def _check_row(target, mapped):
+    return (placement_rows if target == "placements" else participants).check_row(mapped)
+
+
 def create_template(*, actor, source, columns, target="participants") -> MappingTemplate:
-    if target != "participants":
-        raise ImportFailure("Only the participants target exists so far.", "target")
+    if target not in TARGETS:
+        raise ImportFailure(f"Unknown target '{target}'.", "target")
     if not isinstance(columns, dict) or not columns:
         raise ImportFailure("Give a mapping of source column to field.", "columns")
-    unknown = sorted(t for t in set(columns.values()) if not participants.is_target(t))
+    unknown = sorted(t for t in set(columns.values()) if not _is_target(target, t))
     if unknown:
         raise ImportFailure(f"Unknown target field(s): {', '.join(unknown)}.", "columns")
     missing = [
         f
-        for f, req in participants.FIELDS.items()
-        if req and f not in columns.values() and f not in DEFAULTABLE
+        for f, req in _fields(target).items()
+        if req and f not in columns.values() and f not in _defaultable(target)
     ]
     if missing:
         raise ImportFailure(f"Required field(s) not mapped: {', '.join(missing)}.", "columns")
@@ -105,7 +126,7 @@ def _norm(h: str) -> str:
     return "".join(c for c in h.lower() if c.isalnum())
 
 
-def inspect(*, file_name, data: bytes) -> dict:
+def inspect(*, file_name, data: bytes, target="participants") -> dict:
     """Read a file's shape without storing anything: headers, row count, empty columns, a
     suggested column mapping and any saved template whose columns are all present. The wizard
     uses this before a mapping exists (doc 15 §3 steps 2-3)."""
@@ -117,7 +138,10 @@ def inspect(*, file_name, data: bytes) -> dict:
     except FileError as exc:
         raise ImportFailure(str(exc)) from exc
     headers = [h for h in headers if h]
-    by_norm = {_norm(f): f for f in participants.FIELDS} | SYNONYMS
+    fields = _fields(target)
+    by_norm = {_norm(f): f for f in fields} | (
+        placement_rows.SYNONYMS if target == "placements" else SYNONYMS
+    )
     taken: set[str] = set()
     suggested: dict[str, str] = {}
     for h in headers:
@@ -125,11 +149,16 @@ def inspect(*, file_name, data: bytes) -> dict:
         if field and field not in taken:
             suggested[h] = field
             taken.add(field)
-        elif len(h) <= participants.MAX_EXTRA_LABEL and any(r.get(h) for r in rows):
+        elif (
+            target == "participants"
+            and len(h) <= participants.MAX_EXTRA_LABEL
+            and any(r.get(h) for r in rows)
+        ):
             # Nothing is dropped by default: an unrecognised column with data is kept as extra.
             suggested[h] = participants.EXTRA + h
     fits = [
-        t for t in MappingTemplate.objects.filter(active=True).order_by("source", "-version")
+        t for t in MappingTemplate.objects.filter(active=True, target=target)
+        .order_by("source", "-version")
         if all(c in headers for c in t.columns)
     ]  # fmt: skip
     return {
@@ -137,7 +166,9 @@ def inspect(*, file_name, data: bytes) -> dict:
         "row_count": len(rows),
         "empty_columns": [h for h in headers if not any(r.get(h) for r in rows)],
         "suggested": suggested,
-        "fields": [{"field": f, "required": req} for f, req in participants.FIELDS.items()],
+        "fields": [{"field": f, "required": req} for f, req in fields.items()],
+        "target": target,
+        "defaultable": list(_defaultable(target)),
         "matching_templates": [str(t.pk) for t in fits],
         # The first data row as {header: text}, so people can see what each column holds.
         "sample": {h: str(rows[0].get(h) or "")[:80] for h in headers} if rows else {},
@@ -159,10 +190,13 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
     """Parse and validate. Changes no participant data (the dry run). ``defaults`` sets
     programme, cohort and course once for the file; they fill empty cells only."""
     defaults = {k: str(v).strip() for k, v in (defaults or {}).items() if str(v).strip()}
-    bad = sorted(set(defaults) - set(DEFAULTABLE))
+    target = template.target
+    bad = sorted(set(defaults) - set(_defaultable(target)))
     if bad:
         raise ImportFailure(f"Cannot set a default for: {', '.join(bad)}.", "defaults")
-    unset = [f for f in DEFAULTABLE if f not in template.columns.values() and f not in defaults]
+    unset = [
+        f for f in _defaultable(target) if f not in template.columns.values() and f not in defaults
+    ]
     if unset:
         raise ImportFailure(
             f"{', '.join(unset)}: not mapped from a column and no default given.", "defaults"
@@ -198,11 +232,11 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
             for f, value in defaults.items():
                 if not str(mapped.get(f, "") or "").strip():
                     mapped[f] = value
-            checked = participants.check_row(mapped)
+            checked = _check_row(target, mapped)
             rh = _row_hash(raw)
             outcome = ImportRow.UPDATE if checked.match == "exact" else ImportRow.CREATE
             errors = list(checked.errors)
-            if checked.source_key:
+            if checked.source_key and target == "participants":
                 if checked.source_key in seen_keys:
                     first = seen_keys[checked.source_key]
                     errors.append(
@@ -220,6 +254,8 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
                 checked.warnings.append(
                     {"field": "", "message": "Already in PI360; imports add new people only."}
                 )
+            elif checked.clean.get("_skip"):
+                outcome = ImportRow.SKIP
             elif _already_loaded(template.source, checked.source_key, rh):
                 outcome = ImportRow.SKIP
                 checked.warnings.append({"field": "", "message": "Already loaded; skipped."})
@@ -346,12 +382,20 @@ def commit(*, actor, batch) -> ImportBatch:
                 break
             with transaction.atomic():
                 for row in chunk:
-                    action, pid, before, after = participants.import_participant(
-                        row.clean, batch_ref=str(batch.pk)
-                    )
+                    if batch.template.target == "placements":
+                        pid, before, after = placement_rows.commit_row(
+                            row.clean, actor=actor, row_id=row.pk
+                        )
+                        action = "create"
+                    else:
+                        action, pid, before, after = participants.import_participant(
+                            row.clean, batch_ref=str(batch.pk)
+                        )
                     RecordLineage.objects.create(
                         row=row,
-                        entity="participant",
+                        entity="placement"
+                        if batch.template.target == "placements"
+                        else "participant",
                         record_id=pid,
                         action=action,
                         before=before,
@@ -380,10 +424,11 @@ def commit(*, actor, batch) -> ImportBatch:
         after=batch.counts,
     )
     # Quarantine (T-041): queue possible duplicates among the new records for a steward.
-    created = RecordLineage.objects.filter(row__batch=batch, action="create").values_list(
-        "record_id", flat=True
-    )
-    participants.scan(only=list(created))
+    if batch.template.target == "participants":
+        created = RecordLineage.objects.filter(row__batch=batch, action="create").values_list(
+            "record_id", flat=True
+        )
+        participants.scan(only=list(created))
     return batch
 
 
@@ -399,7 +444,10 @@ def rollback(*, actor, batch, reason):
     if ReconciliationSignoff.objects.filter(batch=batch).exists():
         raise ImportFailure("This batch is signed off, so it cannot be rolled back.", "status")
     mine = RecordLineage.objects.filter(row__batch=batch, reverted=False).order_by("-pk")
-    if participants.involved_in_merge(mine.values_list("record_id", flat=True)):
+    is_placements = batch.template.target == "placements"
+    if not is_placements and participants.involved_in_merge(
+        mine.values_list("record_id", flat=True)
+    ):
         raise ImportFailure(
             "Some of these records were merged by a steward. Undo those merges first.", "status"
         )
@@ -422,12 +470,20 @@ def rollback(*, actor, batch, reason):
             "status",
         )
     with transaction.atomic():
-        for entry in mine:
-            participants.undo_import(
-                action=entry.action, participant_id=entry.record_id, before=entry.before
-            )
-            entry.reverted = True
-            entry.save(update_fields=["reverted"])
+        if is_placements:
+            try:
+                placement_rows.undo_rows(actor=actor, entries=list(mine))
+                employers.reverse_source(actor=actor, source=str(batch.pk))
+            except ValueError as exc:  # PlacementError and ClusterError are both ValueErrors
+                raise ImportFailure(str(exc), "status") from exc
+            mine.update(reverted=True)
+        else:
+            for entry in mine:
+                participants.undo_import(
+                    action=entry.action, participant_id=entry.record_id, before=entry.before
+                )
+                entry.reverted = True
+                entry.save(update_fields=["reverted"])
         batch.rows.update(committed=False)
         batch.status = ImportBatch.ROLLED_BACK
         batch.save()
@@ -485,6 +541,8 @@ def reconciliation(batch) -> dict:
     }  # fmt: skip
 
     live = list(lineage.filter(reverted=False).values_list("row__clean", "record_id"))
+    if batch.template.target == "placements":
+        live = []  # per-cohort control totals describe people, not placements
     by_cohort: dict[str, set] = {}
     for clean, rid in live:
         by_cohort.setdefault(str(clean.get("cohort_code", "")).upper(), set()).add(rid)
@@ -495,8 +553,12 @@ def reconciliation(batch) -> dict:
         for code, ids in sorted(by_cohort.items())
     ]  # fmt: skip
 
-    quarantined = participants.quarantined(
-        lineage.filter(action="create", reverted=False).values_list("record_id", flat=True)
+    quarantined = (
+        []
+        if batch.template.target == "placements"
+        else participants.quarantined(
+            lineage.filter(action="create", reverted=False).values_list("record_id", flat=True)
+        )
     )
     held_rows = [
         {"row": r.row_no, "reasons": [f"{e['field']}: {e['message']}" for e in r.errors]}
@@ -579,11 +641,13 @@ def contract(template) -> dict:
         "version": template.version,
         "target": template.target,
         "columns": [
-            {"source_column": h, "field": f, "required": participants.FIELDS.get(f, False)}
+            {"source_column": h, "field": f, "required": _fields(template.target).get(f, False)}
             for h, f in template.columns.items()
         ],
         "required_fields_not_mapped": [
-            f for f, req in participants.FIELDS.items() if req and f not in mapped
+            f for f, req in _fields(template.target).items() if req and f not in mapped
         ],
-        "rules": participants.IMPORT_RULES,
+        "rules": placement_rows.IMPORT_RULES
+        if template.target == "placements"
+        else participants.IMPORT_RULES,
     }

@@ -95,10 +95,10 @@ forbidden_modules = ["apps.identity", "apps.imports", "apps.dataquality", "apps.
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "CMP-10 Import & reconciliation imports only its documented dependencies"
+name = "CMP-10 Import & reconciliation imports only its documented dependencies (T-087 stage D: placements added, working decision pending CAP-YEI)"
 type = "forbidden"
 source_modules = ["apps.imports"]
-forbidden_modules = ["apps.identity", "apps.referrals", "apps.placements", "apps.intelligence", "apps.reporting", "apps.configuration", "config"]
+forbidden_modules = ["apps.identity", "apps.referrals", "apps.intelligence", "apps.reporting", "apps.configuration", "config"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]

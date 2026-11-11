@@ -382,3 +382,50 @@ def reverse_decision(*, actor, decision):
         object_id=decision.pk, after={"key": decision.key},
     )  # fmt: skip
     return decision
+
+
+def enrich_from_import(*, actor, employer_id, address="", contact_name="", phone="", email=""):
+    """Add what a placement file knows about an employer without overwriting anything: the
+    address only if blank, a contact only if one with that name does not exist (N-03: phone and
+    email are stored as received). Returns what was added, so a rollback can undo exactly it."""
+    employer = Employer.objects.get(pk=employer_id)
+    undone = {}
+    if address.strip() and not employer.address:
+        employer.address = address.strip()[:200]
+        employer.save(update_fields=["address", "updated_at"])
+        undone["address"] = employer.address
+    name = contact_name.strip()
+    if (
+        name
+        and (phone.strip() or email.strip())
+        and not employer.contacts.filter(name__iexact=name).exists()
+    ):
+        c = save_contact(
+            actor=actor, employer=employer,
+            data={"name": name[:150], "phone": phone.strip()[:50], "email": email.strip()[:200],
+                  "is_primary": not employer.contacts.exists()},
+        )  # fmt: skip
+        undone["contact"] = str(c.pk)
+    return undone
+
+
+def undo_enrichment(*, employer_id, undone):
+    """Remove what ``enrich_from_import`` added, if it is still as it was."""
+    employer = Employer.objects.filter(pk=employer_id).first()
+    if employer is None:
+        return
+    if "contact" in undone:
+        EmployerContact.objects.filter(pk=undone["contact"]).delete()
+    if "address" in undone and employer.address == undone["address"]:
+        employer.address = ""
+        employer.save(update_fields=["address", "updated_at"])
+
+
+@transaction.atomic
+def reverse_source(*, actor, source):
+    """Reverse every live cluster decision made for one source (e.g. an import batch)."""
+    n = 0
+    for d in ClusterDecision.objects.filter(source=source, reversed_at__isnull=True):
+        reverse_decision(actor=actor, decision=d)
+        n += 1
+    return n

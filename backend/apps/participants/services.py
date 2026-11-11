@@ -316,3 +316,17 @@ def offering_resolves(clean: dict) -> list:
 def reference_codes():
     """Programme, cohort and course codes people can type or pick when importing."""
     return configuration.reference_codes()
+
+
+def find_enrollment(programme_code, enrollment_no):
+    """Id of the enrollment with this programme code and source enrollment number, or None.
+    Lets other modules (the placement import) attach records without touching our models."""
+    code, no = (programme_code or "").strip(), (enrollment_no or "").strip()
+    if not code or not no:
+        return None
+    pk = (
+        ParticipantEnrollment.objects.filter(programme__code__iexact=code, source_enrollment_no=no)
+        .values_list("pk", flat=True)
+        .first()
+    )
+    return str(pk) if pk else None

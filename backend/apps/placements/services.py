@@ -212,3 +212,20 @@ def apply_mappings(*, actor) -> int:
             object_id="bulk", after={"updated": n},
         )  # fmt: skip
     return n
+
+
+@transaction.atomic
+def undo_import(*, actor, placement_ids) -> int:
+    """Remove placements an import created, when that import is rolled back. This is the only
+    way a placement is deleted; a verified one is refused."""
+    rows = Placement.objects.filter(pk__in=list(placement_ids))
+    if rows.filter(verified_on__isnull=False).exists():
+        raise PlacementError("A verified placement cannot be rolled back.")
+    n = rows.count()
+    rows.delete()  # queryset delete: Placement.delete() is blocked for everyone else
+    if n:
+        audit.record(
+            actor=actor, action="placement.import_undone", object_type="placement",
+            object_id="bulk", after={"removed": n},
+        )  # fmt: skip
+    return n
