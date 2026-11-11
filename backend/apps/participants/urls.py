@@ -15,4 +15,8 @@ urlpatterns = [
     path("participants/archive", v.ParticipantArchiveView.as_view()),
     path("participants/restore", v.ParticipantRestoreView.as_view()),
     path("participants/<uuid:pk>", v.ParticipantDetailView.as_view()),
+    path(
+        "participants/<uuid:pk>/enrollments/<uuid:enrollment_id>",
+        v.EnrollmentDetailView.as_view(),
+    ),
 ]

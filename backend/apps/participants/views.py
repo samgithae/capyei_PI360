@@ -15,7 +15,7 @@ from apps.api.archive import ARCHIVE, BulkArchiveView
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
-from .models import Participant
+from .models import Participant, ParticipantEnrollment
 
 VIEW, EDIT, CONTACT = "participants.view", "participants.edit", "participants.view_contact"
 PAGE = 50
@@ -43,11 +43,13 @@ def _summary(p):
 def _detail(p, user):
     out = _summary(p)
     out.update(
+        county_id=str(p.origin_county_id) if p.origin_county_id else "",
         given_name=p.given_name,
         family_name=p.family_name,
         other_names=p.other_names,
         age_basis_date=p.age_basis_date.isoformat() if p.age_basis_date else None,
         date_of_birth=p.date_of_birth.isoformat() if p.date_of_birth else None,
+        age_at_source=p.age_at_source,
         enrollments=[
             {
                 "id": str(e.pk),
@@ -56,6 +58,7 @@ def _detail(p, user):
                 "course": e.cohort_course.course.name,
                 "institution": e.institution.name,
                 "enrollment_no": e.source_enrollment_no,
+                "exit_reason": e.exit_reason,
                 "extra": e.extra,
                 "status": e.status,
                 "enrolled_on": e.enrolled_on.isoformat() if e.enrolled_on else None,
@@ -135,6 +138,18 @@ class ParticipantListView(APIView):
 
 
 class ParticipantEditSerializer(serializers.Serializer):
+    full_name_source = serializers.CharField(max_length=200, required=False)
+    date_of_birth = serializers.DateField(allow_null=True, required=False)
+    age_at_source = serializers.IntegerField(
+        min_value=0, max_value=120, allow_null=True, required=False
+    )
+    origin_county_id = serializers.UUIDField(allow_null=True, required=False)
+
+    def validate_origin_county_id(self, value):
+        if value is not None and not configuration.county_exists(value):
+            raise serializers.ValidationError("Unknown county.")
+        return value
+
     given_name = serializers.CharField(max_length=100, allow_blank=True, required=False)
     family_name = serializers.CharField(max_length=100, allow_blank=True, required=False)
     other_names = serializers.CharField(max_length=100, allow_blank=True, required=False)
@@ -181,13 +196,79 @@ class ParticipantDetailView(APIView):
             for k, v in after.items():
                 setattr(p, k, v)
             p.save()
+
+            def plain(x):  # audit payloads are JSON: dates and ids become text
+                if hasattr(x, "isoformat"):
+                    return x.isoformat()
+                return str(x) if isinstance(x, uuid.UUID) else x
+
             audit.record(
                 actor=request.user,
                 action="participant.edited",
                 object_type="participant",
                 object_id=p.pk,
-                before={k: before[k] for k in after},
-                after=after,
+                before={k: plain(before[k]) for k in after},
+                after={k: plain(v) for k, v in after.items()},
+            )
+        return Response(_detail(p, request.user))
+
+
+class EnrollmentEditSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=[s for s, _ in ParticipantEnrollment.STATUSES], required=False
+    )
+    source_enrollment_no = serializers.CharField(max_length=60, allow_blank=True, required=False)
+    enrolled_on = serializers.DateField(allow_null=True, required=False)
+    completed_on = serializers.DateField(allow_null=True, required=False)
+    exit_reason = serializers.CharField(max_length=200, allow_blank=True, required=False)
+
+
+class EnrollmentDetailView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"PATCH": EDIT}
+
+    @extend_schema(
+        operation_id="participants_enrollment_edit",
+        request=EnrollmentEditSerializer,
+        responses={200: dict},
+    )
+    def patch(self, request, pk, enrollment_id):
+        try:
+            p = _visible(request, archived=None).get(pk=pk)
+            e = p.enrollments.get(pk=enrollment_id)
+        except (Participant.DoesNotExist, ParticipantEnrollment.DoesNotExist):
+            raise NotFound from None
+        s = EnrollmentEditSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        before = {k: getattr(e, k) for k in s.validated_data}
+        after = {k: v for k, v in s.validated_data.items() if before[k] != v}
+        no = after.get("source_enrollment_no")
+        if (
+            no
+            and ParticipantEnrollment.objects.filter(
+                programme=e.programme_id, source_enrollment_no=no
+            )
+            .exclude(pk=e.pk)
+            .exists()
+        ):
+            raise serializers.ValidationError(
+                {"source_enrollment_no": "Another enrollment in this programme has that number."}
+            )
+        if after:
+            for k, v in after.items():
+                setattr(e, k, v)
+            e.save()
+
+            def plain(x):
+                return x.isoformat() if hasattr(x, "isoformat") else x
+
+            audit.record(
+                actor=request.user,
+                action="participant.enrollment_edited",
+                object_type="participant",
+                object_id=p.pk,
+                before={k: plain(before[k]) for k in after},
+                after={k: plain(v) for k, v in after.items()},
             )
         return Response(_detail(p, request.user))
 

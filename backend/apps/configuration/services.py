@@ -638,3 +638,9 @@ def reference_codes(limit=500):
         "cohort_code": rows(Cohort),
         "course_code": rows(Course),
     }
+
+
+def county_exists(pk) -> bool:
+    from .models import County
+
+    return County.objects.filter(pk=pk).exists()

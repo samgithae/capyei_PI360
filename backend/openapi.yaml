@@ -2402,6 +2402,45 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/{id}/enrollments/{enrollment_id}:
+    patch:
+      operationId: participants_enrollment_edit
+      parameters:
+      - in: path
+        name: enrollment_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEnrollmentEdit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEnrollmentEdit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEnrollmentEdit'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/archive:
     post:
       operationId: participants_archive_create
@@ -2848,6 +2887,18 @@ components:
         * `active` - Active
         * `inactive` - Inactive
         * `prospect` - Prospect
+    EnrollmentEditStatusEnum:
+      enum:
+      - enrolled
+      - completed
+      - withdrawn
+      - unknown
+      type: string
+      description: |-
+        * `enrolled` - enrolled
+        * `completed` - completed
+        * `withdrawn` - withdrawn
+        * `unknown` - unknown
     FactorEnum:
       enum:
       - skill
@@ -3178,6 +3229,25 @@ components:
         confirm_duplicate:
           type: boolean
           default: false
+    PatchedEnrollmentEdit:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/EnrollmentEditStatusEnum'
+        source_enrollment_no:
+          type: string
+          maxLength: 60
+        enrolled_on:
+          type: string
+          format: date
+          nullable: true
+        completed_on:
+          type: string
+          format: date
+          nullable: true
+        exit_reason:
+          type: string
+          maxLength: 200
     PatchedFlag:
       type: object
       properties:
@@ -3235,6 +3305,22 @@ components:
     PatchedParticipantEdit:
       type: object
       properties:
+        full_name_source:
+          type: string
+          maxLength: 200
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        age_at_source:
+          type: integer
+          maximum: 120
+          minimum: 0
+          nullable: true
+        origin_county_id:
+          type: string
+          format: uuid
+          nullable: true
         given_name:
           type: string
           maxLength: 100

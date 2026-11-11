@@ -53,6 +53,7 @@ MATRIX = {
         "PATCH": "participants.edit",
         "DELETE": "records.archive",
     },
+    "participants/<uuid:pk>/enrollments/<uuid:enrollment_id>": {"PATCH": "participants.edit"},
     "participants/archive": {"POST": "records.archive"},
     "participants/restore": {"POST": "records.archive"},
     "participants/duplicates": {"GET": "duplicates.review"},
@@ -137,6 +138,7 @@ def concrete(route):
     return "/api/v1/" + (
         route.replace("<uuid:cpk>", "00000000-0000-0000-0000-000000000001")
         .replace("<uuid:rpk>", "00000000-0000-0000-0000-000000000002")
+        .replace("<uuid:enrollment_id>", "00000000-0000-0000-0000-000000000003")
         .replace("<int:pk>", "999999")
         .replace("<uuid:pk>", "00000000-0000-0000-0000-000000000000")
         .replace("<str:kind>", "sectors")

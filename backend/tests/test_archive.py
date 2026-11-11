@@ -88,3 +88,35 @@ def test_employer_archive_takes_its_opportunities_with_it(admin, db):
     assert admin.delete(f"/api/v1/opportunities/{o.pk}").status_code == 200
     assert admin.get("/api/v1/opportunities").json()["total"] == 0
     assert admin.get("/api/v1/opportunities?archived=1").json()["total"] == 1
+
+
+def test_admin_can_edit_every_participant_field_and_enrollment(admin, people):
+    from apps.configuration.models import County
+    from apps.participants.models import Participant
+
+    pid = str(people[0].pk)
+    county = County.objects.first()
+    body = {
+        "full_name_source": "Edited Name",
+        "given_name": "Edited",
+        "date_of_birth": "2004-05-06",
+        "age_at_source": 21,
+        "gender": "male",
+        "status": "active",
+    }
+    if county:
+        body["origin_county_id"] = str(county.pk)
+    r = admin.patch(f"/api/v1/participants/{pid}", body, content_type=JSON)
+    assert r.status_code == 200, r.content
+    p = Participant.objects.get(pk=pid)
+    assert (p.full_name_source, p.date_of_birth.isoformat(), p.age_at_source) == (
+        "Edited Name",
+        "2004-05-06",
+        21,
+    )
+    bad = admin.patch(
+        f"/api/v1/participants/{pid}",
+        {"origin_county_id": "00000000-0000-0000-0000-000000000000"},
+        content_type=JSON,
+    )
+    assert bad.status_code == 400

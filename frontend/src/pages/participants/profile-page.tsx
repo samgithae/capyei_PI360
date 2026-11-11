@@ -1,7 +1,11 @@
+import { useState } from 'react';
+import { useAuth } from '@/auth/auth-context';
 import { useQuery } from '@tanstack/react-query';
+import { Pencil } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useParams } from 'react-router';
 import { api, ApiError } from '@/lib/api';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -14,6 +18,7 @@ import {
 import { DataCard, ParticipantStatus } from '@/components/data-card';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { EditParticipant } from './participant-edit';
 
 interface Enrollment {
   id: string;
@@ -46,6 +51,8 @@ interface Detail {
 
 export function ProfilePage() {
   const { id } = useParams();
+  const { can } = useAuth();
+  const [editing, setEditing] = useState(false);
   const q = useQuery({
     queryKey: ['participant', id],
     queryFn: () => api<Detail>(`/participants/${id}`),
@@ -78,7 +85,20 @@ export function ProfilePage() {
       <Helmet>
         <title>{p.name} | PI 360</title>
       </Helmet>
-      <PageHeader crumbs={[{ label: p.name }]} title={p.name} />
+      <PageHeader
+        crumbs={[{ label: p.name }]}
+        title={p.name}
+        actions={
+          can('participants.edit') && (
+            <Button onClick={() => setEditing(true)}>
+              <Pencil /> Edit
+            </Button>
+          )
+        }
+      />
+      {editing && (
+        <EditParticipant id={p.id} onClose={() => setEditing(false)} />
+      )}
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <ParticipantStatus status={p.status} />
         <span>{p.gender}</span>
