@@ -420,3 +420,26 @@ def filter_options():
 def normalise(text):
     """Public form of the name normaliser, for modules that match names (e.g. employers)."""
     return norm(text)
+
+
+def reference_codes(limit=500):
+    """Active programme, cohort and course codes for the import wizard's 'what do I type?' hint.
+    Names only; no participant data."""
+    from .models import Cohort, Course, Programme
+
+    def rows(model):
+        return [
+            {"code": o.code, "name": o.name, "programme": o.programme.code}
+            for o in model.objects.filter(active=True)
+            .select_related("programme")
+            .order_by("code")[:limit]
+        ]
+
+    return {
+        "programme_code": [
+            {"code": p.code, "name": p.name}
+            for p in Programme.objects.filter(active=True).order_by("code")[:limit]
+        ],
+        "cohort_code": rows(Cohort),
+        "course_code": rows(Course),
+    }

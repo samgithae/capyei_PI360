@@ -406,6 +406,8 @@ def test_inspect_suggests_mapping_and_finds_fitting_template(template, steward):
     assert "Notes" not in seen["suggested"]
     assert seen["matching_templates"] == []  # the saved one expects other headers
     assert not seen["already_loaded"]
+    assert seen["sample"]["Full Name"] == "Test One" and seen["sample"]["Notes"] == ""
+    assert {"programme_code", "cohort_code", "course_code"} <= set(seen["reference_codes"])
     ok = services.inspect(file_name="f.csv", data=csv_bytes(*GOOD))
     assert ok["matching_templates"] == [str(template.pk)]
     assert Participant.objects.count() == 0 and ImportBatch.objects.count() == 0

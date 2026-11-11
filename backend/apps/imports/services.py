@@ -90,7 +90,7 @@ def create_template(*, actor, source, columns, target="participants") -> Mapping
 
 # Extra header spellings seen in source files (doc 15 §3 step 3). Proposals pending D-050/D-062.
 SYNONYMS = {
-    "name": "full_name", "fullname": "full_name", "traineename": "full_name",
+    "name": "full_name", "trainee": "full_name", "traineecontact": "phone", "fullname": "full_name", "traineename": "full_name",
     "programme": "programme_code", "program": "programme_code", "prog": "programme_code",
     "cohort": "cohort_code", "course": "course_code", "enrollmentnumber": "enrollment_no",
     "enrolmentno": "enrollment_no", "enrolno": "enrollment_no", "enrollmentno": "enrollment_no",
@@ -135,6 +135,9 @@ def inspect(*, file_name, data: bytes) -> dict:
         "suggested": suggested,
         "fields": [{"field": f, "required": req} for f, req in participants.FIELDS.items()],
         "matching_templates": [str(t.pk) for t in fits],
+        # The first data row as {header: text}, so people can see what each column holds.
+        "sample": {h: str(rows[0].get(h) or "")[:80] for h in headers} if rows else {},
+        "reference_codes": participants.reference_codes(),
         "already_loaded": ImportBatch.objects.filter(
             file_hash=hashlib.sha256(data).hexdigest(), status__in=LOADED
         ).exists(),

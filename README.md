@@ -229,3 +229,7 @@ When a file row matches a stored person (same programme + enrollment number), va
 ### Go Blue dry run (T-086)
 
 `backend/scripts/go_blue_dry_run.py` builds reference data from the Go Blue enrollment file, prepares an import-ready copy and loads it through the import services, printing counts only. Run it **only on a throwaway database** (it handles real trainee data; SEC-14, D-035) and delete the database and prepared copy afterwards. Imports also now warn when a phone number does not have 10 digits (stored as received).
+
+### Import wizard: seeing your data and the reference codes
+
+On "Say what each column means" every column shows the value from the first data row of your file, so you can tell what it holds. Programme, cohort and course are reference-data codes, not usually sheet columns: the wizard lists the existing codes under "Cohort defaults" and you can click one to use it for the whole file.

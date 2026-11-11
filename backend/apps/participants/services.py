@@ -268,3 +268,8 @@ __all__ = [
     "scan",
     "unmerge",
 ]
+
+
+def reference_codes():
+    """Programme, cohort and course codes people can type or pick when importing."""
+    return configuration.reference_codes()

@@ -33,6 +33,11 @@ export interface Inspection {
   suggested: Record<string, string>;
   fields: { field: string; required: boolean }[];
   matching_templates: string[];
+  sample: Record<string, string>;
+  reference_codes: Record<
+    string,
+    { code: string; name: string; programme?: string }[]
+  >;
   already_loaded: boolean;
 }
 export interface Batch {

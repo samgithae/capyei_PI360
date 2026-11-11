@@ -212,6 +212,7 @@ export function ImportNewPage() {
                     <thead>
                       <tr className="text-left text-muted-foreground">
                         <th className="py-1">Column in the file</th>
+                        <th>First row of your file</th>
                         <th>Means (PI 360 field)</th>
                       </tr>
                     </thead>
@@ -219,6 +220,9 @@ export function ImportNewPage() {
                       {seen.headers.map((h) => (
                         <tr key={h} className="border-t">
                           <td className="py-1.5">{h}</td>
+                          <td className="max-w-56 truncate pr-3 text-muted-foreground">
+                            {seen.sample[h] || <em>(empty)</em>}
+                          </td>
                           <td>
                             <select
                               aria-label={`Field for ${h}`}
@@ -253,7 +257,9 @@ export function ImportNewPage() {
                       tone="warning"
                       title="Required fields not mapped yet"
                     >
-                      {missingRequired.join(', ')}
+                      {missingRequired.join(', ')}. Programme, cohort and course
+                      are usually not columns in a sheet: set them once under
+                      &ldquo;Cohort defaults&rdquo; below.
                     </Notice>
                   )}
                 </>
@@ -263,9 +269,12 @@ export function ImportNewPage() {
             <section className="rounded-lg border p-4 space-y-2">
               <h2 className="font-medium">Cohort defaults (optional)</h2>
               <p className="text-sm text-muted-foreground">
-                Set programme, cohort and course once for the whole file. A
-                default fills empty cells only and never replaces a value that
-                is in the file. Use the codes from reference data.
+                A programme (e.g. Go Blue), a cohort (an intake at one
+                institution) and a course are set up in PI 360 reference data
+                and each has a short code. They are usually not a column in your
+                sheet, so type or click the code that applies to the whole file.
+                A default fills empty cells only and never replaces a value that
+                is in the file.
               </p>
               <div className="flex flex-wrap gap-2">
                 {DEFAULTABLE.map((f) => (
@@ -281,6 +290,45 @@ export function ImportNewPage() {
                   />
                 ))}
               </div>
+              {DEFAULTABLE.map((f) => {
+                const codes = seen.reference_codes[f] ?? [];
+                return (
+                  <div key={f} className="text-sm">
+                    <div className="text-muted-foreground">
+                      Existing {f.replace('_code', '')} codes
+                      {codes.length === 0 &&
+                        ': none set up yet (add them under Reference data)'}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {codes.slice(0, 40).map((c) => (
+                        <button
+                          type="button"
+                          key={`${c.programme ?? ''}${c.code}`}
+                          title={
+                            c.programme
+                              ? `${c.name} (programme ${c.programme})`
+                              : c.name
+                          }
+                          className="rounded border px-2 py-0.5 text-xs hover:bg-muted"
+                          onClick={() =>
+                            setDefaults({ ...defaults, [f]: c.code })
+                          }
+                        >
+                          {c.code}{' '}
+                          <span className="text-muted-foreground">
+                            {c.name}
+                          </span>
+                        </button>
+                      ))}
+                      {codes.length > 40 && (
+                        <span className="text-xs text-muted-foreground">
+                          and {codes.length - 40} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
               {defaultsNeeded.length > 0 && (
                 <Notice tone="warning" title="This mapping needs defaults">
                   {defaultsNeeded.join(', ')} are not columns in the saved
