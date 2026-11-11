@@ -2749,6 +2749,300 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/referrals:
+    get:
+      operationId: referrals_list
+      parameters:
+      - in: query
+        name: mine
+        schema:
+          type: string
+      - in: query
+        name: offset
+        schema:
+          type: string
+      - in: query
+        name: opportunity
+        schema:
+          type: string
+      - in: query
+        name: participant
+        schema:
+          type: string
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: stage
+        schema:
+          type: string
+      tags:
+      - referrals
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: referrals_create
+      tags:
+      - referrals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReferralCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReferralCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/referrals/{id}:
+    get:
+      operationId: referrals_detail
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - referrals
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/referrals/{id}/assign:
+    post:
+      operationId: referrals_assign_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - referrals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralAssign'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReferralAssign'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReferralAssign'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/referrals/{id}/correct:
+    post:
+      operationId: referrals_correct_create
+      description: |-
+        Reopening a closed referral needs referrals.approve; other corrections referrals.edit.
+        The route gate is referrals.view; the real check depends on the referral's stage.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - referrals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralMove'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReferralMove'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReferralMove'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/referrals/{id}/history:
+    get:
+      operationId: referrals_audit
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - referrals
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+  /api/v1/referrals/{id}/transition:
+    post:
+      operationId: referrals_transition_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - referrals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralMove'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReferralMove'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReferralMove'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/referrals/assignees:
+    get:
+      operationId: referrals_assignees
+      tags:
+      - referrals
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+  /api/v1/referrals/reasons:
+    get:
+      operationId: referrals_reasons
+      parameters:
+      - in: query
+        name: stage
+        schema:
+          type: string
+      tags:
+      - referrals
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+  /api/v1/referrals/summary:
+    get:
+      operationId: referrals_summary
+      description: Counts per stage for the list page's stat cards (scope applied).
+      tags:
+      - referrals
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
 components:
   schemas:
     ActionEnum:
@@ -3527,6 +3821,74 @@ components:
         reason:
           type: string
           default: ''
+    ReferralAssign:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        note:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - user_id
+    ReferralCreate:
+      type: object
+      properties:
+        participant_id:
+          type: string
+          format: uuid
+        opportunity_id:
+          type: string
+          format: uuid
+        note:
+          type: string
+          maxLength: 2000
+        submit:
+          type: boolean
+          default: true
+      required:
+      - opportunity_id
+      - participant_id
+    ReferralMove:
+      type: object
+      properties:
+        to:
+          $ref: '#/components/schemas/ReferralMoveToEnum'
+        reason_id:
+          type: string
+          format: uuid
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - to
+    ReferralMoveToEnum:
+      enum:
+      - draft
+      - submitted
+      - under_review
+      - interview
+      - selected
+      - rejected
+      - withdrawn
+      - no_response
+      - placed
+      - closed
+      type: string
+      description: |-
+        * `draft` - draft
+        * `submitted` - submitted
+        * `under_review` - under_review
+        * `interview` - interview
+        * `selected` - selected
+        * `rejected` - rejected
+        * `withdrawn` - withdrawn
+        * `no_response` - no_response
+        * `placed` - placed
+        * `closed` - closed
     Requirement:
       type: object
       properties:
@@ -3729,7 +4091,16 @@ components:
       required:
       - columns
       - source
-    ToEnum:
+    Transition:
+      type: object
+      properties:
+        to:
+          $ref: '#/components/schemas/TransitionToEnum'
+        reason:
+          type: string
+      required:
+      - to
+    TransitionToEnum:
       enum:
       - open
       - closed
@@ -3737,15 +4108,6 @@ components:
       description: |-
         * `open` - open
         * `closed` - closed
-    Transition:
-      type: object
-      properties:
-        to:
-          $ref: '#/components/schemas/ToEnum'
-        reason:
-          type: string
-      required:
-      - to
     Upload:
       type: object
       properties:

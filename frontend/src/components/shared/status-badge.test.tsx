@@ -13,3 +13,15 @@ describe('StatusBadge', () => {
     expect(screen.getByText('brand-new-status')).toBeInTheDocument();
   });
 });
+
+describe('StatusBadge labels', () => {
+  it('turns a code with underscores into words', () => {
+    render(<StatusBadge status="under_review" />);
+    expect(screen.getByText('under review')).toBeInTheDocument();
+  });
+
+  it('prefers the label the API sends', () => {
+    render(<StatusBadge status="interview" label="Interview or assessment" />);
+    expect(screen.getByText('Interview or assessment')).toBeInTheDocument();
+  });
+});

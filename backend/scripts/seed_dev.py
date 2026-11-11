@@ -6,6 +6,8 @@ Run (development only):
   uv run python manage.py shell < scripts/seed_dev.py
 
 Creates a Data steward login (no MFA needed): dev.steward / dev-steward-password-1
+For referrals: dev.officer / dev-officer-password (Placement officer with three youth assigned);
+dev.viewer is the Manager over that officer's caseload.
 """
 
 from django.conf import settings
@@ -91,5 +93,38 @@ for n, age in (("1", 24), ("2", 25)):
         kind="phone",
         value="0711 222 333" if n == "1" else "+254711222333",
         is_primary=True,
+    )
+# Referral workflow (T-046): a placement officer with a caseload, a manager over that caseload,
+# and an employer with open opportunities. All synthetic.
+from datetime import date, timedelta  # noqa: E402
+
+from apps.employers.models import Employer, Opportunity  # noqa: E402
+
+officer = User.objects.filter(username="dev.officer").first()
+if officer is None:
+    officer = User.objects.create_user(
+        "dev.officer", "dev.officer@example.org", "dev-officer-password"
+    )
+    services.assign_role(actor=None, user=officer, role=Role.objects.get(name="Placement officer"))
+# "self" = the youth assigned to this officer.
+services.set_scopes(actor=None, user=officer, scopes=[("officer", "self")])
+# The dev manager oversees that officer's caseload (so they can reopen and reassign).
+services.set_scopes(
+    actor=None,
+    user=User.objects.get(username="dev.viewer"),
+    scopes=[("officer", str(officer.pk))],
+)
+Participant.objects.filter(
+    enrollments__source_enrollment_no__startswith="E1", assigned_officer__isnull=True
+).update(assigned_officer=officer)
+employer, _ = Employer.objects.get_or_create(name="Synthetic Traders Ltd")
+for title in ("Sales assistant", "Data entry clerk"):
+    Opportunity.objects.get_or_create(
+        employer=employer,
+        title=title,
+        defaults={
+            "status": Opportunity.OPEN,
+            "closing_date": date.today() + timedelta(days=60),
+        },
     )
 print("seeded")

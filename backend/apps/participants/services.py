@@ -365,3 +365,16 @@ def extra_rows(programme_code, labels):
         got = {k: str(extra[k]).strip() for k in labels if str((extra or {}).get(k, "")).strip()}
         if got:
             yield no, got
+
+
+# --- for other modules (T-046 referrals) ---------------------------------------------------
+
+
+def visible_ids(user):
+    """Ids of participants the user may see (scope applied; merged and archived hidden).
+    A queryset, so callers can use it as a subquery: ``filter(participant_id__in=...)``."""
+    return Participant.objects.visible_to(user).values("pk")
+
+
+def is_visible(user, participant_id) -> bool:
+    return Participant.objects.visible_to(user).filter(pk=participant_id).exists()

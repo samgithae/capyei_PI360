@@ -80,6 +80,15 @@ MATRIX = {
         "PATCH": "employers.edit",
         "DELETE": "employers.edit",
     },
+    "referrals": {"GET": "referrals.view", "POST": "referrals.edit"},
+    "referrals/summary": {"GET": "referrals.view"},
+    "referrals/reasons": {"GET": "referrals.view"},
+    "referrals/assignees": {"GET": "caseload.reassign"},
+    "referrals/<uuid:pk>": {"GET": "referrals.view"},
+    "referrals/<uuid:pk>/transition": {"POST": "referrals.edit"},
+    "referrals/<uuid:pk>/correct": {"POST": "referrals.view"},  # + stage check in view
+    "referrals/<uuid:pk>/assign": {"POST": "caseload.reassign"},
+    "referrals/<uuid:pk>/history": {"GET": "referrals.view"},
     "opportunities": {"GET": "employers.view", "POST": "employers.edit"},
     "opportunities/<uuid:pk>": {
         "GET": "employers.view",

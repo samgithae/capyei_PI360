@@ -46,5 +46,8 @@ KINDS = {
         fks={"cohort": "cohorts", "course": "courses"},
         named=False,
     ),
+    "referral-reasons": Kind(
+        m.ReferralReason, "Referral reason", fields=("applies_to", "needs_note")
+    ),
 }
 OPTIONAL_FKS = {"ward", "default_sector"}

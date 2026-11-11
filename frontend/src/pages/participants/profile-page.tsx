@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
+import {
+  ReferDialog,
+  type ReferralPage,
+} from '@/pages/referrals/referral-shared';
 import { useQuery } from '@tanstack/react-query';
-import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
+import { Archive, ArchiveRestore, Pencil, Send } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useParams } from 'react-router';
 import { api, ApiError } from '@/lib/api';
@@ -18,6 +22,7 @@ import {
 import { DataCard, ParticipantStatus } from '@/components/data-card';
 import { useArchiveFlow } from '@/components/shared/bulk';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EditParticipant } from './participant-edit';
 
@@ -55,6 +60,7 @@ export function ProfilePage() {
   const { id } = useParams();
   const { can } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [referring, setReferring] = useState(false);
   const archive = useArchiveFlow({
     path: '/participants',
     noun: 'participant',
@@ -65,6 +71,13 @@ export function ProfilePage() {
     queryKey: ['participant', id],
     queryFn: () => api<Detail>(`/participants/${id}`),
     retry: false,
+  });
+
+  // Runs only for people who may see referrals; `enabled: false` means no request at all.
+  const referrals = useQuery({
+    queryKey: ['referrals', 'participant', id],
+    queryFn: () => api<ReferralPage>(`/referrals?participant=${id}`),
+    enabled: can('referrals.view'),
   });
 
   if (q.isError) {
@@ -114,6 +127,11 @@ export function ProfilePage() {
                   <Archive /> Archive
                 </Button>
               ))}
+            {can('referrals.edit') && !p.archived && (
+              <Button variant="outline" onClick={() => setReferring(true)}>
+                <Send /> Refer
+              </Button>
+            )}
             {can('participants.edit') && (
               <Button onClick={() => setEditing(true)}>
                 <Pencil /> Edit
@@ -123,6 +141,11 @@ export function ProfilePage() {
         }
       />
       {archive.dialog}
+      <ReferDialog
+        open={referring}
+        onOpenChange={setReferring}
+        participant={{ id: p.id, name: p.name }}
+      />
       {p.archived && (
         <p className="rounded-md border border-border bg-muted/40 p-3 text-sm">
           This participant is archived and hidden from lists and reports.
@@ -166,6 +189,40 @@ export function ProfilePage() {
           </TableBody>
         </Table>
       </DataCard>
+
+      {referrals.data && referrals.data.results.length > 0 && (
+        <DataCard title="Referrals">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40">
+                <TableHead>Opportunity</TableHead>
+                <TableHead>Employer</TableHead>
+                <TableHead>Stage</TableHead>
+                <TableHead>Referred</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {referrals.data.results.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell>
+                    <Link
+                      className="font-medium text-foreground hover:text-primary"
+                      to={`/referrals/${r.id}`}
+                    >
+                      {r.opportunity}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{r.employer}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={r.stage} label={r.stage_label} />
+                  </TableCell>
+                  <TableCell>{r.referred_at?.slice(0, 10) ?? ''}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </DataCard>
+      )}
 
       {p.enrollments.some((e) => Object.keys(e.extra ?? {}).length > 0) && (
         <Card>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
+import { ReferDialog } from '@/pages/referrals/referral-shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Send, Trash2 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
@@ -84,6 +85,7 @@ export function OpportunityPage() {
   const [req, setReq] = useState(BLANK);
   const [removing, setRemoving] = useState<Requirement | null>(null);
   const [confirmMove, setConfirmMove] = useState<string | null>(null);
+  const [referring, setReferring] = useState(false);
 
   const refresh = () => {
     setError('');
@@ -223,28 +225,42 @@ export function OpportunityPage() {
           </>
         }
         actions={
-          canEdit && (
-            <>
-              {!locked && (
-                <Button variant="outline" onClick={() => setDateOpen(true)}>
-                  <Pencil /> Set closing date
-                </Button>
-              )}
-              {NEXT[o.status]?.map((n) => (
-                <Button
-                  key={n.to}
-                  variant={n.to === 'closed' ? 'outline' : 'primary'}
-                  disabled={move.isPending}
-                  onClick={() =>
-                    n.to === 'closed' ? setConfirmMove(n.to) : move.mutate(n.to)
-                  }
-                >
-                  {n.label}
-                </Button>
-              ))}
-            </>
-          )
+          <>
+            {can('referrals.edit') && o.status === 'open' && (
+              <Button variant="outline" onClick={() => setReferring(true)}>
+                <Send /> Refer youth
+              </Button>
+            )}
+            {canEdit && (
+              <>
+                {!locked && (
+                  <Button variant="outline" onClick={() => setDateOpen(true)}>
+                    <Pencil /> Set closing date
+                  </Button>
+                )}
+                {NEXT[o.status]?.map((n) => (
+                  <Button
+                    key={n.to}
+                    variant={n.to === 'closed' ? 'outline' : 'primary'}
+                    disabled={move.isPending}
+                    onClick={() =>
+                      n.to === 'closed'
+                        ? setConfirmMove(n.to)
+                        : move.mutate(n.to)
+                    }
+                  >
+                    {n.label}
+                  </Button>
+                ))}
+              </>
+            )}
+          </>
         }
+      />
+      <ReferDialog
+        open={referring}
+        onOpenChange={setReferring}
+        opportunity={{ id: o.id, name: `${o.title} (${o.employer})` }}
       />
       {error && (
         <p role="alert" className="text-sm text-destructive">

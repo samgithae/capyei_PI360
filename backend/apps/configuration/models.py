@@ -208,6 +208,28 @@ class ReferenceLabel(models.Model):
         return self.name
 
 
+class ReferralReason(Reference):
+    """Controlled reason for an unsuccessful referral outcome (FR-18). The list is a proposed
+    default until CAP-YEI confirms it (D-037); administrators manage it as reference data."""
+
+    REJECTED, WITHDRAWN, NO_RESPONSE, ANY = "rejected", "withdrawn", "no_response", "any"
+    APPLIES = [
+        (REJECTED, "Rejected"),
+        (WITHDRAWN, "Withdrawn"),
+        (NO_RESPONSE, "No response"),
+        (ANY, "Any unsuccessful outcome"),
+    ]
+
+    applies_to = models.CharField(max_length=12, choices=APPLIES, default=ANY)
+    needs_note = models.BooleanField(default=False)  # e.g. "Other": the note says what happened
+
+    class Meta(Reference.Meta):
+        constraints = [
+            models.UniqueConstraint(fields=["code"], name="uniq_referral_reason_code"),
+            models.UniqueConstraint(fields=["name_normalised"], name="uniq_referral_reason_name"),
+        ]
+
+
 class FeatureFlag(models.Model):
     """A switch with an optional audience. ``environments`` and ``roles`` empty = everyone."""
 

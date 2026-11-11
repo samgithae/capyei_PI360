@@ -644,3 +644,35 @@ def county_exists(pk) -> bool:
     from .models import County
 
     return County.objects.filter(pk=pk).exists()
+
+
+# --- referral reason codes (T-046, FR-18) ----------------------------------
+
+
+def _reason_row(r):
+    return {
+        "id": str(r.pk), "code": r.code, "name": r.name, "applies_to": r.applies_to,
+        "needs_note": r.needs_note, "active": r.active,
+    }  # fmt: skip
+
+
+def referral_reasons(stage=None, *, include_inactive=False):
+    """Reason codes for an unsuccessful outcome; ``stage`` keeps those that apply to it."""
+    from .models import ReferralReason
+
+    qs = ReferralReason.objects.order_by("name")
+    if not include_inactive:
+        qs = qs.filter(active=True)
+    if stage:
+        qs = qs.filter(applies_to__in=[stage, ReferralReason.ANY])
+    return [_reason_row(r) for r in qs]
+
+
+def referral_reason(pk):
+    """One reason code as a dict, or None if it does not exist."""
+    from .models import ReferralReason
+
+    try:
+        return _reason_row(ReferralReason.objects.get(pk=pk))
+    except (ReferralReason.DoesNotExist, ValueError, DjangoValidationError):
+        return None

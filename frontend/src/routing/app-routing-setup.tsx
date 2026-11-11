@@ -14,12 +14,13 @@ import { DirectoryPage } from '@/pages/participants/directory-page';
 import { DuplicatesPage } from '@/pages/participants/duplicates-page';
 import { ProfilePage } from '@/pages/participants/profile-page';
 import { PlaceholderPage } from '@/pages/placeholder-page';
+import { ReferralPage } from '@/pages/referrals/referral-page';
+import { ReferralsPage } from '@/pages/referrals/referrals-page';
 import { Navigate, Route, Routes } from 'react-router';
 import { Layout1 } from '@/components/layouts/layout-1';
 
 const SECTIONS: [string, string, string][] = [
   ['/support', 'ydm.view', 'Support priority'],
-  ['/referrals', 'referrals.view', 'Referrals and cases'],
   ['/reports', 'reports.view_aggregate', 'Reports'],
 ];
 
@@ -56,6 +57,10 @@ export function AppRoutingSetup() {
             <Route path="/employers/:id" element={<EmployerPage />} />
             <Route path="/opportunities" element={<OpportunitiesPage />} />
             <Route path="/opportunities/:id" element={<OpportunityPage />} />
+          </Route>
+          <Route element={<RequirePermission permission="referrals.view" />}>
+            <Route path="/referrals" element={<ReferralsPage />} />
+            <Route path="/referrals/:id" element={<ReferralPage />} />
           </Route>
           <Route
             element={<RequirePermission permission="identity.view_users" />}

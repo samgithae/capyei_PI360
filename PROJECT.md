@@ -20,7 +20,7 @@ the import, directory and admin tooling. Everything below is on `main` at
 | Employer clustering and placement import, status mapping, promote extra data | Done (D-064, D-066 await CAP-YEI) | T-087 |
 | **Archive/restore** (soft delete) for participants, employers, opportunities; admin parity with steward | Done | this phase |
 | Row actions + bulk select on /youth, /opportunities, /employers | Done | this phase |
-| Referral workflow | **Not started** (`apps/referrals` is an empty stub) | T-046 |
+| Referral workflow (stages, reason codes, corrections, reassign) | Done; stage list and reason codes await D-037 | T-046 |
 | Rules engine, rule versions, initial rules | **Not started** (`apps/intelligence` is an empty stub) | T-047, T-048 |
 | YDM assessment capture | Not started, optional, gated | T-049 |
 | Modules A/B/C, dashboard, exports, case management, follow-up | Not started (M3) | T-060..T-071 |

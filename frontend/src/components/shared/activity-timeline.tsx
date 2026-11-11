@@ -5,8 +5,12 @@ import {
   FilePlus2,
   GitMerge,
   ListChecks,
+  MoveRight,
   Pencil,
+  Send,
   Trash2,
+  Undo2,
+  UserCheck,
   UserMinus,
   UserPlus,
 } from 'lucide-react';
@@ -44,6 +48,10 @@ const KNOWN: Record<
     label: 'Requirement removed',
     icon: Trash2,
   },
+  'referral.created': { label: 'Referral created', icon: Send },
+  'referral.stage_changed': { label: 'Stage changed', icon: MoveRight },
+  'referral.corrected': { label: 'Stage corrected', icon: Undo2 },
+  'referral.assigned': { label: 'Referral reassigned', icon: UserCheck },
   'employer.cluster_decided': {
     label: 'Employer match decided',
     icon: GitMerge,
