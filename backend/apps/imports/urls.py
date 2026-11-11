@@ -4,6 +4,8 @@ from . import views as v
 
 urlpatterns = [
     path("imports/templates", v.TemplateListView.as_view()),
+    path("imports/extra", v.ExtraSummaryView.as_view()),
+    path("imports/extra/promote", v.ExtraPromoteView.as_view()),
     path("imports/inspect", v.InspectView.as_view()),
     path("imports/batches", v.BatchListView.as_view()),
     path("imports/batches/<uuid:pk>", v.BatchDetailView.as_view()),

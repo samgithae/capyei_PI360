@@ -86,6 +86,8 @@ MATRIX = {
     "imports/batches/<uuid:pk>/review/employers": {"POST": "imports.commit"},
     "imports/batches/<uuid:pk>/review/statuses": {"POST": "imports.commit"},
     "imports/batches/<uuid:pk>/review/statuses/proposed": {"POST": "imports.commit"},
+    "imports/extra": {"GET": "imports.run"},
+    "imports/extra/promote": {"POST": "imports.commit"},
     "imports/batches/<uuid:pk>/recheck": {"POST": "imports.commit"},
     "imports/batches/<uuid:pk>/approve": {"POST": "imports.commit"},
     "imports/batches/<uuid:pk>/commit": {"POST": "imports.commit"},

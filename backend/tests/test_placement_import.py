@@ -163,3 +163,79 @@ def test_same_person_twice_in_a_file_warns_but_both_load(tpl, steward):  # noqa:
     assert any("Same person as row 1" in w["message"] for w in second.warnings)
     load(steward, b)
     assert Placement.objects.count() == 2
+
+
+# --- stage E: promote extra data ------------------------------------------------------------
+
+
+@pytest.fixture
+def wide(people):
+    """Enrollments carrying placement text as extra, as a wide sheet leaves them."""
+    from apps.participants.models import ParticipantEnrollment
+
+    rows = {
+        "E-001": {"Organisation": "Acme Ltd", "Placement Status": "Employment", "Note": "x"},
+        "E-002": {"Organisation": "", "Placement Status": "Employment"},
+    }
+    for no, extra in rows.items():
+        ParticipantEnrollment.objects.filter(source_enrollment_no=no).update(extra=extra)
+
+
+MAP = {"Organisation": "organisation", "Placement Status": "placement_status"}
+
+
+def test_extra_summary_counts_labels(wide):
+    s = services.extra_summary("P1")
+    got = {x["label"]: x["filled"] for x in s["labels"]}
+    assert got == {"Organisation": 1, "Placement Status": 2, "Note": 1}
+    assert s["enrollments"] == 2 and s["without_number"] == 0
+
+
+def test_promote_validates_then_loads(wide, steward):  # noqa: F811
+    placements.load_proposed(actor=steward)
+    batch = services.promote_extra(actor=steward, programme_code="p1", columns=MAP)
+    assert batch.status == "validated" and batch.counts["total"] == 2
+    assert Placement.objects.count() == 0  # a dry run changes nothing
+    batch = load(steward, batch)
+    assert Placement.objects.count() == 2
+    assert batch.template.target == "placements"
+    assert services.reconciliation(batch)["balanced"]
+
+
+def test_promote_twice_adds_nothing(wide, steward):  # noqa: F811
+    placements.load_proposed(actor=steward)
+    load(steward, services.promote_extra(actor=steward, programme_code="P1", columns=MAP))
+    again = services.promote_extra(actor=steward, programme_code="P1", columns=MAP)
+    assert again.counts["skip"] == 2 and again.counts["create"] == 0
+
+
+def test_promote_holds_unmapped_status_and_rolls_back(wide, steward):  # noqa: F811
+    batch = services.promote_extra(actor=steward, programme_code="P1", columns=MAP)
+    assert batch.counts["held"] == 2  # no status map loaded yet
+    placements.load_proposed(actor=steward)
+    batch = services.recheck(actor=steward, batch=batch)
+    batch = load(steward, batch)
+    services.rollback(actor=steward, batch=batch, reason="test")
+    assert Placement.objects.count() == 0
+
+
+@pytest.mark.parametrize(
+    "cols",
+    [
+        {"Organisation": "organisation"},  # no status
+        {"Placement Status": "placement_status", "Organisation": "nonsense"},
+        {"Placement Status": "placement_status", "Note": "placement_status"},
+        {"Placement Status": "enrollment_no"},
+        {"Missing": "placement_status"},  # label nobody has
+    ],
+)
+def test_promote_refuses_bad_mappings(wide, steward, cols):  # noqa: F811
+    with pytest.raises(services.ImportFailure):
+        services.promote_extra(actor=steward, programme_code="P1", columns=cols)
+
+
+def test_promote_needs_some_value(people, steward):  # noqa: F811
+    with pytest.raises(services.ImportFailure):
+        services.promote_extra(
+            actor=steward, programme_code="P1", columns={"Placement Status": "placement_status"}
+        )

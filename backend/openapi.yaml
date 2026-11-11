@@ -1653,6 +1653,58 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/imports/extra:
+    get:
+      operationId: imports_extra_summary
+      description: 'Which extra labels the people of one programme carry (stage E:
+        promote extras).'
+      parameters:
+      - in: query
+        name: programme
+        schema:
+          type: string
+        required: true
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/extra/promote:
+    post:
+      operationId: imports_extra_promote_create
+      description: Turn extra data into a placement import batch, to be reviewed and
+        loaded like any other.
+      tags:
+      - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Promote'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Promote'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Promote'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/imports/inspect:
     post:
       operationId: imports_inspect_create
@@ -2999,6 +3051,19 @@ components:
       - grant_only
       - group
       - label
+    Promote:
+      type: object
+      properties:
+        programme_code:
+          type: string
+          maxLength: 20
+        columns:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - columns
+      - programme_code
     Reason:
       type: object
       properties:

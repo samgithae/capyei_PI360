@@ -751,3 +751,57 @@ def recheck(*, actor, batch) -> ImportBatch:
         object_id=batch.pk, after={"released": moved},
     )  # fmt: skip
     return batch
+
+
+def extra_summary(programme_code):
+    """What a steward can promote: the extra labels on one programme's enrollments."""
+    return participants.extra_labels(programme_code)
+
+
+def promote_extra(*, actor, programme_code, columns) -> ImportBatch:
+    """Stage E: build a placement import from ``extra`` data already on file.
+
+    ``columns`` maps an extra label to a placement field (e.g. {"Organisation": "organisation"}).
+    The rows are written as a CSV and sent through the ordinary placement upload, so the dry
+    run, review, approval, reconciliation and rollback are the ones every import has. Re-running
+    skips people already promoted (same source and row content)."""
+    code = (programme_code or "").strip().upper()
+    if not code:
+        raise ImportFailure("Choose a programme.", "programme_code")
+    columns = {k: v for k, v in (columns or {}).items() if v}
+    bad = sorted(f for f in columns.values() if f not in placement_rows.FIELDS)
+    if bad:
+        raise ImportFailure(f"Not a placement field: {', '.join(bad)}.", "columns")
+    if "placement_status" not in columns.values():
+        raise ImportFailure("Choose which label holds the placement status.", "columns")
+    if len(set(columns.values())) != len(columns):
+        raise ImportFailure("Two labels are mapped to the same field.", "columns")
+    held = {"programme_code", "enrollment_no"} & set(columns.values())
+    if held:
+        raise ImportFailure("Programme and enrollment number come from the enrollment.", "columns")
+    known = {x["label"] for x in participants.extra_labels(code)["labels"]}
+    unknown = sorted(set(columns) - known)
+    if unknown:
+        raise ImportFailure(f"No enrollment in {code} has: {', '.join(unknown)}.", "columns")
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    labels = list(columns)
+    w.writerow(["programme_code", "enrollment_no", *labels])
+    n = 0
+    for no, got in participants.extra_rows(code, labels):
+        w.writerow([code, no, *[got.get(k, "") for k in labels]])
+        n += 1
+    if not n:
+        raise ImportFailure("No enrollment has a value in the chosen labels.", "columns")
+    template = create_template(
+        actor=actor,
+        source=f"extra-{code.lower()}"[:60],
+        target="placements",
+        columns={"programme_code": "programme_code", "enrollment_no": "enrollment_no", **columns},
+    )
+    return upload(
+        actor=actor,
+        template=template,
+        file_name=f"promote-extra-{code.lower()}.csv",
+        data=buf.getvalue().encode("utf-8"),
+    )

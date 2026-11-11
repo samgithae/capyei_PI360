@@ -29,9 +29,16 @@ export function ImportsPage() {
     queryFn: () => api<Batch[]>('/imports/batches'),
   });
   const newButton = can('imports.run') && (
-    <Button asChild size="sm">
-      <Link to="/imports/new">New import</Link>
-    </Button>
+    <div className="flex gap-2">
+      {can('imports.commit') && (
+        <Button asChild size="sm" variant="outline">
+          <Link to="/imports/promote">Placements from extra data</Link>
+        </Button>
+      )}
+      <Button asChild size="sm">
+        <Link to="/imports/new">New import</Link>
+      </Button>
+    </div>
   );
 
   return (

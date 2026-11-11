@@ -90,6 +90,11 @@ class StatusMapSerializer(serializers.Serializer):
     is_placement = serializers.BooleanField(required=False, default=True)
 
 
+class PromoteSerializer(serializers.Serializer):
+    programme_code = serializers.CharField(max_length=20)
+    columns = serializers.DictField(child=serializers.CharField(allow_blank=True))
+
+
 class RollbackSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500)
 
@@ -399,3 +404,37 @@ class PlacementProposedStatusesView(APIView):
 
 
 BatchRecheckView = _action("recheck", COMMIT, "recheck")
+
+
+class ExtraSummaryView(APIView):
+    """Which extra labels the people of one programme carry (stage E: promote extras)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": RUN}
+
+    @extend_schema(
+        operation_id="imports_extra_summary",
+        parameters=[OpenApiParameter("programme", str, required=True)],
+        responses={200: dict},
+    )
+    def get(self, request):
+        return Response(services.extra_summary(request.query_params.get("programme", "")))
+
+
+class ExtraPromoteView(APIView):
+    """Turn extra data into a placement import batch, to be reviewed and loaded like any other."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": COMMIT}
+
+    @extend_schema(request=PromoteSerializer, responses={201: dict})
+    def post(self, request):
+        s = PromoteSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        batch = _run(
+            services.promote_extra,
+            actor=request.user,
+            programme_code=s.validated_data["programme_code"],
+            columns=s.validated_data["columns"],
+        )
+        return Response(_batch_out(batch), status=status.HTTP_201_CREATED)

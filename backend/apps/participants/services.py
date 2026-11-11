@@ -330,3 +330,38 @@ def find_enrollment(programme_code, enrollment_no):
         .first()
     )
     return str(pk) if pk else None
+
+
+def extra_labels(programme_code):
+    """The ``extra`` labels held on enrollments of one programme, with how many have a value.
+    Also counts enrollments with no source enrollment number (they cannot be matched later)."""
+    labels: dict[str, int] = {}
+    qs = ParticipantEnrollment.objects.filter(
+        programme__code__iexact=(programme_code or "").strip()
+    )
+    total = no_number = 0
+    for no, extra in qs.values_list("source_enrollment_no", "extra").iterator():
+        total += 1
+        no_number += not no
+        for k, v in (extra or {}).items():
+            if str(v).strip():
+                labels[k] = labels.get(k, 0) + 1
+    return {
+        "enrollments": total,
+        "without_number": no_number,
+        "labels": [{"label": k, "filled": n} for k, n in sorted(labels.items())],
+    }
+
+
+def extra_rows(programme_code, labels):
+    """(source enrollment number, {label: value}) for enrollments that have a number and at least
+    one of ``labels`` filled. Read-only; the caller turns these into an import file."""
+    qs = (
+        ParticipantEnrollment.objects.filter(programme__code__iexact=(programme_code or "").strip())
+        .exclude(source_enrollment_no="")
+        .order_by("source_enrollment_no")
+    )
+    for no, extra in qs.values_list("source_enrollment_no", "extra").iterator():
+        got = {k: str(extra[k]).strip() for k in labels if str((extra or {}).get(k, "")).strip()}
+        if got:
+            yield no, got
