@@ -4,6 +4,8 @@ import { REFERENCE_KINDS, ReferencePage } from '@/pages/admin/reference-page';
 import { UsersPage } from '@/pages/admin/users-page';
 import { EmployerPage } from '@/pages/employers/employer-page';
 import { EmployersPage } from '@/pages/employers/employers-page';
+import { GuidePage } from '@/pages/help/guide-page';
+import { HelpPage } from '@/pages/help/help-page';
 import { ImportBatchPage } from '@/pages/imports/import-batch-page';
 import { ImportNewPage } from '@/pages/imports/import-new-page';
 import { ImportsPage } from '@/pages/imports/imports-page';
@@ -49,6 +51,8 @@ export function AppRoutingSetup() {
       <Route element={<RequireAuth />}>
         <Route element={<Layout1 />}>
           <Route path="/" element={<Home />} />
+          <Route path="/help" element={<HelpPage />} />
+          <Route path="/help/:slug" element={<GuidePage />} />
           <Route
             element={<RequirePermission permission="youth.self_service" />}
           >

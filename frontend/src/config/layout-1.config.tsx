@@ -2,6 +2,7 @@ import {
   BarChart3,
   Briefcase,
   Building2,
+  CircleHelp,
   ClipboardList,
   FileUp,
   GitMerge,
@@ -151,6 +152,7 @@ export const MENU_SIDEBAR: MenuConfig = [
       },
     ],
   },
+  { title: 'Help centre', icon: CircleHelp, path: '/help' },
 ];
 
 /** Keep only what the user may open; drop headings left with nothing under them. */
