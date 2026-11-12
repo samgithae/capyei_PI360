@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
+import { splitName } from './split-name';
 
 interface Enrollment {
   id: string;
@@ -356,6 +357,21 @@ export function EditParticipant() {
             {text('family_name', 'Family name')}
             {text('other_names', 'Other names')}
           </div>
+          {!v.given_name.trim() && !v.family_name.trim() && v.name.trim() && (
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setCore((c) => ({ ...c, ...splitName(v.name) }))}
+              >
+                Suggest from full name
+              </Button>
+              <span className="text-muted-foreground">
+                Fills the three boxes above as a guess. Check them, then save.
+              </span>
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Gender</Label>

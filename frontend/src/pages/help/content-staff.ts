@@ -69,6 +69,7 @@ export const STAFF_GUIDES: Guide[] = [
       'Open the youth from the Youth list and check the Personal details and Enrollment history on the profile.',
       'Choose Edit. It opens on its own page so every field is in view.',
       'Change names, gender, status, date of birth, home county, current residence and contacts as needed.',
+      'If the given and family names are blank (common on imported records), choose Suggest from full name. It guesses first word as given name, last word as family name and the rest as other names. Correct them if needed; nothing is saved until you choose Save changes.',
       'For an enrollment, change the cohort and then choose a course that cohort runs. The programme and institution follow the cohort.',
       'To record another course the youth has done or joined, choose Add another enrollment or course, pick the cohort and course, and set the status and dates. If the course is not offered, link it first: Administration, Cohort courses, Add cohort course, pick the cohort and tap the courses it runs.',
       'Choose Save changes. Only what you changed is saved.',

@@ -275,7 +275,16 @@ export function ProfilePage() {
         </Table>
       </DataCard>
 
-      {can('participants.view_profile') && <CapabilityProfile id={p.id} />}
+      {can('participants.view_profile') ? (
+        <CapabilityProfile id={p.id} />
+      ) : (
+        <DataCard title="Skills and readiness">
+          <p className="p-5 text-sm text-muted-foreground">
+            Your role cannot view skills and readiness. Ask an administrator if
+            you need access.
+          </p>
+        </DataCard>
+      )}
       {can('participants.invite') && <InviteCard id={p.id} />}
 
       {referrals.data && referrals.data.results.length > 0 && (
