@@ -25,6 +25,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { CapabilityProfile } from './capability-profile';
+import { InviteCard } from './invite-card';
 import { EditParticipant } from './participant-edit';
 
 interface Enrollment {
@@ -192,6 +193,7 @@ export function ProfilePage() {
       </DataCard>
 
       {can('participants.view_profile') && <CapabilityProfile id={p.id} />}
+      {can('participants.invite') && <InviteCard id={p.id} />}
 
       {referrals.data && referrals.data.results.length > 0 && (
         <DataCard title="Referrals">

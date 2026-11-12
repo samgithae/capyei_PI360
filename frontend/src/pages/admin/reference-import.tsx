@@ -140,9 +140,9 @@ export function ReferenceImport({
               <div role="status" className="space-y-2 rounded-md border p-3">
                 <p className="font-medium">
                   {previewed ? 'Preview (nothing saved yet): ' : 'Done: '}
-                  {count} {previewed ? 'to add' : 'added'},{' '}
-                  {result.skipped} already exist, {result.failed} with errors
-                  (of {result.rows} rows).
+                  {count} {previewed ? 'to add' : 'added'}, {result.skipped}{' '}
+                  already exist, {result.failed} with errors (of {result.rows}{' '}
+                  rows).
                 </p>
                 {result.errors.length > 0 && (
                   <ul className="max-h-40 list-disc space-y-1 overflow-auto pl-5 text-destructive">

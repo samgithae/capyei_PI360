@@ -58,6 +58,16 @@ MATRIX = {
     },
     "participants/<uuid:pk>/enrollments/<uuid:enrollment_id>": {"PATCH": "participants.edit"},
     "participants/<uuid:pk>/contacts": {"PUT": "participants.edit"},
+    "participants/<uuid:pk>/invite": {
+        "GET": "participants.invite",
+        "POST": "participants.invite",
+        "DELETE": "participants.invite",
+    },
+    "youth/activate/check": {"POST": PUBLIC},
+    "youth/activate": {"POST": PUBLIC},
+    "youth/me": {"GET": "youth.self_service"},
+    "youth/consent": {"POST": "youth.self_service"},
+    "youth/profile": {"PUT": "youth.self_service"},
     "participants/<uuid:pk>/residence": {"PUT": "participants.edit"},
     "participants/<uuid:pk>/profile": {
         "GET": "participants.view_profile",

@@ -139,8 +139,15 @@ allow_indirect_imports = true
 [[tool.importlinter.contracts]]
 name = "No domain module depends on intelligence, even indirectly (AI-A3)"
 type = "forbidden"
-source_modules = ["apps.identity", "apps.participants", "apps.employers", "apps.referrals", "apps.placements", "apps.imports", "apps.dataquality", "apps.audit", "apps.configuration", "apps.platform", "apps.api"]
+source_modules = ["apps.identity", "apps.participants", "apps.portal", "apps.employers", "apps.referrals", "apps.placements", "apps.imports", "apps.dataquality", "apps.audit", "apps.configuration", "apps.platform", "apps.api"]
 forbidden_modules = ["apps.intelligence"]
+
+[[tool.importlinter.contracts]]
+name = "Youth portal coordinates identity and participants only"
+type = "forbidden"
+source_modules = ["apps.portal"]
+forbidden_modules = ["apps.employers", "apps.referrals", "apps.placements", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "apps.platform", "apps.configuration", "config"]
+allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 name = "CMP-08 Rules engine is pure: no Django, DRF or app imports"

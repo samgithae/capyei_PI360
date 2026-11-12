@@ -9,6 +9,7 @@ import {
   LifeBuoy,
   Scale,
   Settings,
+  UserRound,
   Users,
 } from 'lucide-react';
 import { type MenuConfig } from './types';
@@ -18,6 +19,12 @@ import { type MenuConfig } from './types';
 // by the user's permission (T-143); headings with no visible item are hidden.
 export const MENU_SIDEBAR: MenuConfig = [
   { title: 'Overview', icon: LayoutDashboard, path: '/' },
+  {
+    title: 'My profile',
+    icon: UserRound,
+    path: '/me',
+    permission: 'youth.self_service',
+  },
   { heading: 'Participants' },
   {
     title: 'Youth',

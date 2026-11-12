@@ -40,11 +40,25 @@ def _fact(f):
     }
 
 
+def _hide_staff(doc: dict) -> dict:
+    """The same document without the names of the staff who verified entries."""
+    for key in ("qualifications", "skills", "experience"):
+        for row in doc[key]:
+            row["verified_by"] = ""
+    doc["readiness"]["verified_by"] = ""
+    return doc
+
+
 def _iso(d):
     return d.isoformat() if d else None
 
 
-def read(p: Participant) -> dict:
+def read(p: Participant, *, hide_staff: bool = False) -> dict:
+    doc = _read(p)
+    return _hide_staff(doc) if hide_staff else doc
+
+
+def _read(p: Participant) -> dict:
     quals = p.qualifications.select_related("level", "verified_by")
     skills = p.skills.select_related("skill", "verified_by")
     exp = p.experience.select_related("sector", "verified_by")
@@ -135,6 +149,11 @@ def _sync(p, qs, rows, build, tracked, actor, source):
         keep.add(str(obj.pk))
     for key, obj in existing.items():
         if key not in keep:
+            if source == ProfileFact.YOUTH and obj.verified:
+                raise ProfileError(
+                    "An entry checked by staff cannot be removed here. Ask your officer.",
+                    "verified",
+                )
             obj.delete()
     return len(keep)
 

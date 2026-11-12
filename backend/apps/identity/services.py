@@ -218,6 +218,66 @@ def revoke_grant(*, actor, grant, reason=""):
     )
 
 
+def _user_model():
+    from django.contrib.auth import get_user_model
+
+    return get_user_model()
+
+
+@transaction.atomic
+def create_pending_account(*, actor, email, role_name):
+    """An inactive account with no usable password, to be activated by its owner through a
+    one-time link. The e-mail is the user name. An existing user is never reused."""
+    User = _user_model()
+    email = email.strip().lower()
+    if (
+        User.objects.filter(username__iexact=email).exists()
+        or User.objects.filter(email__iexact=email).exists()
+    ):
+        raise AccessError("email", "An account already uses this e-mail address.")
+    role = Role.objects.filter(name=role_name, active=True).first()
+    if role is None:
+        raise AccessError("role", f"The {role_name} role is not available.")
+    user = User(username=email, email=email, is_active=False)
+    user.set_unusable_password()
+    user.save()
+    assign_role(actor=actor, user=user, role=role)
+    audit.record(
+        actor=actor,
+        action="user.pending_account_created",
+        object_type="user",
+        object_id=user.pk,
+        after={"role": role_name},
+    )
+    return user
+
+
+def activate_account(*, user, password):
+    """Set the owner's first password and switch the account on."""
+    from django.contrib.auth import password_validation as pv
+    from django.core.exceptions import ValidationError
+
+    try:
+        pv.validate_password(password, user)
+    except ValidationError as exc:
+        raise AccessError("password", " ".join(exc.messages)) from exc
+    user.set_password(password)
+    user.is_active = True
+    user.save(update_fields=["password", "is_active"])
+    audit.record(actor=user, action="user.account_activated", object_type="user", object_id=user.pk)
+
+
+def delete_pending_account(*, actor, user):
+    """Remove an account that was never activated (an invite withdrawn or replaced)."""
+    if user.is_active or user.has_usable_password():
+        raise AccessError("user", "Only an account that was never activated can be removed.")
+    pk = user.pk
+    user.delete()
+    audit.record(
+        actor=actor, action="user.pending_account_removed", object_type="user", object_id=pk
+    )
+
+
 def role_names(user) -> list[str]:
     return sorted(
         Role.objects.filter(active=True, assignments__user=user).values_list("name", flat=True)
@@ -227,8 +287,11 @@ def role_names(user) -> list[str]:
 __all__ = [
     "AccessError",
     "ROLE_ASSIGNABLE",
+    "activate_account",
     "assign_role",
+    "create_pending_account",
     "create_role",
+    "delete_pending_account",
     "delete_role",
     "ensure_default_roles",
     "grant_permission",

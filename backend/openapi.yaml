@@ -2594,6 +2594,85 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/{id}/invite:
+    get:
+      operationId: participants_invite_get
+      description: 'Staff: invite status, send (or resend) and withdraw. Needs participants.invite.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: participants_invite_send
+      description: 'Staff: invite status, send (or resend) and withdraw. Needs participants.invite.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Invite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Invite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Invite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: participants_invite_withdraw
+      description: 'Staff: invite status, send (or resend) and withdraw. Needs participants.invite.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/{id}/profile:
     get:
       operationId: participants_profile_get
@@ -3761,6 +3840,121 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/youth/activate:
+    post:
+      operationId: youth_activate
+      tags:
+      - youth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Activate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Activate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Activate'
+        required: true
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/youth/activate/check:
+    post:
+      operationId: youth_activate_check
+      tags:
+      - youth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Token'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Token'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Token'
+        required: true
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/youth/consent:
+    post:
+      operationId: youth_consent
+      tags:
+      - youth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Consent'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Consent'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Consent'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/me:
+    get:
+      operationId: youth_me_get
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/profile:
+    put:
+      operationId: youth_profile_put
+      tags:
+      - youth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
 components:
   schemas:
     ActionEnum:
@@ -3773,6 +3967,18 @@ components:
         * `link` - link
         * `create` - create
         * `apart` - apart
+    Activate:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 200
+        password:
+          type: string
+          maxLength: 128
+      required:
+      - password
+      - token
     Alias:
       type: object
       properties:
@@ -3889,6 +4095,14 @@ components:
       - action
       - key
       - spellings
+    Consent:
+      type: object
+      properties:
+        version:
+          type: string
+          maxLength: 20
+      required:
+      - version
     Contact:
       type: object
       properties:
@@ -4054,6 +4268,14 @@ components:
           default: participants
       required:
       - file
+    Invite:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
     Kind204Enum:
       enum:
       - phone
@@ -4977,6 +5199,14 @@ components:
       required:
       - columns
       - source
+    Token:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 200
+      required:
+      - token
     Transition:
       type: object
       properties:

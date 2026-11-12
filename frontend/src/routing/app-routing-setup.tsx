@@ -1,3 +1,4 @@
+import { useAuth } from '@/auth/auth-context';
 import { RequireAuth, RequirePermission } from '@/auth/guards';
 import { REFERENCE_KINDS, ReferencePage } from '@/pages/admin/reference-page';
 import { UsersPage } from '@/pages/admin/users-page';
@@ -20,6 +21,8 @@ import { ReferralsPage } from '@/pages/referrals/referrals-page';
 import { RuleSetPage } from '@/pages/rules/rule-set-page';
 import { RuleVersionPage } from '@/pages/rules/rule-version-page';
 import { RulesPage } from '@/pages/rules/rules-page';
+import { ActivatePage } from '@/pages/youth/activate-page';
+import { PortalPage } from '@/pages/youth/portal-page';
 import { Navigate, Route, Routes } from 'react-router';
 import { Layout1 } from '@/components/layouts/layout-1';
 
@@ -28,13 +31,29 @@ const SECTIONS: [string, string, string][] = [
   ['/reports', 'reports.view_aggregate', 'Reports'],
 ];
 
+/** A youth-only account has no staff pages; its home is the portal. */
+function Home() {
+  const { can } = useAuth();
+  return can('youth.self_service') && !can('participants.view') ? (
+    <Navigate to="/me" replace />
+  ) : (
+    <OverviewPage />
+  );
+}
+
 export function AppRoutingSetup() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/youth/activate" element={<ActivatePage />} />
       <Route element={<RequireAuth />}>
         <Route element={<Layout1 />}>
-          <Route path="/" element={<OverviewPage />} />
+          <Route path="/" element={<Home />} />
+          <Route
+            element={<RequirePermission permission="youth.self_service" />}
+          >
+            <Route path="/me" element={<PortalPage />} />
+          </Route>
           {SECTIONS.map(([path, permission, title]) => (
             <Route
               key={path}

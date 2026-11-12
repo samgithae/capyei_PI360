@@ -18,7 +18,13 @@ from .models import (
     ParticipantResidence,
     SourceIdentifier,
 )
-from .profile import capability_snapshots  # noqa: F401  (read by the compatibility rules)
+from .profile import (  # noqa: F401
+    ProfileError,
+    capability_snapshots,  # read by the compatibility rules
+)
+from .profile import options as profile_options  # noqa: F401
+from .profile import read as read_profile  # noqa: F401
+from .profile import write as write_profile  # noqa: F401
 
 # Field -> required? The mapping templates target exactly these names.
 FIELDS = {
@@ -294,8 +300,16 @@ from .duplicates import (  # noqa: E402
 
 __all__ = [
     "DuplicateFailure",
+    "ProfileError",
     "cohort_counts",
     "dismiss",
+    "display_name",
+    "email_addresses",
+    "find_active",
+    "profile_options",
+    "profile_serializer",
+    "read_profile",
+    "write_profile",
     "find_pairs",
     "involved_in_merge",
     "merge",
@@ -482,3 +496,35 @@ def create_participant(*, actor, data: dict) -> Participant:
         },
     )
     return p
+
+
+# ---- what the youth portal needs (it may not touch participant models) -----------------------
+
+
+def find_active(participant_id):
+    """The participant, or None when missing, merged or archived."""
+    try:
+        return Participant.objects.get(
+            pk=participant_id, merged_into__isnull=True, archived_at__isnull=True
+        )
+    except (Participant.DoesNotExist, ValueError):
+        return None
+
+
+def email_addresses(p: Participant) -> list[str]:
+    return list(
+        p.contacts.filter(kind=ParticipantContact.EMAIL)
+        .order_by("-is_primary", "created_at")
+        .values_list("value", flat=True)
+    )
+
+
+def profile_serializer():
+    """The request serializer of the capability profile (shared with the youth portal)."""
+    from .profile_views import ProfileSerializer  # noqa: PLC0415
+
+    return ProfileSerializer
+
+
+def display_name(p: Participant) -> str:
+    return str(p)

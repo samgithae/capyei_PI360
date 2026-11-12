@@ -13,6 +13,7 @@ STAFF_VIEW = [
 # action) and is the only default role that may archive. Editable in Roles like any other.
 ADMIN_ALSO = [
     "participants.edit",
+    "participants.invite",
     "participants.import",
     "placements.edit",
     "employers.edit",
@@ -59,6 +60,7 @@ DEFAULT_ROLES = [
         "permissions": STAFF_VIEW
         + [
             "participants.edit",
+            "participants.invite",
             "participants.import",
             "placements.edit",
             "employers.edit",
@@ -114,5 +116,12 @@ DEFAULT_ROLES = [
         "scope_mode": "assigned",
         "active": False,
         "permissions": ["participants.view", "ydm.assess"],
+    },
+    {
+        "name": "Youth",
+        "description": "A youth signed in to their own record. Sees and edits only that record.",
+        "scope_mode": "assigned",
+        "active": True,
+        "permissions": ["youth.self_service"],
     },
 ]

@@ -108,14 +108,25 @@ function months(n: number) {
 }
 
 /** Skills, qualifications, experience and availability of one youth, with who entered each and whether staff verified it. */
-export function CapabilityProfile({ id }: { id: string }) {
+export function CapabilityProfile({
+  id,
+  self = false,
+}: {
+  id: string;
+  /** A youth viewing their own record (portal): no verify buttons, and the profile is
+   * read and saved through the youth endpoints. */
+  self?: boolean;
+}) {
   const { can } = useAuth();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const key = ['participant-profile', id];
+  const key = ['participant-profile', self ? 'self' : id];
   const q = useQuery({
     queryKey: key,
-    queryFn: () => api<Profile>(`/participants/${id}/profile`),
+    queryFn: () =>
+      self
+        ? api<{ profile: Profile }>('/youth/me').then((r) => r.profile)
+        : api<Profile>(`/participants/${id}/profile`),
     retry: false,
   });
   const verify = useMutation({
@@ -129,9 +140,9 @@ export function CapabilityProfile({ id }: { id: string }) {
   const p = q.data;
   if (!p) return <LoadingState />;
 
-  const canEdit = can('participants.edit');
+  const canEdit = self || can('participants.edit');
   const verifyBtn = (kind: string, f: Fact) =>
-    canEdit && f.id ? (
+    !self && canEdit && f.id ? (
       <Button
         size="sm"
         variant="ghost"
@@ -264,6 +275,7 @@ export function CapabilityProfile({ id }: { id: string }) {
       {editing && (
         <ProfileEditor
           id={id}
+          self={self}
           profile={p}
           onClose={() => setEditing(false)}
           onSaved={(next) => {
@@ -298,11 +310,13 @@ interface ExpDraft {
 
 function ProfileEditor({
   id,
+  self,
   profile,
   onClose,
   onSaved,
 }: {
   id: string;
+  self: boolean;
   profile: Profile;
   onClose: () => void;
   onSaved: (p: Profile) => void;
@@ -353,29 +367,32 @@ function ProfileEditor({
 
   const save = useMutation({
     mutationFn: () =>
-      api<Profile>(`/participants/${id}/profile`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          qualifications: quals.map((x) => ({
-            ...x,
-            year_awarded: x.year_awarded ? Number(x.year_awarded) : null,
-          })),
-          skills: skills.map((x) => ({
-            ...x,
-            proficiency: Number(x.proficiency),
-          })),
-          experience: exp.map((x) => ({
-            ...x,
-            sector_id: x.sector_id || null,
-            months: Number(x.months || 0),
-          })),
-          readiness: {
-            available_from: from || null,
-            work_patterns: patterns,
-            interest_sector_ids: interests,
-          },
-        }),
-      }),
+      api<Profile | { profile: Profile }>(
+        self ? '/youth/profile' : `/participants/${id}/profile`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            qualifications: quals.map((x) => ({
+              ...x,
+              year_awarded: x.year_awarded ? Number(x.year_awarded) : null,
+            })),
+            skills: skills.map((x) => ({
+              ...x,
+              proficiency: Number(x.proficiency),
+            })),
+            experience: exp.map((x) => ({
+              ...x,
+              sector_id: x.sector_id || null,
+              months: Number(x.months || 0),
+            })),
+            readiness: {
+              available_from: from || null,
+              work_patterns: patterns,
+              interest_sector_ids: interests,
+            },
+          }),
+        },
+      ).then((r) => ('profile' in r ? r.profile : r)),
     onSuccess: onSaved,
     onError: (e) =>
       setError(e instanceof ApiError ? e.message : 'Could not save.'),

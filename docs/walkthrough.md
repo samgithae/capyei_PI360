@@ -135,9 +135,20 @@ Draft → Submitted → Under review → Interview (optional) → Selected → P
 5. Officer: refer a second youth and end it as Rejected. Notice the reason code is compulsory.
 6. Admin: open a rule version's history and a youth's history to see the audit trail.
 
-## 8. What is not built yet
+## 8. Youth sign-in and self-service (Phase 2)
+
+**Staff side:** open a youth → **Youth sign-in** card (needs the *invite* permission and access to contact details). Choose one of the e-mail addresses already on the record and **Send invite**. There is no open registration: an account exists only because staff invited an address on the record. The link works once and expires in 7 days; **Send a new invite** replaces it and **Withdraw invite** cancels it.
+
+**Youth side:** the e-mailed link opens a page to choose a password, then the youth signs in with that e-mail address. Their only page is **My profile**. It first shows a consent notice; after they agree they can see and edit their own qualifications, skills, experience and availability. Their entries are marked self-reported and unverified until staff verify them. They never see who verified an entry, cannot delete an entry staff have verified, and cannot see any other youth.
+
+In local development the invite e-mail is printed in the API server's log (the link points at port 5173; change the port if your web server uses another).
+
+**Check it:** invite a youth with an e-mail on file, read the link from the API log, set a password, sign in, agree, add a skill, then open the youth as staff and see it marked self-reported.
+
+Before real youth are invited, a person responsible for data protection must work through `docs/data-protection-review.md`.
+
+## 9. What is not built yet
 
 - Support-priority flags and employer reliability profiles on screen (Month 3). Compatibility is applied (Suggested youth).
-- Youth sign-in and self-service (Phase 2).
 - Support cases / work queues (Month 3).
 - Placement follow-up at 30 and 90 days: shown in the pilot guide diagram, not checked by me whether it is wired up.

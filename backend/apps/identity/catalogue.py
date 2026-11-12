@@ -32,6 +32,9 @@ CATALOGUE: tuple[Permission, ...] = (
         "participants.view_profile", "View education, work history and activity", "Participants"
     ),
     Permission("participants.import", "Import participants", "Participants"),
+    Permission("participants.invite", "Invite a youth to sign in", "Participants"),
+    # Held only by the Youth role: the signed-in youth's own record, nothing else.
+    Permission("youth.self_service", "Use the youth self-service portal", "Youth portal"),
     Permission("placements.view", "View placements", "Placements"),
     Permission("placements.edit", "Record and edit placements", "Placements"),
     Permission("employers.view", "View employers and opportunities", "Employers"),

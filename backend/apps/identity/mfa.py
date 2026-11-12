@@ -6,7 +6,23 @@ from django_otp.plugins.otp_totp.models import TOTPDevice
 DEVICE_NAME = "authenticator"
 
 
+YOUTH_ONLY = {"youth.self_service"}
+
+
+def is_youth_only(user) -> bool:
+    """A youth account holds nothing but the self-service permission: no staff access to protect
+    with a second factor (they would have no authenticator app to enrol)."""
+    if user.is_superuser or user.is_staff:
+        return False
+    roles = list(
+        user.role_assignments.filter(role__active=True).values_list("role__permissions", flat=True)
+    )
+    return bool(roles) and all(set(perms) <= YOUTH_ONLY for perms in roles)
+
+
 def required_for(user) -> bool:
+    if is_youth_only(user):
+        return False
     if settings.AUTH_MFA_ALL_STAFF or user.is_superuser or user.is_staff:
         return True
     return user.role_assignments.filter(
