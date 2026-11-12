@@ -640,6 +640,18 @@ def reference_codes(limit=500):
     }
 
 
+def offering_ids(pk):
+    """``(programme_id, institution_id)`` of an active course offering, or None if unknown."""
+    from .models import CohortCourse
+
+    row = (
+        CohortCourse.objects.filter(pk=pk, active=True)
+        .values_list("cohort__programme_id", "cohort__institution_id")
+        .first()
+    )
+    return row
+
+
 def county_exists(pk) -> bool:
     from .models import County
 

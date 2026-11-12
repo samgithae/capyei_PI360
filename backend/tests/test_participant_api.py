@@ -102,3 +102,54 @@ def test_edit_is_audited_and_needs_permission(world, make_user):
 def test_filter_options(world, make_user):
     d = client_for(make_user("steward", "Data steward")).get(f"{URL}/filters").json()
     assert len(d["programmes"]) == 2 and len(d["cohorts"]) == 2 and d["counties"]
+
+
+def test_add_youth_creates_enrollment_contact_and_audit(world, make_user):
+    c = client_for(make_user("steward", "Data steward"))
+    cc = CohortCourse.objects.filter(cohort=world["1"][1]).first()
+    county = County.objects.get(code="02")
+    r = c.post(
+        URL,
+        {
+            "full_name_source": "Amina Test",
+            "gender": "female",
+            "status": "active",
+            "age_at_source": 21,
+            "origin_county_id": str(county.pk),
+            "cohort_course_id": str(cc.pk),
+            "enrollment_no": "NEW-1",
+            "phone": "0711000000",
+        },
+        content_type="application/json",
+    )
+    assert r.status_code == 201, r.content
+    p = Participant.objects.get(full_name_source="Amina Test")
+    assert p.enrollments.get().programme_id == cc.cohort.programme_id
+    assert p.contacts.get().value == "0711000000"
+    event = AuditEvent.objects.filter(action="participant.created", object_id=str(p.pk)).get()
+    assert "0711000000" not in str(event.after)
+    assert event.after["contact_kinds"] == ["phone"]
+    # same enrollment number in the same programme is refused
+    r = c.post(
+        URL,
+        {"full_name_source": "Other", "cohort_course_id": str(cc.pk), "enrollment_no": "NEW-1"},
+        content_type="application/json",
+    )
+    assert r.status_code == 400
+
+
+def test_add_youth_needs_edit_and_a_name(world, make_user):
+    viewer = client_for(make_user("viewer", "Assessor"))
+    assert (
+        viewer.post(URL, {"full_name_source": "X Y"}, content_type="application/json").status_code
+        == 403
+    )
+    c = client_for(make_user("steward", "Data steward"))
+    assert c.post(URL, {"gender": "male"}, content_type="application/json").status_code == 400
+
+
+def test_check_name_finds_existing(world, make_user):
+    c = client_for(make_user("steward", "Data steward"))
+    found = c.get(f"{URL}/check-name", {"name": "person 1"}).json()["matches"]
+    assert [m["name"] for m in found] == ["Person 1"]
+    assert c.get(f"{URL}/check-name", {"name": "Nobody Here"}).json()["matches"] == []

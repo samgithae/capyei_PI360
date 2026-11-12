@@ -47,7 +47,8 @@ MATRIX = {
     "config/flags/<str:key>": {"PATCH": "config.manage"},
     "config/settings": {"GET": "config.view", "POST": "config.manage_protected"},
     "participants/filters": {"GET": "participants.view"},
-    "participants": {"GET": "participants.view"},
+    "participants": {"GET": "participants.view", "POST": "participants.edit"},
+    "participants/check-name": {"GET": "participants.edit"},
     "participants/<uuid:pk>": {
         "GET": "participants.view",
         "PATCH": "participants.edit",

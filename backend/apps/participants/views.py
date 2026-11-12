@@ -17,6 +17,7 @@ from apps.api.archive import ARCHIVE, BulkArchiveView
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
+from . import services
 from .models import (
     Participant,
     ParticipantContact,
@@ -102,9 +103,80 @@ class FilterOptionsView(APIView):
         return Response(configuration.filter_options())
 
 
+class ParticipantCreateSerializer(serializers.Serializer):
+    full_name_source = serializers.CharField(max_length=200)
+    gender = serializers.ChoiceField(
+        choices=[g for g, _ in Participant.GENDERS], default=Participant.GENDER_UNKNOWN
+    )
+    status = serializers.ChoiceField(
+        choices=[s for s, _ in Participant.STATUSES], default=Participant.UNKNOWN
+    )
+    date_of_birth = serializers.DateField(allow_null=True, required=False)
+    age_at_source = serializers.IntegerField(
+        min_value=0, max_value=120, allow_null=True, required=False
+    )
+    origin_county_id = serializers.UUIDField(allow_null=True, required=False)
+    cohort_course_id = serializers.UUIDField(allow_null=True, required=False)
+    enrollment_no = serializers.CharField(max_length=60, allow_blank=True, required=False)
+    phone = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    email = serializers.EmailField(max_length=200, allow_blank=True, required=False)
+
+    def validate_origin_county_id(self, value):
+        if value is not None and not configuration.county_exists(value):
+            raise serializers.ValidationError("Unknown county.")
+        return value
+
+    def validate(self, attrs):
+        if (attrs.get("phone") or attrs.get("email")) and not has_permission(
+            self.context["request"].user, CONTACT
+        ):
+            raise serializers.ValidationError({"phone": "You may not add contact details."})
+        return attrs
+
+
+class NameCheckView(APIView):
+    """Similar names already in the caller's scope, so a duplicate is noticed before saving."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": EDIT}
+
+    @extend_schema(
+        operation_id="participants_check_name",
+        parameters=[OpenApiParameter("name", str)],
+        responses={200: dict},
+    )
+    def get(self, request):
+        name = request.query_params.get("name", "").strip()
+        if len(name) < 3:
+            return Response({"matches": []})
+        qs = _visible(request).filter(full_name_source__iexact=name)[:5]
+        return Response(
+            {
+                "matches": [
+                    {"id": str(p.pk), "name": p.full_name_source, "status": p.status} for p in qs
+                ]
+            }
+        )
+
+
 class ParticipantListView(APIView):
     permission_classes = [HasPermission]
-    required_permission = {"GET": VIEW}
+    required_permission = {"GET": VIEW, "POST": EDIT}
+
+    @extend_schema(
+        operation_id="participants_create",
+        request=ParticipantCreateSerializer,
+        responses={201: dict},
+    )
+    def post(self, request):
+        s = ParticipantCreateSerializer(data=request.data, context={"request": request})
+        s.is_valid(raise_exception=True)
+        try:
+            p = services.create_participant(actor=request.user, data=s.validated_data)
+        except services.CreateError as exc:
+            raise serializers.ValidationError({exc.field: [exc.message]}) from exc
+        p = _visible(request, archived=None).filter(pk=p.pk).first() or p
+        return Response(_detail(p, request.user), status=201)
 
     @extend_schema(
         operation_id="participants_list",

@@ -1,4 +1,5 @@
 import { RequireAuth, RequirePermission } from '@/auth/guards';
+import { SectorsPage } from '@/pages/admin/sectors-page';
 import { UsersPage } from '@/pages/admin/users-page';
 import { EmployerPage } from '@/pages/employers/employer-page';
 import { EmployersPage } from '@/pages/employers/employers-page';
@@ -69,6 +70,9 @@ export function AppRoutingSetup() {
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/rules/:id" element={<RuleSetPage />} />
             <Route path="/rules/versions/:id" element={<RuleVersionPage />} />
+          </Route>
+          <Route element={<RequirePermission permission="config.view" />}>
+            <Route path="/administration/sectors" element={<SectorsPage />} />
           </Route>
           <Route
             element={<RequirePermission permission="identity.view_users" />}

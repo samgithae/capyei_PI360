@@ -31,6 +31,7 @@ import {
 } from '@/components/shared/bulk';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { AddYouth } from './add-youth';
 import { EditParticipant } from './participant-edit';
 
 interface Row {
@@ -129,6 +130,7 @@ export function DirectoryPage() {
         title="Youth"
         actions={
           <>
+            <AddYouth />
             {can('imports.run') && (
               <Button asChild>
                 <Link to="/imports/new">Import participants</Link>

@@ -1,4 +1,6 @@
 import { FormEvent, useState } from 'react';
+import { useAuth } from '@/auth/auth-context';
+import { Link } from 'react-router';
 import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +55,7 @@ export function EmployerForm({
   onSave: (values: EmployerValues, confirmDuplicate: boolean) => Promise<void>;
   onCancel?: () => void;
 }) {
+  const { can } = useAuth();
   const [v, setV] = useState(initial);
   const [matches, setMatches] = useState<Match[]>([]);
   const [error, setError] = useState('');
@@ -120,6 +123,19 @@ export function EmployerForm({
           ['active', 'inactive', 'prospect'].map((s) => ({ id: s, name: s })),
         )}
       </div>
+      {can('reference.manage') && (
+        <p className="text-xs text-muted-foreground">
+          Sector missing?{' '}
+          <Link
+            to="/administration/sectors"
+            className="text-primary underline"
+            target="_blank"
+          >
+            Add or manage sectors
+          </Link>{' '}
+          (opens in a new tab, then reopen this form).
+        </p>
+      )}
       <Input
         aria-label="Sub-county"
         placeholder="Sub-county"

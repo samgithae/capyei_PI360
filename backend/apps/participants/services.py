@@ -378,3 +378,72 @@ def visible_ids(user):
 
 def is_visible(user, participant_id) -> bool:
     return Participant.objects.visible_to(user).filter(pk=participant_id).exists()
+
+
+class CreateError(ValueError):
+    def __init__(self, field: str, message: str):
+        super().__init__(message)
+        self.field, self.message = field, message
+
+
+@transaction.atomic
+def create_participant(*, actor, data: dict) -> Participant:
+    """Add one youth by hand (the import is the bulk route). Optional enrollment is by cohort
+    offering; the programme and institution come from the cohort. The creator becomes the
+    assigned officer so an officer-scoped user can still see the record they just added."""
+    from apps.audit import services as audit
+
+    enrollment = None
+    if data.get("cohort_course_id"):
+        enrollment = configuration.offering_ids(data["cohort_course_id"])
+        if enrollment is None:
+            raise CreateError("cohort_course_id", "Unknown course offering.")
+        no = data.get("enrollment_no", "")
+        if (
+            no
+            and ParticipantEnrollment.objects.filter(
+                programme_id=enrollment[0], source_enrollment_no=no
+            ).exists()
+        ):
+            raise CreateError(
+                "enrollment_no", "Another enrollment in this programme has that number."
+            )
+    p = Participant.objects.create(
+        full_name_source=data["full_name_source"].strip(),
+        gender=data.get("gender", Participant.GENDER_UNKNOWN),
+        status=data.get("status", Participant.UNKNOWN),
+        age_at_source=data.get("age_at_source"),
+        date_of_birth=data.get("date_of_birth"),
+        origin_county_id=data.get("origin_county_id"),
+        assigned_officer=getattr(actor, "pk", None) and actor,
+    )
+    if enrollment:
+        ParticipantEnrollment.objects.create(
+            participant=p,
+            cohort_course_id=data["cohort_course_id"],
+            programme_id=enrollment[0],
+            institution_id=enrollment[1],
+            source_enrollment_no=data.get("enrollment_no", ""),
+            status=ParticipantEnrollment.ENROLLED,
+        )
+    kinds = []
+    for kind, key in (("phone", "phone"), ("email", "email")):
+        if data.get(key):
+            ParticipantContact.objects.create(
+                participant=p, kind=kind, value=data[key], is_primary=True
+            )
+            kinds.append(kind)
+    audit.record(
+        actor=actor,
+        action="participant.created",
+        object_type="participant",
+        object_id=p.pk,
+        after={
+            "gender": p.gender,
+            "status": p.status,
+            "county_id": str(p.origin_county_id) if p.origin_county_id else None,
+            "enrolled": enrollment is not None,
+            "contact_kinds": kinds,  # kinds only, never the values
+        },
+    )
+    return p

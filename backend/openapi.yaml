@@ -2326,6 +2326,32 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+    post:
+      operationId: participants_create
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipantCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ParticipantCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ParticipantCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/{id}:
     get:
       operationId: participants_detail
@@ -2530,6 +2556,28 @@ paths:
             schema:
               $ref: '#/components/schemas/Bulk'
         required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/check-name:
+    get:
+      operationId: participants_check_name
+      description: Similar names already in the caller's scope, so a duplicate is
+        noticed before saving.
+      parameters:
+      - in: query
+        name: name
+        schema:
+          type: string
+      tags:
+      - participants
       security:
       - cookieAuth: []
       responses:
@@ -3988,18 +4036,52 @@ components:
             $ref: '#/components/schemas/ParticipantContact'
       required:
       - contacts
-    ParticipantEditStatusEnum:
-      enum:
-      - active
-      - completed
-      - withdrawn
-      - unknown
-      type: string
-      description: |-
-        * `active` - active
-        * `completed` - completed
-        * `withdrawn` - withdrawn
-        * `unknown` - unknown
+    ParticipantCreate:
+      type: object
+      properties:
+        full_name_source:
+          type: string
+          maxLength: 200
+        gender:
+          allOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          default: unknown
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusE26Enum'
+          default: unknown
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        age_at_source:
+          type: integer
+          maximum: 120
+          minimum: 0
+          nullable: true
+        origin_county_id:
+          type: string
+          format: uuid
+          nullable: true
+        cohort_course_id:
+          type: string
+          format: uuid
+          nullable: true
+        enrollment_no:
+          type: string
+          maxLength: 60
+        phone:
+          type: string
+          maxLength: 200
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 200
+          - type: string
+            maxLength: 0
+      required:
+      - full_name_source
     PasswordChange:
       type: object
       properties:
@@ -4190,7 +4272,7 @@ components:
         gender:
           $ref: '#/components/schemas/GenderEnum'
         status:
-          $ref: '#/components/schemas/ParticipantEditStatusEnum'
+          $ref: '#/components/schemas/StatusE26Enum'
     PatchedRequirement:
       type: object
       properties:
@@ -4536,6 +4618,18 @@ components:
       - signed_on
       - signer_name
       - signer_role
+    StatusE26Enum:
+      enum:
+      - active
+      - completed
+      - withdrawn
+      - unknown
+      type: string
+      description: |-
+        * `active` - active
+        * `completed` - completed
+        * `withdrawn` - withdrawn
+        * `unknown` - unknown
     StatusMap:
       type: object
       properties:

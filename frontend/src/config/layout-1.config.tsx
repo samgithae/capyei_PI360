@@ -80,12 +80,17 @@ export const MENU_SIDEBAR: MenuConfig = [
     title: 'Administration',
     icon: Settings,
     path: '/administration',
-    permission: 'identity.view_users',
+    permission: 'config.view',
     children: [
       {
         title: 'Staff accounts',
         path: '/administration/users',
         permission: 'identity.view_users',
+      },
+      {
+        title: 'Sectors',
+        path: '/administration/sectors',
+        permission: 'config.view',
       },
     ],
   },

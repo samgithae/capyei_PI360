@@ -6,6 +6,7 @@ from . import views as v
 urlpatterns = [
     path("participants/filters", v.FilterOptionsView.as_view()),
     path("participants", v.ParticipantListView.as_view()),
+    path("participants/check-name", v.NameCheckView.as_view()),
     path("participants/duplicates", d.DuplicateListView.as_view()),
     path("participants/duplicates/scan", d.DuplicateScanView.as_view()),
     path("participants/duplicates/<uuid:pk>/dismiss", d.DuplicateDismissView.as_view()),

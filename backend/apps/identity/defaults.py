@@ -66,6 +66,7 @@ DEFAULT_ROLES = [
             "imports.commit",
             "duplicates.review",
             "duplicates.merge",
+            "config.view",  # the reference lists it maintains are read through this
             "reference.manage",
             "reports.view_aggregate",
         ],
