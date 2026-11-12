@@ -242,3 +242,21 @@ def test_add_further_enrollment_to_existing_youth(world, make_user):
         content_type="application/json",
     )
     assert bad.status_code == 400
+
+
+def test_age_is_worked_out_from_date_of_birth(world, make_user):
+    from datetime import date
+
+    c = client_for(make_user("steward", "Data steward"))
+    p1, _ = world["1"]
+    today = date.today()
+    p1.age_at_source = 99  # stale figure from the source file
+    p1.date_of_birth = date(today.year - 20, today.month, 1 if today.day > 1 else 2)
+    p1.save()
+    expected = (
+        20 if (today.month, today.day) >= (p1.date_of_birth.month, p1.date_of_birth.day) else 19
+    )
+    assert c.get(f"{URL}/{p1.pk}").json()["age"] == expected
+    p1.date_of_birth = None
+    p1.save()
+    assert c.get(f"{URL}/{p1.pk}").json()["age"] == 99  # no DOB: the recorded age stands

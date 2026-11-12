@@ -33,13 +33,22 @@ def _visible(request, archived=False):
     return Participant.objects.visible_to(request.user, archived=archived)
 
 
+def current_age(p):
+    """Age today from the date of birth; the source file's age only when there is none."""
+    dob = p.date_of_birth
+    if not dob:
+        return p.age_at_source
+    today = timezone.localdate()
+    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+
 def _summary(p):
     enrollments = list(p.enrollments.all())
     return {
         "id": str(p.pk),
         "name": p.full_name_source,
         "gender": p.gender,
-        "age": p.age_at_source,
+        "age": current_age(p),
         "status": p.status,
         "archived": p.archived_at is not None,
         "county": p.origin_county.name if p.origin_county_id else "",

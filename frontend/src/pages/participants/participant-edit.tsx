@@ -175,6 +175,20 @@ function OfferingFields({
 }
 
 /** Edit everything about a participant the API allows: identity, demographics and each enrollment. */
+/** Whole years since a date of birth, as of today. */
+function ageOn(dob: string): number | null {
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return null;
+  const t = new Date();
+  let age = t.getFullYear() - d.getFullYear();
+  if (
+    t.getMonth() < d.getMonth() ||
+    (t.getMonth() === d.getMonth() && t.getDate() < d.getDate())
+  )
+    age -= 1;
+  return age < 0 ? null : age;
+}
+
 export function EditParticipant() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
@@ -378,22 +392,37 @@ export function EditParticipant() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="pe-age">Age (as recorded at source)</Label>
-              <Input
-                id="pe-age"
-                type="number"
-                min={0}
-                max={120}
-                value={v.age_at_source ?? ''}
-                onChange={(e) =>
-                  setCore((c) => ({
-                    ...c,
-                    age_at_source: e.target.value
-                      ? Number(e.target.value)
-                      : null,
-                  }))
-                }
-              />
+              <Label htmlFor="pe-age">
+                {v.date_of_birth ? 'Age' : 'Age (as recorded at source)'}
+              </Label>
+              {v.date_of_birth ? (
+                <>
+                  <Input
+                    id="pe-age"
+                    readOnly
+                    value={ageOn(v.date_of_birth) ?? ''}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Worked out from the date of birth.
+                  </p>
+                </>
+              ) : (
+                <Input
+                  id="pe-age"
+                  type="number"
+                  min={0}
+                  max={120}
+                  value={v.age_at_source ?? ''}
+                  onChange={(e) =>
+                    setCore((c) => ({
+                      ...c,
+                      age_at_source: e.target.value
+                        ? Number(e.target.value)
+                        : null,
+                    }))
+                  }
+                />
+              )}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label>Home county</Label>

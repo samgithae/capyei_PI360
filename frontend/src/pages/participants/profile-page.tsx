@@ -204,7 +204,7 @@ export function ProfilePage() {
               value={
                 p.age === null
                   ? ''
-                  : `${p.age}${p.age_basis_date ? ` (as at ${p.age_basis_date})` : ''}`
+                  : `${p.age}${!p.date_of_birth && p.age_basis_date ? ` (as at ${p.age_basis_date})` : ''}`
               }
             />
             <Fact label="Home county" value={p.county} />
