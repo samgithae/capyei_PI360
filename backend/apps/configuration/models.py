@@ -248,6 +248,34 @@ class QualificationLevel(Reference):
         ]
 
 
+def grade_key(text: str) -> str:
+    """Like ``norm`` but keeps + and -, so "C+", "C" and "C-" stay different grades."""
+    return " ".join(text.casefold().split())
+
+
+class QualificationGrade(Reference):
+    """A result a youth can get at a qualification level, e.g. A to E for secondary school.
+    ``rank`` orders the grades within the level, higher is better, so an opportunity can ask for
+    "C or above". Administrators manage the list as reference data."""
+
+    level = models.ForeignKey(QualificationLevel, on_delete=models.PROTECT, related_name="grades")
+    rank = models.PositiveSmallIntegerField()
+
+    class Meta(Reference.Meta):
+        ordering = ["level__rank", "-rank"]
+        constraints = [
+            models.UniqueConstraint(fields=["code"], name="uniq_qualification_grade_code"),
+            models.UniqueConstraint(
+                fields=["level", "name_normalised"], name="uniq_qualification_grade_name"
+            ),
+            models.UniqueConstraint(fields=["level", "rank"], name="uniq_qualification_grade_rank"),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.name_normalised = grade_key(self.name)
+        models.Model.save(self, *args, **kwargs)  # skip Reference.save, which strips + and -
+
+
 class Skill(Reference):
     """A skill or competency a youth may have and an opportunity may ask for."""
 

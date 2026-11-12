@@ -258,9 +258,34 @@ def _typed(requirement, data):
         elif key in out:
             out[fk] = None
         out.pop(key, None)
+    level = out["qualification_level"] if "qualification_level" in out else (
+        requirement.qualification_level if requirement else None
+    )  # fmt: skip
+    if out.get("min_grade_id"):
+        if level is None:
+            raise RuleViolation("min_grade_id", "Choose the level first.", "invalid")
+        grade = configuration.active_grade(level.pk, out["min_grade_id"])
+        if grade is None:
+            raise RuleViolation(
+                "min_grade_id", "That grade does not belong to this level.", "invalid"
+            )
+        out["min_grade"] = grade
+    elif "min_grade_id" in out or (
+        requirement and requirement.min_grade_id and "qualification_level" in out
+        and (level is None or requirement.min_grade.level_id != level.pk)
+    ):  # fmt: skip
+        out["min_grade"] = None  # cleared, or the level changed so the old grade no longer fits
+    out.pop("min_grade_id", None)
     if out.get("work_pattern") and out["work_pattern"] not in PATTERN_NAMES:
         raise RuleViolation("work_pattern", "Unknown work pattern.", "invalid")
-    for f in ("qualification_level", "skill", "min_months", "needed_by", "work_pattern"):
+    for f in (
+        "qualification_level",
+        "min_grade",
+        "skill",
+        "min_months",
+        "needed_by",
+        "work_pattern",
+    ):
         if f not in keep and (f in out or (requirement and data.get("factor"))):
             out[f] = "" if f == "work_pattern" else None
     if (requirement is None and not out.get("description")) or (
@@ -268,7 +293,11 @@ def _typed(requirement, data):
     ):
         probe = {f: out.get(f, getattr(requirement, f, None)) for f in keep}
         if factor == "qualification" and probe.get("qualification_level"):
-            out["description"] = f"{probe['qualification_level'].name} or higher"
+            name = probe["qualification_level"].name
+            grade = probe.get("min_grade")
+            out["description"] = (
+                f"{name}, grade {grade.name} or above" if grade else f"{name} or higher"
+            )
         elif factor == "skill" and probe.get("skill"):
             out["description"] = probe["skill"].name
         elif factor == "experience" and probe.get("min_months") is not None:
@@ -505,7 +534,7 @@ def compatibility_inputs(opportunity_id):
     if o is None:
         return None
     rows = []
-    for r in o.requirements.select_related("qualification_level", "skill"):
+    for r in o.requirements.select_related("qualification_level", "min_grade", "skill"):
         rows.append(
             {
                 "id": str(r.pk),
@@ -514,6 +543,8 @@ def compatibility_inputs(opportunity_id):
                 "mandatory": r.is_mandatory,
                 "structured": r.factor in r.TYPED and not r.needs_structuring,
                 "level_rank": r.qualification_level.rank if r.qualification_level_id else None,
+                "min_grade_rank": r.min_grade.rank if r.min_grade_id else None,
+                "min_grade": r.min_grade.name if r.min_grade_id else "",
                 "skill_id": str(r.skill_id) if r.skill_id else None,
                 "min_months": r.min_months,
                 "needed_by": r.needed_by.isoformat() if r.needed_by else None,

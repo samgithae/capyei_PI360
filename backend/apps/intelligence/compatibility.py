@@ -87,6 +87,35 @@ def _weights(definition, jobs):
     return out
 
 
+def _apply_grade(check, req, snapshot):
+    """Tighten a passed qualification check when the requirement names a minimum grade.
+
+    A higher level than required passes outright. At the required level the youth's best grade
+    must reach the minimum: lower fails, none recorded is unknown. The rule definition itself
+    only compares levels, so this is done here and the check keeps its weight and source."""
+    need = req["min_grade_rank"] if req else None
+    if need is None or check["outcome"] != pi360_rules.PASS:
+        return
+    fact = snapshot.get("participant.education_grade")
+    if not fact:
+        return
+    have = fact["value"]
+    if have["level_rank"] > req["level_rank"]:
+        return
+    check["source"] = fact.get("source", check.get("source"))
+    check["verified"] = fact.get("verified", check.get("verified"))
+    if have["grade_rank"] is None:
+        check.update(outcome=pi360_rules.UNKNOWN, score=None, note="Grade not recorded.")
+    elif have["grade_rank"] < need:
+        check.update(
+            outcome=pi360_rules.FAIL,
+            score=0,
+            note=f"Grade {have['grade']} is below the minimum {req['min_grade']}.",
+        )
+    else:
+        check["note"] = f"Grade {have['grade']} meets the minimum {req['min_grade']}."
+
+
 def assess(definition: dict, opp: dict, snapshot: dict, today) -> dict:
     """The group, score and every check for one youth. ``snapshot`` is the youth's facts."""
     jobs, skipped = _jobs(definition, opp)
@@ -97,6 +126,8 @@ def assess(definition: dict, opp: dict, snapshot: dict, today) -> dict:
         c = check_factor(
             dict(factor, mandatory=mandatory), definition, {**snapshot, **local}, today
         )
+        if factor.get("type") == "qualification":
+            _apply_grade(c, req, snapshot)
         c["label"], c["weight"] = label, weight
         if c["outcome"] == pi360_rules.UNKNOWN and c["unknown_policy"] == "exclude":
             c["outcome"] = "excluded"

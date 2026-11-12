@@ -59,7 +59,7 @@ def read(p: Participant, *, hide_staff: bool = False) -> dict:
 
 
 def _read(p: Participant) -> dict:
-    quals = p.qualifications.select_related("level", "verified_by")
+    quals = p.qualifications.select_related("level", "grade", "verified_by")
     skills = p.skills.select_related("skill", "verified_by")
     exp = p.experience.select_related("sector", "verified_by")
     ready = ParticipantReadiness.objects.filter(participant=p).select_related("verified_by").first()
@@ -74,7 +74,9 @@ def _read(p: Participant) -> dict:
                 "title": q.title,
                 "institution": q.institution,
                 "year_awarded": q.year_awarded,
-                "grade": q.grade,
+                "grade_id": str(q.grade_id) if q.grade_id else None,
+                "grade": q.grade.name if q.grade_id else "",
+                "grade_rank": q.grade.rank if q.grade_id else None,
             }
             for q in quals
         ],
@@ -167,12 +169,17 @@ def write(*, actor, p: Participant, data: dict, source=ProfileFact.STAFF) -> dic
 
         def qual(r):
             level = _lookup("qualification-levels", r["level_id"], "qualification level")
+            grade = None
+            if r.get("grade_id"):
+                grade = configuration.active_grade(level.pk, r["grade_id"])
+                if grade is None:
+                    raise ProfileError("That grade does not belong to this level.", "grade")
             return {
                 "level": level,
                 "title": r.get("title", "").strip(),
                 "institution": r.get("institution", "").strip(),
                 "year_awarded": r.get("year_awarded"),
-                "grade": r.get("grade", "").strip(),
+                "grade": grade,
             }
 
         counts["qualifications"] = _sync(
@@ -331,9 +338,23 @@ def capability_snapshots(participant_ids) -> dict:
             rows.setdefault(r.participant_id, []).append(r)
         return rows
 
-    for pid, rows in grouped(ParticipantQualification.objects.select_related("level")).items():
+    for pid, rows in grouped(
+        ParticipantQualification.objects.select_related("level", "grade")
+    ).items():
         top = max(rows, key=lambda q: q.level.rank)
         put(pid, "participant.education_level", top.level.rank, [top])
+        at_top = [q for q in rows if q.level_id == top.level_id and q.grade_id]
+        best = max(at_top, key=lambda q: q.grade.rank) if at_top else None
+        put(
+            pid,
+            "participant.education_grade",
+            {
+                "level_rank": top.level.rank,
+                "grade_rank": best.grade.rank if best else None,
+                "grade": best.grade.name if best else "",
+            },
+            [best or top],
+        )
     for pid, rows in grouped(ParticipantSkill.objects).items():
         put(pid, "participant.skills", {str(r.skill_id): r.proficiency for r in rows}, rows)
     for pid, rows in grouped(ParticipantExperience.objects).items():

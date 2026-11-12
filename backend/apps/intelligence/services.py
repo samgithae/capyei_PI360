@@ -389,6 +389,7 @@ def suggest_youth(opportunity_id, visible_ids, today: date, limit: int = 50) -> 
     stored or changed: the officer decides the referral."""
     from apps.employers import services as employers
     from apps.participants import services as participants
+    from apps.referrals import services as referrals
 
     from . import compatibility
 
@@ -399,7 +400,8 @@ def suggest_youth(opportunity_id, visible_ids, today: date, limit: int = 50) -> 
     base = {"opportunity": {"id": opp["id"], "title": opp["title"], "status": opp["status"]}}
     if version is None:
         return {**base, "available": False, "reason": "No compatibility rule is active yet."}
-    ids = list(visible_ids)
+    referred = referrals.referred_participant_ids(opportunity_id)
+    ids = [i for i in visible_ids if i not in referred]
     youth = participants.capability_snapshots(ids)
     rows = []
     for pid, y in youth.items():

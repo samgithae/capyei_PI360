@@ -20,6 +20,7 @@ export interface Req {
   description: string;
   is_mandatory: boolean;
   qualification_level_id: string | null;
+  min_grade_id?: string | null;
   skill_id: string | null;
   min_months: number | null;
   needed_by: string | null;
@@ -31,6 +32,8 @@ export interface Draft {
   category: Category;
   /** Catalogue id (skill / qualification) or free text (certification, interest, experience). */
   item: string;
+  /** Lowest grade accepted for a qualification; empty means any grade. */
+  minGrade: string;
   mandatory: boolean;
   note: string;
   duration: string;
@@ -84,6 +87,7 @@ const INTEREST = 'Interest: ';
 export const BLANK: Draft = {
   category: 'skill',
   item: '',
+  minGrade: '',
   mandatory: false,
   note: '',
   duration: '',
@@ -125,7 +129,11 @@ export function toDraft(r: Req): Draft {
     case 'skill':
       return { ...base, item: r.skill_id ?? '' };
     case 'qualification':
-      return { ...base, item: r.qualification_level_id ?? '' };
+      return {
+        ...base,
+        item: r.qualification_level_id ?? '',
+        minGrade: r.min_grade_id ?? '',
+      };
     case 'experience':
       return {
         ...base,
@@ -152,6 +160,7 @@ export function toDraft(r: Req): Draft {
 
 export interface Lookup {
   levels: { id: string; name: string }[];
+  grades?: { id: string; name: string; level_id: string; rank: number }[];
   skills: { id: string; name: string }[];
   patterns: { id: string; name: string }[];
 }
@@ -189,6 +198,7 @@ export function toPayload(d: Draft, lookup: Lookup): Omit<Req, 'id'> {
   const base = {
     is_mandatory: d.mandatory,
     qualification_level_id: null,
+    min_grade_id: null,
     skill_id: null,
     min_months: null,
     needed_by: null,
@@ -207,11 +217,18 @@ export function toPayload(d: Draft, lookup: Lookup): Omit<Req, 'id'> {
     }
     case 'qualification': {
       const name = lookup.levels.find((s) => s.id === d.item)?.name ?? '';
+      const grade = lookup.grades?.find(
+        (g) => g.id === d.minGrade && g.level_id === d.item,
+      );
       return {
         ...base,
         factor: 'qualification',
         qualification_level_id: d.item,
-        description: withNote(`${name} or higher`, d.note),
+        min_grade_id: grade?.id ?? null,
+        description: withNote(
+          grade ? `${name}, grade ${grade.name} or above` : `${name} or higher`,
+          d.note,
+        ),
       };
     }
     case 'experience': {
@@ -275,7 +292,12 @@ export function summary(
     const lvl = lookup.levels.find(
       (s) => s.id === r.qualification_level_id,
     )?.name;
-    shown = lvl ? `${lvl} or higher` : name;
+    const g = lookup.grades?.find((x) => x.id === r.min_grade_id)?.name;
+    shown = lvl
+      ? g
+        ? `${lvl}, grade ${g} or above`
+        : `${lvl} or higher`
+      : name;
   }
   if (cat === 'experience' && r.min_months !== null) {
     extras.push(`at least ${durationText(r.min_months)}`);

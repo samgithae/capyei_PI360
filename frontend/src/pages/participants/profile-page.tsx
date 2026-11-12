@@ -193,9 +193,9 @@ export function ProfilePage() {
         <CardContent>
           <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
             <Fact label="Full name" value={p.name} />
-            <Fact label="Given name" value={p.given_name} />
-            <Fact label="Family name" value={p.family_name} />
-            <Fact label="Other names" value={p.other_names} />
+            <Fact label="First name" value={p.given_name} />
+            <Fact label="Middle name" value={p.family_name} />
+            <Fact label="Last name" value={p.other_names} />
             <Fact label="Gender" value={p.gender} capitalise />
             <Fact label="Status" value={p.status} capitalise />
             <Fact label="Date of birth" value={p.date_of_birth} />

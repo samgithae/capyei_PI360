@@ -160,3 +160,18 @@ def test_requirements_from_the_simplified_form_drive_the_same_matching(db, make_
     assert OpportunityRequirement.objects.get(
         opportunity=o, factor="qualification"
     ).description.endswith("Credit")
+
+
+def test_a_referred_youth_leaves_the_suggestions(world, make_user):
+    from apps.referrals.models import Referral
+
+    activate_compatibility()
+    admin = api(make_user("admin", "Administrator"))
+    a = Participant.objects.get(full_name_source="A Strong")
+    ref = Referral.objects.create(participant=a, opportunity=world["o"], stage=Referral.SUBMITTED)
+    body = admin.get(world["url"]).json()
+    assert "A Strong" not in {s["name"] for s in body["suggestions"]}
+    assert body["counts"]["visible"] == 3
+    ref.stage = Referral.WITHDRAWN  # an unsuccessful referral does not hide them
+    ref.save()
+    assert "A Strong" in {s["name"] for s in admin.get(world["url"]).json()["suggestions"]}

@@ -116,7 +116,12 @@ export function SuggestedYouth({
             .map((s) => `${name(s.participant_id)}: ${s.message}`)
             .join('\n'),
         );
-      for (const key of ['referrals', 'referral-summary', 'opportunity'])
+      for (const key of [
+        'referrals',
+        'referral-summary',
+        'opportunity',
+        'opportunity-suggestions',
+      ])
         void qc.invalidateQueries({ queryKey: [key] });
       setPicked(r.skipped.map((s) => s.participant_id));
       setDialog(false);
@@ -306,7 +311,7 @@ export function SuggestedYouth({
         open={dialog}
         onOpenChange={setDialog}
         title={`Refer ${picked.length} youth`}
-        description="Each becomes its own referral to this opportunity and is sent straight on. Anyone who already has an open referral here is skipped."
+        description="Each becomes its own referral to this opportunity and is sent straight on. Anyone who already has an open referral here is skipped, and referred youth leave this list."
         submitLabel={`Send ${picked.length} referral${picked.length === 1 ? '' : 's'}`}
         pending={send.isPending}
         error={error}

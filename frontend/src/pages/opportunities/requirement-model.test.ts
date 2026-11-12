@@ -10,13 +10,20 @@ import {
 } from './requirement-model';
 
 const lookup: Lookup = {
-  levels: [{ id: 'l5', name: 'Diploma' }],
+  levels: [
+    { id: 'l2', name: 'Secondary' },
+    { id: 'l5', name: 'Diploma' },
+  ],
+  grades: [
+    { id: 'gb', name: 'B', level_id: 'l2', rank: 9 },
+    { id: 'gc', name: 'C', level_id: 'l2', rank: 6 },
+  ],
   skills: [{ id: 's1', name: 'Customer service' }],
   patterns: [{ id: 'full_time', name: 'Full time' }],
 };
 
 describe('requirement model', () => {
-  it('maps a qualification onto the structured level and keeps the grade as a note', () => {
+  it('maps a qualification onto the structured level and a note', () => {
     const p = toPayload(
       {
         ...BLANK,
@@ -34,6 +41,21 @@ describe('requirement model', () => {
       is_mandatory: true,
       description: 'Diploma or higher — C Plain',
     });
+  });
+
+  it('sends a minimum grade for the level and ignores one from another level', () => {
+    const d = { ...BLANK, category: 'qualification' as const, item: 'l2' };
+    const p = toPayload({ ...d, minGrade: 'gc' }, lookup);
+    expect(p).toMatchObject({
+      qualification_level_id: 'l2',
+      min_grade_id: 'gc',
+      description: 'Secondary, grade C or above',
+    });
+    expect(toDraft({ ...p, id: 'x' }).minGrade).toBe('gc');
+    expect(summary(p, lookup).name).toBe('Secondary, grade C or above');
+    const other = toPayload({ ...d, item: 'l5', minGrade: 'gc' }, lookup);
+    expect(other.min_grade_id).toBeNull();
+    expect(other.description).toBe('Diploma or higher');
   });
 
   it('treats competency as a skill and converts years to months', () => {

@@ -22,7 +22,7 @@ class _Qualification(serializers.Serializer):
     level_id = serializers.UUIDField()
     title = serializers.CharField(max_length=200, allow_blank=True, required=False)
     institution = serializers.CharField(max_length=200, allow_blank=True, required=False)
-    grade = serializers.CharField(max_length=60, allow_blank=True, required=False)
+    grade_id = serializers.UUIDField(allow_null=True, required=False)
     year_awarded = serializers.IntegerField(
         min_value=1950, max_value=2100, allow_null=True, required=False
     )

@@ -10,6 +10,7 @@ export interface CapOpt {
 }
 export interface CapabilityOptions {
   levels: CapOpt[];
+  grades: (CapOpt & { level_id: string; rank: number })[];
   skills: (CapOpt & { category?: string })[];
   sectors: CapOpt[];
   work_patterns: CapOpt[];
@@ -19,7 +20,7 @@ export interface QualDraft {
   level_id: string;
   title: string;
   institution: string;
-  grade: string;
+  grade_id: string;
   year_awarded: string;
 }
 export interface SkillDraft {
@@ -63,46 +64,6 @@ export const LEVELS = [
  * The API shape for a draft. With `skipBlank`, rows the user started but left
  * without their key field are dropped (the wizard), instead of being sent and rejected.
  */
-const KCSE = [
-  'A',
-  'A-',
-  'B+',
-  'B',
-  'B-',
-  'C+',
-  'C',
-  'C-',
-  'D+',
-  'D',
-  'D-',
-  'E',
-];
-const CLASSES = [
-  'First class',
-  'Second class upper',
-  'Second class lower',
-  'Pass',
-];
-const MARKS = ['Distinction', 'Credit', 'Pass'];
-
-/** Common ways the result is written for a level. Only suggestions: any text can be typed. */
-export function gradeOptions(level?: string): string[] {
-  const n = (level ?? '').toLowerCase();
-  if (n.includes('secondary')) return KCSE;
-  if (/bachelor|master|doctor|postgraduate/.test(n)) return CLASSES;
-  if (/diploma|certificate/.test(n)) return MARKS;
-  return [];
-}
-
-export function gradeHint(level?: string): string {
-  const n = (level ?? '').toLowerCase();
-  if (n.includes('secondary')) return 'Grade, e.g. C+';
-  if (/bachelor|master|doctor|postgraduate/.test(n))
-    return 'Class, e.g. Second class upper';
-  if (/diploma|certificate/.test(n)) return 'Result, e.g. Credit';
-  return 'Grade or class';
-}
-
 export function draftToPayload(d: CapabilityDraft, skipBlank = false) {
   const q = skipBlank ? d.quals.filter((x) => x.level_id) : d.quals;
   const s = skipBlank ? d.skills.filter((x) => x.skill_id) : d.skills;
@@ -110,6 +71,7 @@ export function draftToPayload(d: CapabilityDraft, skipBlank = false) {
   return {
     qualifications: q.map((x) => ({
       ...x,
+      grade_id: x.grade_id || null,
       year_awarded: x.year_awarded ? Number(x.year_awarded) : null,
     })),
     skills: s.map((x) => ({ ...x, proficiency: Number(x.proficiency) })),
@@ -180,7 +142,9 @@ export function CapabilityFields({
               className="w-52"
               value={x.level_id}
               options={o.levels}
-              onChange={(v) => patch(quals, setQuals, i, { level_id: v })}
+              onChange={(v) =>
+                patch(quals, setQuals, i, { level_id: v, grade_id: '' })
+              }
             />
             <Input
               className="w-48"
@@ -200,25 +164,17 @@ export function CapabilityFields({
                 patch(quals, setQuals, i, { institution: e.target.value })
               }
             />
-            <Input
-              className="w-44"
-              aria-label="Grade or class"
-              placeholder={gradeHint(
-                o.levels.find((l) => l.id === x.level_id)?.name,
-              )}
-              list={`grades-${i}`}
-              value={x.grade}
-              onChange={(e) =>
-                patch(quals, setQuals, i, { grade: e.target.value })
-              }
+            <SelectField
+              label={x.level_id ? 'Grade' : 'Grade (pick a level first)'}
+              className="w-52"
+              value={x.grade_id}
+              options={o.grades
+                .filter((g) => g.level_id === x.level_id)
+                .sort((p, q) => q.rank - p.rank)}
+              emptyLabel="No grade recorded"
+              disabled={!o.grades.some((g) => g.level_id === x.level_id)}
+              onChange={(v) => patch(quals, setQuals, i, { grade_id: v })}
             />
-            <datalist id={`grades-${i}`}>
-              {gradeOptions(
-                o.levels.find((l) => l.id === x.level_id)?.name,
-              ).map((g) => (
-                <option key={g} value={g} />
-              ))}
-            </datalist>
             <Input
               className="w-24"
               aria-label="Year"
@@ -251,7 +207,7 @@ export function CapabilityFields({
                 level_id: '',
                 title: '',
                 institution: '',
-                grade: '',
+                grade_id: '',
                 year_awarded: '',
               },
             ])

@@ -35,6 +35,7 @@ interface Qualification extends Fact {
   title: string;
   institution: string;
   grade: string;
+  grade_id: string | null;
   year_awarded: number | null;
 }
 interface SkillRow extends Fact {
@@ -71,6 +72,7 @@ interface Profile {
   };
   options: {
     levels: Opt[];
+    grades: (Opt & { level_id: string; rank: number })[];
     skills: (Opt & { category: string })[];
     sectors: Opt[];
     work_patterns: Opt[];
@@ -305,7 +307,7 @@ function ProfileEditor({
       level_id: x.level_id,
       title: x.title,
       institution: x.institution,
-      grade: x.grade,
+      grade_id: x.grade_id ?? '',
       year_awarded: x.year_awarded?.toString() ?? '',
     })),
     skills: profile.skills.map((x) => ({

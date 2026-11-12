@@ -326,6 +326,7 @@ def _req(r):
         "qualification_level_id": (
             str(r.qualification_level_id) if r.qualification_level_id else None
         ),
+        "min_grade_id": str(r.min_grade_id) if r.min_grade_id else None,
         "skill_id": str(r.skill_id) if r.skill_id else None,
         "min_months": r.min_months,
         "needed_by": r.needed_by.isoformat() if r.needed_by else None,
@@ -401,6 +402,7 @@ class RequirementSerializer(serializers.Serializer):
     description = serializers.CharField(max_length=300, required=False, allow_blank=True)
     is_mandatory = serializers.BooleanField(required=False, default=False)
     qualification_level_id = serializers.UUIDField(required=False, allow_null=True)
+    min_grade_id = serializers.UUIDField(required=False, allow_null=True)
     skill_id = serializers.UUIDField(required=False, allow_null=True)
     min_months = serializers.IntegerField(
         required=False, allow_null=True, min_value=0, max_value=600

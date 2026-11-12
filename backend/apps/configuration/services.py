@@ -784,9 +784,36 @@ def active_reference(key, pk):
         return None
 
 
+def active_grade(level_pk, grade_pk):
+    """Active grade of this qualification level and id, or None (unknown, retired, other level)."""
+    from .models import QualificationGrade
+
+    try:
+        return QualificationGrade.objects.filter(
+            pk=grade_pk, level_id=level_pk, active=True
+        ).first()
+    except (ValueError, DjangoValidationError):
+        return None
+
+
+def find_active_grade(level, text):
+    """Active grade of ``level`` whose code, else name, matches ``text``; ``(row, problem)``."""
+    from .models import QualificationGrade, grade_key
+
+    qs = QualificationGrade.objects.filter(level=level, active=True)
+    hit = (
+        qs.filter(code__iexact=text.strip()).first()
+        or qs.filter(name_normalised=grade_key(text)).first()
+    )
+    if hit is None:
+        names = ", ".join(g.name for g in qs.order_by("rank")) or "none set up"
+        return None, f"no grade '{text.strip()}' for this level (grades: {names})"
+    return hit, None
+
+
 def profile_options():
     """Active qualification levels, skills and sectors for the youth profile form."""
-    from .models import QualificationLevel, Sector, Skill
+    from .models import QualificationGrade, QualificationLevel, Sector, Skill
 
     def rows(qs, *extra):
         return [
@@ -796,6 +823,16 @@ def profile_options():
 
     return {
         "levels": rows(QualificationLevel.objects.order_by("rank"), "rank"),
+        "grades": [
+            {
+                "id": str(g.pk),
+                "code": g.code,
+                "name": g.name,
+                "rank": g.rank,
+                "level_id": str(g.level_id),
+            }
+            for g in QualificationGrade.objects.filter(active=True).order_by("level__rank", "rank")
+        ],
         "skills": rows(Skill.objects.order_by("category", "name"), "category"),
         "sectors": rows(Sector.objects.order_by("name")),
     }

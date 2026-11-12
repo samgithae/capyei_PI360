@@ -90,7 +90,12 @@ export const ACTIVE = [
 export function useRefreshReferrals() {
   const qc = useQueryClient();
   return () => {
-    for (const key of ['referral', 'referral-history', 'referrals'])
+    for (const key of [
+      'referral',
+      'referral-history',
+      'referrals',
+      'opportunity-suggestions',
+    ])
       void qc.invalidateQueries({ queryKey: [key] });
     void qc.invalidateQueries({ queryKey: ['referral-summary'] });
   };

@@ -4736,6 +4736,10 @@ components:
           type: string
           format: uuid
           nullable: true
+        min_grade_id:
+          type: string
+          format: uuid
+          nullable: true
         skill_id:
           type: string
           format: uuid
@@ -4946,6 +4950,10 @@ components:
           type: boolean
           default: false
         qualification_level_id:
+          type: string
+          format: uuid
+          nullable: true
+        min_grade_id:
           type: string
           format: uuid
           nullable: true
@@ -5480,9 +5488,10 @@ components:
         institution:
           type: string
           maxLength: 200
-        grade:
+        grade_id:
           type: string
-          maxLength: 60
+          format: uuid
+          nullable: true
         year_awarded:
           type: integer
           maximum: 2100

@@ -131,6 +131,11 @@ export const MENU_SIDEBAR: MenuConfig = [
         permission: 'config.view',
       },
       {
+        title: 'Qualification grades',
+        path: '/administration/qualification-grades',
+        permission: 'config.view',
+      },
+      {
         title: 'Skills',
         path: '/administration/skills',
         permission: 'config.view',

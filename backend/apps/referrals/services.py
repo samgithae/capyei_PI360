@@ -59,6 +59,15 @@ def _check_reason(to, reason_id, note):
     return reason["id"]
 
 
+def referred_participant_ids(opportunity_id) -> set:
+    """Youth who already have an open or placed referral to this opportunity."""
+    return set(
+        Referral.objects.filter(
+            opportunity_id=opportunity_id, stage__in=Referral.ACTIVE | {Referral.PLACED}
+        ).values_list("participant_id", flat=True)
+    )
+
+
 def _check_no_other_active(referral):
     clash = Referral.objects.filter(
         participant_id=referral.participant_id,

@@ -64,6 +64,7 @@ interface Detail {
   requirements: Requirement[];
   requirement_options: {
     levels: Opt[];
+    grades: (Opt & { level_id: string; rank: number })[];
     skills: Opt[];
     work_patterns: Opt[];
   };
@@ -120,6 +121,7 @@ export function OpportunityPage() {
   const ro = q.data?.requirement_options;
   const lookup: Lookup = {
     levels: ro?.levels ?? [],
+    grades: ro?.grades ?? [],
     skills: ro?.skills ?? [],
     patterns: ro?.work_patterns ?? [],
   };

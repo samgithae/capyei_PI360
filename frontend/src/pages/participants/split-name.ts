@@ -1,6 +1,7 @@
 /**
- * Suggests given / family / other names from a full name: first word is the given name, last word
- * the family name, anything between goes to other names. It is only a guess, so the edit form
+ * Suggests first / middle / last names from a full name: first word is the first name, last word
+ * the last name, anything between is the middle name. (Stored as given_name, family_name = middle,
+ * other_names = last.) It is only a guess, so the edit form
  * shows it for staff to correct before saving.
  */
 export function splitName(full: string): {
@@ -15,7 +16,7 @@ export function splitName(full: string): {
     return { given_name: parts[0], family_name: '', other_names: '' };
   return {
     given_name: parts[0],
-    family_name: parts[parts.length - 1],
-    other_names: parts.slice(1, -1).join(' '),
+    family_name: parts.slice(1, -1).join(' '),
+    other_names: parts[parts.length - 1],
   };
 }

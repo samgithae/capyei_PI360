@@ -354,9 +354,9 @@ export function EditParticipant() {
         >
           {text('name', 'Full name (as shown in lists)')}
           <div className="grid gap-4 sm:grid-cols-3">
-            {text('given_name', 'Given name')}
-            {text('family_name', 'Family name')}
-            {text('other_names', 'Other names')}
+            {text('given_name', 'First name')}
+            {text('family_name', 'Middle name')}
+            {text('other_names', 'Last name')}
           </div>
           {!v.given_name.trim() && !v.family_name.trim() && v.name.trim() && (
             <div className="flex flex-wrap items-center gap-3 text-sm">

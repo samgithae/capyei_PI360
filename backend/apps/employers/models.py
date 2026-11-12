@@ -122,7 +122,7 @@ class OpportunityRequirement(models.Model):
     # Factors the rules can compare, and which typed value each one reads.
     TYPED = {
         "skill": ("skill",),
-        "qualification": ("qualification_level",),
+        "qualification": ("qualification_level", "min_grade"),
         "experience": ("min_months",),
         "availability": ("needed_by", "work_pattern"),
     }
@@ -138,6 +138,11 @@ class OpportunityRequirement(models.Model):
     # free-text requirements, which the screen marks "needs structuring".
     qualification_level = models.ForeignKey(
         "configuration.QualificationLevel", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="+",
+    )  # fmt: skip
+    # Lowest grade accepted at that level ("C or above"); empty means any grade.
+    min_grade = models.ForeignKey(
+        "configuration.QualificationGrade", null=True, blank=True,
         on_delete=models.PROTECT, related_name="+",
     )  # fmt: skip
     skill = models.ForeignKey(

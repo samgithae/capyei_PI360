@@ -28,10 +28,7 @@ const NOTE: Record<Category, { label: string; placeholder: string } | null> = {
     label: 'Level needed (optional)',
     placeholder: 'e.g. Intermediate',
   },
-  qualification: {
-    label: 'Minimum grade (optional)',
-    placeholder: 'e.g. C Plain',
-  },
+  qualification: null,
   experience: null,
   certification: {
     label: 'What must be shown (optional)',
@@ -239,7 +236,12 @@ export function RequirementForm({
         <Select
           value={cat}
           onValueChange={(v) =>
-            set({ category: v as Category, item: '', note: '' })
+            set({
+              category: v as Category,
+              item: '',
+              minGrade: '',
+              note: '',
+            })
           }
         >
           <SelectTrigger aria-label="Requirement category">
@@ -285,11 +287,25 @@ export function RequirementForm({
               className="w-full"
               value={draft.item}
               options={lookup.levels}
-              onChange={(v) => set({ item: v })}
+              onChange={(v) => set({ item: v, minGrade: '' })}
             />
+            {(lookup.grades ?? []).some((g) => g.level_id === draft.item) && (
+              <SelectField
+                label="Minimum grade"
+                className="w-full"
+                value={draft.minGrade}
+                emptyLabel="Any grade"
+                options={(lookup.grades ?? [])
+                  .filter((g) => g.level_id === draft.item)
+                  .sort((a, b) => a.rank - b.rank)}
+                onChange={(v) => set({ minGrade: v })}
+              />
+            )}
             <p className="text-xs text-muted-foreground">
-              This level or higher counts. New levels are added by an
-              administrator under Administration.
+              A youth with this level and the minimum grade or better counts,
+              and so does anyone with a higher level. A youth with no grade
+              recorded shows as unknown, not failed. Levels and grades are
+              managed by an administrator under Administration.
             </p>
           </>
         )}

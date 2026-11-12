@@ -245,6 +245,29 @@ export const REFERENCE_KINDS: Record<string, KindDef> = {
       },
     ],
   },
+  'qualification-grades': {
+    title: 'Qualification grades',
+    singular: 'qualification grade',
+    description:
+      'The results a youth can have at each qualification level, such as A to E for secondary school. The rank orders them within the level (higher is better), so an opportunity can ask for "C or above". Retiring one hides it from new records; existing records keep it.',
+    fields: [
+      {
+        key: 'level',
+        label: 'Level',
+        type: 'fk',
+        fk: 'qualification-levels',
+        required: true,
+        column: true,
+      },
+      {
+        key: 'rank',
+        label: 'Rank',
+        type: 'number',
+        required: true,
+        column: true,
+      },
+    ],
+  },
   skills: {
     title: 'Skills',
     singular: 'skill',

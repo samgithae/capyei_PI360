@@ -158,12 +158,13 @@ def _apply(actor, p, row):
         qs = ParticipantQualification.objects.filter(participant=p, level=level, title=detail)
         if qs.exists():
             return kind, "skipped"
+        grade = None
+        if row.get("grade", "").strip():
+            grade, problem = configuration.find_active_grade(level, row["grade"])
+            if problem:
+                raise RowError("grade", f"Grade: {problem}.")
         obj = ParticipantQualification(
-            participant=p,
-            level=level,
-            title=detail[:200],
-            year_awarded=year,
-            grade=row.get("grade", "")[:60],
+            participant=p, level=level, title=detail[:200], year_awarded=year, grade=grade
         )
     elif kind == "skill":
         skill, problem = configuration.find_active_reference("skills", value)
