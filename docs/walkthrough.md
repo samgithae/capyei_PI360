@@ -2,7 +2,7 @@
 
 A hands-on guide to try the whole flow on your local copy. It follows the order work happens in real life, and says what the system does at each step and why.
 
-> **Honest status:** the rules screens (write, review, approve, activate) are built, and the active Compatibility rule is now applied on screen: an opportunity shows **Suggested youth** (see step 6). Suggestions only help; *you* decide the referral and the system records what you decide. Support priority (Module A) and employer reliability (Module C) are not applied on screen yet.
+> **Honest status:** the rules screens (write, review, approve, activate) are built, and the active Compatibility rule is now applied on screen: an opportunity shows **Suggested youth** (see step 6). Suggestions only help; *you* decide the referral and the system records what you decide. Support priority (Module A) and employer reliability (Module C) are not applied on screen yet. Youth can now be invited to sign in and add their own skills (step 8).
 
 ## 0. Before you start
 
@@ -15,6 +15,7 @@ A hands-on guide to try the whole flow on your local copy. It follows the order 
 | `dev.admin` | Administrator | write, approve and activate rules; manage roles and staff |
 | `dev.officer` | Placement officer | refer youth and move referrals (only sees *their* caseload) |
 | `dev.viewer` | Manager | oversee the officer's caseload |
+| a youth you invite | Youth | sees and edits only their own skills (step 8); no seed login, created by invite |
 
 **Why several roles?** Separation of duties. The person who creates data, the person who approves rules and the person who works referrals are different jobs, and each action is checked against the role.
 
@@ -45,6 +46,19 @@ What happens behind the scenes:
 - Changing the residence later *closes the old address and keeps it in the history*, so you can always see where someone lived at a given time.
 
 **Check it:** Youth list → open the new person. You should see enrollments, contacts, residence and history.
+
+## 2b. Add the youth's skills and readiness (capability profile)
+
+**Where:** open a youth → **Skills and readiness** card → **Edit**. Log in as `dev.steward`.
+
+The profile has four parts: **qualifications** (highest level and field), **skills** (from the Skills list, with a proficiency), **work experience** (sector and months) and **availability** (start date, work patterns, sectors of interest). Fill only what you know; empty means "missing", never "failed".
+
+- Each entry shows its **source** (staff, import or self-reported) and whether it is **Verified**. Use **Verify** after checking evidence. Editing an entry removes its verification.
+- **Bulk load:** Youth → **Import** takes a CSV/Excel file with one fact per row, matched by enrollment number. Imported facts are marked *import* and unverified. Download the template, **Preview**, then confirm. Rows that fail are listed by row number.
+- Skills and qualification levels come from Administration lists (Skills, Qualification levels); the starter values are proposals until the product owner confirms them.
+- Not built: capability fields in the **Add youth** wizard. Add them afterwards on the profile.
+
+**Check it:** the card shows what you saved, with source and verified badges.
 
 ## 3. Create an employer
 
@@ -126,14 +140,17 @@ Draft → Submitted → Under review → Interview (optional) → Selected → P
 
 **Check it:** Referrals list → open it → the history shows each move with who and when. Log in as `dev.viewer` (Manager) to see the same record from the supervising side.
 
-## 7. What to try as a full dry run
+## 7. What to try as a full dry run (phases 1 and 2 together)
 
-1. Steward: add a youth in Nairobi → Westlands → Kitisuru, enrolled in a cohort.
-2. Steward: add an active employer; add an opportunity with two mandatory and one preferred requirement; open it.
-3. Admin: open the Compatibility rule set, copy the active version, decide the parameters, send for review, approve, activate.
-4. Officer: refer the youth, move it Submitted → Interview → Selected → Placed → Closed.
-5. Officer: refer a second youth and end it as Rejected. Notice the reason code is compulsory.
-6. Admin: open a rule version's history and a youth's history to see the audit trail.
+1. Steward: add reference data (or import it from CSV), then add a youth in Nairobi → Westlands → Kitisuru, enrolled in a cohort, **with an e-mail address**.
+2. Steward: on the youth, **Edit** skills and readiness: a qualification, one or two skills, some experience, an availability date. Click **Verify** on one entry.
+3. Steward: add an active employer; add an opportunity with two mandatory and one preferred **structured** requirement (pick a skill, a minimum qualification, months of experience); open it.
+4. Admin: open the Compatibility rule set, copy the active version, use **Edit draft**, confirm the numbers, send for review, approve, activate.
+5. Officer: open the opportunity and read **Suggested youth**; refer the youth and move it Submitted → Interview → Selected → Placed → Closed.
+6. Officer: refer a second youth and end it as Rejected. Notice the reason code is compulsory.
+7. Steward: on the first youth, **Send invite** (step 8). Read the link from the API log, set a password, sign in as the youth, agree to the notice, add a skill.
+8. Steward: reopen that youth and see the new entry marked self-reported; verify it. Then check **Suggested youth** again: the new skill is now counted.
+9. Admin: open a rule version's history and a youth's history to see the audit trail, including the invite and the youth's own edits.
 
 ## 8. Youth sign-in and self-service (Phase 2)
 
@@ -141,7 +158,7 @@ Draft → Submitted → Under review → Interview (optional) → Selected → P
 
 **Youth side:** the e-mailed link opens a page to choose a password, then the youth signs in with that e-mail address. Their only page is **My profile**. It first shows a consent notice; after they agree they can see and edit their own qualifications, skills, experience and availability. Their entries are marked self-reported and unverified until staff verify them. They never see who verified an entry, cannot delete an entry staff have verified, and cannot see any other youth.
 
-In local development the invite e-mail is printed in the API server's log (the link points at port 5173; change the port if your web server uses another).
+In local development the invite e-mail is printed in the API server's log (the link uses `FRONTEND_URL`, default port 5173; if your web server runs on 5174, replace the port in the link, or start the API with `FRONTEND_URL=http://localhost:5174`).
 
 **Check it:** invite a youth with an e-mail on file, read the link from the API log, set a password, sign in, agree, add a skill, then open the youth as staff and see it marked self-reported.
 
@@ -151,4 +168,7 @@ Before real youth are invited, a person responsible for data protection must wor
 
 - Support-priority flags and employer reliability profiles on screen (Month 3). Compatibility is applied (Suggested youth).
 - Support cases / work queues (Month 3).
+- Capability fields in the Add youth wizard; location is not checked in Suggested youth.
+- Rule weights and thresholds are placeholders until the product owner confirms them.
+- Youth: no withdraw-consent button, no forgotten-password screen (staff re-invite), no second factor, English-only consent text. A human data-protection review (`docs/data-protection-review.md`) is still outstanding.
 - Placement follow-up at 30 and 90 days: shown in the pilot guide diagram, not checked by me whether it is wired up.
