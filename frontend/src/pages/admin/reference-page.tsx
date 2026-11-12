@@ -28,6 +28,7 @@ import { FormModal } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
 import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
+import { LinkCoursesDialog } from './link-courses-dialog';
 import { ReferenceImport } from './reference-import';
 
 type FieldType = 'text' | 'number' | 'date' | 'select' | 'fk';
@@ -172,7 +173,6 @@ export const REFERENCE_KINDS: Record<string, KindDef> = {
         required: true,
         column: true,
       },
-      { key: 'capacity', label: 'Capacity', type: 'number', column: true },
     ],
   },
   institutions: {
@@ -283,7 +283,7 @@ const IMPORT_COLUMNS: Record<string, string> = {
   courses: 'code*, name*, programme*, level, sector',
   cohorts:
     'code*, name*, programme*, institution*, intake_year*, batch_no*, phase, year_of_study, start, end, status',
-  'cohort-courses': 'cohort*, course*, programme, capacity',
+  'cohort-courses': 'cohort*, course*',
 };
 
 const DRILL: Record<string, { to: string; param: string }> = {
@@ -297,6 +297,7 @@ export function ReferencePage({ kind }: { kind: string }) {
   const qc = useQueryClient();
   const canManage = can('reference.manage');
   const [editing, setEditing] = useState<Row | 'new' | null>(null);
+  const [linking, setLinking] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -479,7 +480,13 @@ export function ReferencePage({ kind }: { kind: string }) {
                   }}
                 />
               )}
-              <Button onClick={() => open('new')}>Add {def.singular}</Button>
+              <Button
+                onClick={() =>
+                  kind === 'cohort-courses' ? setLinking(true) : open('new')
+                }
+              >
+                Add {def.singular}
+              </Button>
             </div>
           )
         }
@@ -522,7 +529,7 @@ export function ReferencePage({ kind }: { kind: string }) {
                   <TableHead>{def.unnamed ? 'Offering' : 'Name'}</TableHead>
                   {!def.unnamed && <TableHead>Code</TableHead>}
                   {columns
-                    .filter((f) => !def.unnamed || f.key === 'capacity')
+                    .filter(() => !def.unnamed)
                     .map((f) => (
                       <TableHead key={f.key}>{f.label}</TableHead>
                     ))}
@@ -551,7 +558,7 @@ export function ReferencePage({ kind }: { kind: string }) {
                       </TableCell>
                     )}
                     {columns
-                      .filter((f) => !def.unnamed || f.key === 'capacity')
+                      .filter(() => !def.unnamed)
                       .map((f) => (
                         <TableCell key={f.key}>
                           {f.fk
@@ -600,6 +607,17 @@ export function ReferencePage({ kind }: { kind: string }) {
         )}
       </DataCard>
 
+      {kind === 'cohort-courses' && (
+        <LinkCoursesDialog
+          open={linking}
+          onOpenChange={setLinking}
+          cohorts={parentRows['cohorts'] as Row[]}
+          courses={parentRows['courses'] as Row[]}
+          programmes={parentRows['programmes'] as Row[]}
+          links={list.data ?? []}
+          onDone={refresh}
+        />
+      )}
       <FormModal
         open={editing !== null}
         onOpenChange={(o) => !o && setEditing(null)}

@@ -93,6 +93,33 @@ class ReferenceListView(APIView):
         return Response(_out(kind, obj), status=status.HTTP_201_CREATED)
 
 
+class CohortCoursesBulkSerializer(serializers.Serializer):
+    cohort = serializers.UUIDField()
+    courses = serializers.ListField(child=serializers.UUIDField(), allow_empty=False)
+
+
+class CohortCoursesBulkView(APIView):
+    """Link many courses to one cohort in a single step."""
+
+    permission_classes = [HasPermission]
+    required_permission = REFERENCE
+
+    @extend_schema(request=CohortCoursesBulkSerializer, responses={201: dict})
+    def post(self, request):
+        body = CohortCoursesBulkSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        added, existing = _run(
+            services.link_courses,
+            actor=request.user,
+            cohort_id=body.validated_data["cohort"],
+            course_ids=body.validated_data["courses"],
+        )
+        return Response(
+            {"added": len(added), "already_linked": len(existing)},
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class ReferenceDetailView(APIView):
     permission_classes = [HasPermission]
     required_permission = {"GET": VIEW, "PATCH": REFERENCE}

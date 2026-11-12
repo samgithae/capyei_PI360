@@ -4,7 +4,18 @@ from django_otp.plugins.otp_totp.models import TOTPDevice
 
 from apps.audit.models import AuditEvent
 from apps.configuration import services
-from apps.configuration.models import County, FeatureFlag, ReferenceAlias, ReferenceLabel, Ward
+from apps.configuration.models import (
+    Cohort,
+    CohortCourse,
+    County,
+    Course,
+    FeatureFlag,
+    Programme,
+    ReferenceAlias,
+    ReferenceLabel,
+    TrainingInstitution,
+    Ward,
+)
 from apps.configuration.services import ConfigError
 
 PW = "correct-horse-battery-9"
@@ -326,3 +337,35 @@ def test_qualification_levels_and_skills_are_seeded_and_importable(admin):
     assert body["created"] == 1 and Skill.objects.get(code="SX").category == "Trades"
     listed = c.get("/api/v1/config/reference/qualification-levels").json()
     assert any(r.get("rank") == 99 for r in listed)
+
+
+@pytest.mark.django_db
+def test_many_courses_can_be_linked_to_a_cohort_at_once(admin):
+    prog = Programme.objects.create(code="P1", name="Programme One")
+    inst = TrainingInstitution.objects.create(
+        code="I1", name="College", county=County.objects.get(code="01")
+    )
+    cohort = Cohort.objects.create(
+        programme=prog, institution=inst, code="K1", name="K", intake_year=2025,
+        batch_no=1, phase=1, year_of_study=1,
+    )  # fmt: skip
+    a = Course.objects.create(programme=prog, code="A", name="A")
+    b = Course.objects.create(programme=prog, code="B", name="B")
+    c = Course.objects.create(programme=prog, code="C", name="C")
+    CohortCourse.objects.create(cohort=cohort, course=a, active=False)
+    CohortCourse.objects.create(cohort=cohort, course=b)
+    client = api(admin)
+    url = "/api/v1/config/reference/cohort-courses/bulk"
+
+    r = post(client, url, {"cohort": str(cohort.pk), "courses": [str(a.pk), str(b.pk), str(c.pk)]})
+    assert r.status_code == 201
+    assert r.json() == {"added": 2, "already_linked": 1}  # A revived, C new, B untouched
+    assert CohortCourse.objects.filter(cohort=cohort, active=True).count() == 3
+
+    again = post(client, url, {"cohort": str(cohort.pk), "courses": [str(a.pk)]})
+    assert again.json() == {"added": 0, "already_linked": 1}
+    assert "reference.created" in actions()
+
+    bad = post(client, url, {"cohort": str(cohort.pk), "courses": [str(cohort.pk)]})
+    assert bad.status_code == 400
+    assert post(client, url, {"cohort": str(cohort.pk), "courses": []}).status_code == 400

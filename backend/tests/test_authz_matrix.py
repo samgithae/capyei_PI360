@@ -38,6 +38,7 @@ MATRIX = {
     "identity/users/<int:pk>/roles": {"PUT": "identity.manage_roles"},
     "identity/users/<int:pk>/scopes": {"PUT": "identity.manage_roles"},
     "audit/events": {"GET": "audit.view"},
+    "config/reference/cohort-courses/bulk": {"POST": "reference.manage"},
     "config/reference/<str:kind>": {"GET": "config.view", "POST": "reference.manage"},
     "config/reference/<str:kind>/import": {"POST": "reference.manage"},
     "config/reference/<str:kind>/import-template": {"GET": "config.view"},

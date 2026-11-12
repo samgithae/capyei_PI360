@@ -3,6 +3,7 @@ from django.urls import path
 from . import views as v
 
 urlpatterns = [
+    path("config/reference/cohort-courses/bulk", v.CohortCoursesBulkView.as_view()),
     path("config/reference/<str:kind>", v.ReferenceListView.as_view()),
     path("config/reference/<str:kind>/import", v.ReferenceImportView.as_view()),
     path("config/reference/<str:kind>/import-template", v.ReferenceImportTemplateView.as_view()),

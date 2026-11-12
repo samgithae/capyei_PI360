@@ -15,6 +15,7 @@ from apps.api import access
 from apps.audit import services as audit
 
 from .models import (
+    CohortCourse,
     County,
     FeatureFlag,
     ProtectedSetting,
@@ -159,6 +160,43 @@ def create_reference(*, actor, key, data):
         after=_snapshot(obj, kind),
     )
     return obj
+
+
+@transaction.atomic
+def link_courses(*, actor, cohort_id, course_ids):
+    """Offer several courses in one cohort at once; returns (added, already_linked)."""
+    cohort = _resolve_fks(kind_of("cohort-courses"), {"cohort": cohort_id})["cohort"]
+    ids = list(dict.fromkeys(str(c) for c in course_ids))
+    if not ids:
+        raise ConfigError("courses", "Choose at least one course.")
+    added, existing = [], []
+    for raw in ids:
+        course = _resolve_fks(kind_of("cohort-courses"), {"course": raw})["course"]
+        link = CohortCourse.objects.filter(cohort=cohort, course=course).first()
+        if link is None:
+            link = CohortCourse.objects.create(cohort=cohort, course=course)
+            audit.record(
+                actor=actor,
+                action="reference.created",
+                object_type="reference.cohort-courses",
+                object_id=link.pk,
+                after=_snapshot(link, kind_of("cohort-courses")),
+            )
+            added.append(link)
+        elif not link.active:
+            link.active = True
+            link.save(update_fields=["active"])
+            audit.record(
+                actor=actor,
+                action="reference.reactivated",
+                object_type="reference.cohort-courses",
+                object_id=link.pk,
+                before={"active": False},
+            )
+            added.append(link)
+        else:
+            existing.append(link)
+    return added, existing
 
 
 @transaction.atomic

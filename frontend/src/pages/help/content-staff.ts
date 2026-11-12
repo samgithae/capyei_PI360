@@ -31,7 +31,7 @@ export const STAFF_GUIDES: Guide[] = [
     steps: [
       'Open Administration and fill: Programmes, Cohorts, Courses, Cohort courses, Training institutions, Sectors, Qualification levels and Skills.',
       'To load many rows, use the Import button on a list: download the template, fill it in a spreadsheet, upload it, Preview, then confirm.',
-      'Import in this order: sectors, programmes, institutions, courses, cohorts, cohort courses.',
+      'Import in this order: sectors, programmes, institutions, courses, cohorts, cohort courses. To link a few courses by hand, use Add cohort course: choose a cohort, then tap each course it runs.',
       'Counties, sub-counties and wards load automatically.',
       'Use Retire to hide an entry from new records while keeping it on old ones.',
     ],
@@ -69,7 +69,7 @@ export const STAFF_GUIDES: Guide[] = [
       'Choose Edit. It opens on its own page so every field is in view.',
       'Change names, gender, status, date of birth, home county, current residence and contacts as needed.',
       'For an enrollment, change the cohort and then choose a course that cohort runs. The programme and institution follow the cohort.',
-      'To record another course the youth has done or joined, choose Add another enrollment or course, pick the cohort and course, and set the status and dates. The course must first be linked to a cohort under Administration, Cohort courses.',
+      'To record another course the youth has done or joined, choose Add another enrollment or course, pick the cohort and course, and set the status and dates. If the course is not offered, link it first: Administration, Cohort courses, Add cohort course, pick the cohort and tap the courses it runs.',
       'Choose Save changes. Only what you changed is saved.',
     ],
     why: 'Every change is recorded in the audit log, and a changed residence keeps the old address in the history.',
