@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
+import { CapabilityProfile } from './capability-profile';
 import { splitName } from './split-name';
 
 interface Enrollment {
@@ -737,6 +738,7 @@ export function EditParticipant() {
           </div>
         </form>
       )}
+      {v && can('participants.view_profile') && <CapabilityProfile id={id} />}
     </div>
   );
 }
