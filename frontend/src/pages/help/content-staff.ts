@@ -42,7 +42,7 @@ export const STAFF_GUIDES: Guide[] = [
   {
     slug: 'create-youth',
     title: 'Create a youth',
-    summary: 'Add a youth with identity, contact and enrollment.',
+    summary: 'Add a youth with identity, contact, enrollment and skills.',
     group: 'Youth',
     needs: ['participants.edit'],
     to: { path: '/youth', label: 'Open Youth' },
@@ -51,6 +51,7 @@ export const STAFF_GUIDES: Guide[] = [
       'Identity: only the name is required. Add national ID, date of birth, gender and status if you have them.',
       'Home and contact: phone, e-mail and the residence (county, then sub-county, then ward).',
       'Enrollment: pick a cohort, then a course that cohort runs, and the status.',
+      'Skills and readiness (optional): add qualifications, skills with a proficiency, work experience and availability. Skip it if you do not know them yet; you can add them later from the profile.',
       'Review and save.',
     ],
     why: 'The system checks for a likely duplicate so one person does not become two records. Changing the residence later keeps the old address in the history.',
@@ -84,7 +85,7 @@ export const STAFF_GUIDES: Guide[] = [
     needs: ['participants.edit', 'participants.view_profile'],
     to: { path: '/youth', label: 'Open Youth' },
     steps: [
-      'Open a youth and find the Skills and readiness card, then choose Edit.',
+      'You can add these while creating the youth (the Skills and readiness step), or later: open a youth, find the Skills and readiness card, then choose Edit.',
       'Add qualifications, skills with a proficiency, work experience (sector and months) and availability.',
       'Fill only what you know. Empty means missing, never failed.',
       'After checking evidence, choose Verify on an entry. Editing an entry removes its verification.',

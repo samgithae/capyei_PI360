@@ -15,6 +15,7 @@ urlpatterns = [
     path("participants/merges", d.MergeListView.as_view()),
     path("participants/merges/<uuid:pk>/undo", d.MergeUndoView.as_view()),
     path("participants/<uuid:pk>/contacts", v.ContactsView.as_view()),
+    path("participants/profile-options", pv.ProfileOptionsView.as_view()),
     path("participants/profile-import", pv.ProfileImportView.as_view()),
     path("participants/profile-import-template", pv.ProfileImportTemplateView.as_view()),
     path("participants/<uuid:pk>/profile", pv.ProfileView.as_view()),

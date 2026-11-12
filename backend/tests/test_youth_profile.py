@@ -164,3 +164,40 @@ def test_merge_carries_the_profile_across_and_undo_puts_it_back(world, make_user
     duplicates.unmerge(actor=steward, merge_record=record, reason="mistake")
     assert profile.read(survivor)["summary"]["experience_months"] == 0
     assert profile.read(absorbed)["summary"]["experience_months"] == 5
+
+
+def test_youth_can_be_created_with_capability_in_one_step(db, make_user):
+    c = api(make_user("steward", "Data steward"))
+    cook = Skill.objects.get(code="SK-FOOD")
+    level = QualificationLevel.objects.get(code="QL05")
+    r = c.post(
+        "/api/v1/participants",
+        {
+            "full_name_source": "New Capable",
+            "capability": {
+                "qualifications": [{"level_id": str(level.pk), "title": "Diploma"}],
+                "skills": [{"skill_id": str(cook.pk), "proficiency": 2}],
+                "experience": [{"role_title": "Cook", "months": 6}],
+                "readiness": {"available_from": "2026-12-01", "work_patterns": ["full_time"]},
+            },
+        },
+        content_type="application/json",
+    )
+    assert r.status_code == 201, r.content
+    p = Participant.objects.get(full_name_source="New Capable")
+    got = c.get(f"/api/v1/participants/{p.pk}/profile").json()
+    assert got["summary"]["highest_qualification"] == level.name
+    assert got["summary"]["experience_months"] == 6 and got["skills"][0]["skill_id"] == str(cook.pk)
+
+    bad = c.post(
+        "/api/v1/participants",
+        {
+            "full_name_source": "Bad Capable",
+            "capability": {"skills": [{"skill_id": "11111111-1111-1111-1111-111111111111"}]},
+        },
+        content_type="application/json",
+    )
+    assert bad.status_code == 400
+    assert not Participant.objects.filter(full_name_source="Bad Capable").exists()  # all or nothing
+    opts = c.get("/api/v1/participants/profile-options").json()
+    assert {"levels", "skills", "sectors", "work_patterns"} <= set(opts)

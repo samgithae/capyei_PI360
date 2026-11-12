@@ -99,6 +99,17 @@ class ProfileView(APIView):
             _fail(exc)
 
 
+class ProfileOptionsView(APIView):
+    """What the capability form may choose from, before any youth exists (Add youth)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": EDIT}
+
+    @extend_schema(operation_id="participants_profile_options", responses={200: dict})
+    def get(self, request):
+        return Response(profile.options())
+
+
 class ProfileVerifyView(APIView):
     permission_classes = [HasPermission]
     required_permission = {"POST": EDIT}

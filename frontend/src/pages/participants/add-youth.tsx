@@ -12,6 +12,14 @@ import { ManageLink } from '@/components/shared/manage-link';
 import { DialogShell } from '@/components/shared/modals';
 import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
+import {
+  CapabilityFields,
+  draftToPayload,
+  emptyDraft,
+  hasCapability,
+  type CapabilityDraft,
+  type CapabilityOptions,
+} from './capability-fields';
 
 interface Option {
   id: string;
@@ -54,7 +62,14 @@ const opts = (xs: string[]) => xs.map((x) => ({ id: x, name: x }));
 const GENDERS = opts(['female', 'male', 'other', 'unknown']);
 const STATUSES = opts(['active', 'completed', 'withdrawn', 'unknown']);
 const ENROLLMENT = opts(['enrolled', 'completed', 'withdrawn', 'unknown']);
-const STEPS = ['Identity', 'Home and contact', 'Enrollment', 'Review'];
+const STEPS = [
+  'Identity',
+  'Home and contact',
+  'Enrollment',
+  'Skills and readiness',
+  'Review',
+];
+const LAST = STEPS.length - 1;
 
 const BLANK = {
   first: '',
@@ -88,7 +103,7 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   </div>
 );
 
-/** "Add youth": a four-step wizard covering every detail the directory holds. Only the name is
+/** "Add youth": a five-step wizard covering every detail the directory holds. Only the name is
  * required; everything else can be left blank and added later from the profile. */
 export function AddYouth() {
   const { can } = useAuth();
@@ -99,6 +114,7 @@ export function AddYouth() {
   const [step, setStep] = useState(0);
   const [v, setV] = useState<Values>(BLANK);
   const [extras, setExtras] = useState<ExtraRow[]>(freshExtras);
+  const [capability, setCapability] = useState<CapabilityDraft>(emptyDraft);
   const [error, setError] = useState('');
   const [matches, setMatches] = useState<Match[]>([]);
   const [confirmed, setConfirmed] = useState(false);
@@ -124,6 +140,11 @@ export function AddYouth() {
     queryFn: () => api<Filters>('/participants/filters'),
     enabled: open,
   });
+  const capOptions = useQuery({
+    queryKey: ['participant-profile-options'],
+    queryFn: () => api<CapabilityOptions>('/participants/profile-options'),
+    enabled: open,
+  });
   const offerings = useQuery({
     queryKey: ['offerings', v.cohort],
     queryFn: async () => {
@@ -145,6 +166,7 @@ export function AddYouth() {
   const reset = () => {
     setV(BLANK);
     setExtras(freshExtras());
+    setCapability(emptyDraft());
     setStep(0);
     setError('');
     setMatches([]);
@@ -174,6 +196,9 @@ export function AddYouth() {
       { kind: 'phone', value: v.phone.trim(), primary: true },
       { kind: 'email', value: v.email.trim(), primary: true },
     ].filter((c) => c.value),
+    ...(hasCapability(capability) && {
+      capability: draftToPayload(capability, true),
+    }),
     ...(v.offering && {
       enrollment: {
         cohort_course_id: v.offering,
@@ -207,6 +232,8 @@ export function AddYouth() {
       setError(m);
       // send the user back to the step that holds the problem
       if (/number|enrollment|course/i.test(m)) setStep(2);
+      else if (/skill|qualification|level|sector|proficien|experience/i.test(m))
+        setStep(3);
     },
   });
 
@@ -257,6 +284,15 @@ export function AddYouth() {
       'Enrollment',
       v.offering
         ? `${filters.data?.cohorts.find((c) => c.id === v.cohort)?.name ?? ''} / ${offerings.data?.find((o) => o.id === v.offering)?.name ?? ''}`
+        : 'None yet',
+    ],
+    [
+      'Skills and readiness',
+      hasCapability(capability)
+        ? (() => {
+            const c = draftToPayload(capability, true);
+            return `${c.qualifications.length} qualification(s), ${c.skills.length} skill(s), ${c.experience.length} job(s)${capability.from ? `, available from ${capability.from}` : ''}`;
+          })()
         : 'None yet',
     ],
     [
@@ -553,6 +589,24 @@ export function AddYouth() {
           )}
 
           {step === 3 && (
+            <div className="max-h-[55vh] space-y-5 overflow-auto">
+              <p className="text-sm text-muted-foreground">
+                Optional. Fill what you know; you can add or change it later
+                from the profile.
+              </p>
+              {capOptions.data ? (
+                <CapabilityFields
+                  value={capability}
+                  onChange={setCapability}
+                  options={capOptions.data}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              )}
+            </div>
+          )}
+
+          {step === LAST && (
             <dl className="grid grid-cols-[10rem_1fr] gap-x-3 gap-y-1.5 text-sm">
               {summary.map(([k, val]) => (
                 <div key={k} className="contents">
@@ -576,7 +630,7 @@ export function AddYouth() {
             >
               {step === 0 ? 'Cancel' : 'Back'}
             </Button>
-            {step < 3 ? (
+            {step < LAST ? (
               <Button type="button" onClick={() => void next()}>
                 Next
               </Button>

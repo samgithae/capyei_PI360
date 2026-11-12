@@ -25,6 +25,7 @@ from .models import (
     ParticipantEnrollment,
     ParticipantResidence,
 )
+from .profile_views import ProfileSerializer
 
 VIEW, EDIT, CONTACT = "participants.view", "participants.edit", "participants.view_contact"
 
@@ -178,6 +179,7 @@ class ParticipantCreateSerializer(serializers.Serializer):
     source_id = serializers.CharField(max_length=100, allow_blank=True, required=False)
     source_name = serializers.CharField(max_length=60, allow_blank=True, required=False)
     enrollment = _NewEnrollmentSerializer(required=False)
+    capability = ProfileSerializer(required=False)
 
     def validate_origin_county_id(self, value):
         if value is not None and not configuration.county_exists(value):

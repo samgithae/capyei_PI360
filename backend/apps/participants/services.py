@@ -481,6 +481,12 @@ def create_participant(*, actor, data: dict) -> Participant:
         SourceIdentifier.objects.create(
             participant=p, source=data["source_name"].strip(), identifier=sid.strip()
         )
+    capability = data.get("capability")
+    if capability:
+        try:
+            write_profile(actor=actor, p=p, data=capability)
+        except ProfileError as exc:
+            raise CreateError(exc.field, str(exc)) from exc
     audit.record(
         actor=actor,
         action="participant.created",
