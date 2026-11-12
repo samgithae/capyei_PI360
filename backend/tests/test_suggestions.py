@@ -91,3 +91,19 @@ def test_scope_and_permissions(world, make_user):
     assert api(make_user("admin2", "Administrator")).get(missing).status_code == 404
     assert Client().get(world["url"]).status_code in (401, 403)
     assert date.today()  # engine reads today from the caller, not a clock inside the rules
+
+
+def test_without_weights_youth_are_ranked_by_requirements_met(world, make_user):
+    """Weights are an undecided policy (D-009). With none set there is no % fit, but the list
+    must still order itself and say why, never silently fall back to name order."""
+    initial_rules.load()
+    v = RuleVersion.objects.get(rule_set__code="compatibility-default")
+    v.status = RuleVersion.ACTIVE
+    v.save()
+    body = api(make_user("admin", "Administrator")).get(world["url"]).json()
+    assert body["weights_pending"] is True
+    top = body["suggestions"][0]
+    assert top["name"] == "A Strong" and top["score"] is None
+    assert top["met"] >= 1 and top["checked"] >= top["met"]
+    by = {s["name"]: s for s in body["suggestions"]}
+    assert by["A Strong"]["met"] > by["B Partial"]["met"]

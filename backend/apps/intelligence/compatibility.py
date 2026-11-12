@@ -118,8 +118,13 @@ def assess(definition: dict, opp: dict, snapshot: dict, today) -> dict:
         coverage = round(have / total, 4) if total else None
         if have:
             score = round(sum(c["weight"] * (c["score"] or 0) for c in known) / have * 100)
+    met = sum(1 for c in live if c["outcome"] == pi360_rules.PASS)
     return {
         "group": group,
+        "met": met,
+        "checked": len(live),
+        # Preferred checks exist but a weight is still undecided (D-009), so no % can be given.
+        "weights_pending": bool(preferred) and any(c["weight"] is None for c in preferred),
         "score": score,
         "coverage": coverage,
         "checks": [

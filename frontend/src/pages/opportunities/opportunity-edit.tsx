@@ -4,14 +4,16 @@ import { toast } from 'sonner';
 import { api, ApiError } from '@/lib/api';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { FormModal } from '@/components/shared/modals';
 import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
+import { WhereWhatFields } from './opportunity-fields';
 
 interface Detail {
   title: string;
   kind: string;
+  sector_id: string | null;
+  county_id: string | null;
   location: string;
   positions: number;
   description: string;
@@ -48,6 +50,8 @@ export function EditOpportunity({
         body: JSON.stringify({
           title: b.title,
           kind: b.kind,
+          sector_id: b.sector_id,
+          county_id: b.county_id,
           location: b.location,
           positions: Number(b.positions),
           description: b.description,
@@ -124,22 +128,7 @@ export function EditOpportunity({
               />
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="oe-location">Location</Label>
-            <Input
-              id="oe-location"
-              value={v.location}
-              onChange={(e) => patch({ location: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="oe-description">Description</Label>
-            <Textarea
-              id="oe-description"
-              value={v.description}
-              onChange={(e) => patch({ description: e.target.value })}
-            />
-          </div>
+          <WhereWhatFields idPrefix="oe" value={v} onChange={patch} />
         </>
       )}
     </FormModal>

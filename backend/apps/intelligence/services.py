@@ -409,6 +409,8 @@ def suggest_youth(opportunity_id, visible_ids, today: date, limit: int = 50) -> 
         key=lambda r: (
             compatibility.GROUP_ORDER[r["group"]],
             -(r["score"] if r["score"] is not None else -1),
+            -(r["met"] / r["checked"] if r["checked"] else 0),
+            -r["met"],
             r["name"],
         )
     )
@@ -417,6 +419,8 @@ def suggest_youth(opportunity_id, visible_ids, today: date, limit: int = 50) -> 
         **base,
         "available": True,
         "rule": {"id": str(version.pk), "version": version.number},
+        "weights_pending": any(r["weights_pending"] for r in rows),
+        "requirements": len(opp["requirements"]),
         "counts": {**counts, "no_data": len(ids) - len(youth), "visible": len(ids)},
         "suggestions": rows[:limit],
         "truncated": len(rows) > limit,

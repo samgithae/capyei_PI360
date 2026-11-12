@@ -45,6 +45,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EditOpportunity } from './opportunity-edit';
+import { WhereWhatFields } from './opportunity-fields';
 
 interface Row {
   id: string;
@@ -84,6 +85,10 @@ function AddOpportunity({
     kind: 'job',
     positions: '1',
     closing_date: '',
+    sector_id: null as string | null,
+    county_id: null as string | null,
+    location: '',
+    description: '',
   });
   const [error, setError] = useState('');
   const employers = useQuery({
@@ -197,6 +202,11 @@ function AddOpportunity({
           />
         </div>
       </div>
+      <WhereWhatFields
+        idPrefix="opp"
+        value={v}
+        onChange={(p) => setV((x) => ({ ...x, ...p }))}
+      />
     </FormModal>
   );
 }

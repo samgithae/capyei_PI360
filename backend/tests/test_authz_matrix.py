@@ -103,6 +103,7 @@ MATRIX = {
         "PATCH": "employers.edit",
         "DELETE": "employers.edit",
     },
+    "referrals/bulk": {"POST": "referrals.edit"},
     "referrals": {"GET": "referrals.view", "POST": "referrals.edit"},
     "referrals/summary": {"GET": "referrals.view"},
     "referrals/reasons": {"GET": "referrals.view"},

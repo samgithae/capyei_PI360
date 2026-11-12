@@ -447,7 +447,13 @@ export function OpportunityPage() {
           </Section>
         </div>
 
-        {can('participants.view_profile') && <SuggestedYouth id={o.id} />}
+        {can('participants.view_profile') && (
+          <SuggestedYouth
+            id={o.id}
+            positions={o.positions}
+            canRefer={can('referrals.edit') && o.status === 'open'}
+          />
+        )}
 
         <Section title="Activity">
           {history.isPending ? (

@@ -95,6 +95,15 @@ class ReferralCreateSerializer(serializers.Serializer):
     submit = serializers.BooleanField(required=False, default=True)
 
 
+class ReferralBulkSerializer(serializers.Serializer):
+    opportunity_id = serializers.UUIDField()
+    participant_ids = serializers.ListField(
+        child=serializers.UUIDField(), min_length=1, max_length=200
+    )
+    note = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+    submit = serializers.BooleanField(required=False, default=True)
+
+
 class ReferralMoveSerializer(serializers.Serializer):
     to = serializers.ChoiceField(choices=[s for s, _ in Referral.STAGES])
     reason_id = serializers.UUIDField(required=False, allow_null=True)
@@ -205,6 +214,36 @@ class ReferralAssigneesView(APIView):
     )
     def get(self, request):
         return Response(services.assignees())
+
+
+class ReferralBulkView(APIView):
+    """Refer several youth to one opportunity at once. Each youth is its own referral, so one
+    who cannot be referred (already has an open referral, not visible) is reported and the rest
+    still go through."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": EDIT}
+
+    @extend_schema(request=ReferralBulkSerializer, responses={200: dict})
+    def post(self, request):
+        s = ReferralBulkSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        created, skipped = [], []
+        for pid in dict.fromkeys(d["participant_ids"]):  # drop repeats, keep order
+            try:
+                r = services.create_referral(
+                    actor=request.user,
+                    participant_id=pid,
+                    opportunity_id=d["opportunity_id"],
+                    note=d.get("note", ""),
+                    submit=d["submit"],
+                )
+            except services.RuleViolation as exc:
+                skipped.append({"participant_id": str(pid), "message": exc.message})
+            else:
+                created.append({"participant_id": str(pid), "referral_id": str(r.pk)})
+        return Response({"created": created, "skipped": skipped})
 
 
 class ReferralDetailView(APIView):

@@ -257,3 +257,29 @@ def test_reasons_are_filtered_by_outcome(officer):
     c = client_for(officer)
     codes = {r["code"] for r in c.get(f"{URL}/reasons", {"stage": "no_response"}).json()}
     assert codes == {"NOR-EMPLOYER", "NOR-YOUTH", "OTHER"}
+
+
+def test_bulk_refer_reports_each_youth_separately(opp, officer, youth, stranger):
+    """One referral per youth: someone already referred, or out of scope, is skipped and
+    named, and the others still go through."""
+    other = Participant.objects.create(full_name_source="Test Youth C", assigned_officer=officer)
+    c = client_for(officer)
+    first = c.post(
+        f"{URL}/bulk",
+        {"opportunity_id": str(opp.pk), "participant_ids": [str(youth.pk)]},
+        content_type=JSON,
+    )
+    assert first.status_code == 200 and len(first.json()["created"]) == 1
+    r = c.post(
+        f"{URL}/bulk",
+        {
+            "opportunity_id": str(opp.pk),
+            "participant_ids": [str(youth.pk), str(other.pk), str(stranger.pk), str(other.pk)],
+        },
+        content_type=JSON,
+    )
+    body = r.json()
+    assert [x["participant_id"] for x in body["created"]] == [str(other.pk)]
+    assert {x["participant_id"] for x in body["skipped"]} == {str(youth.pk), str(stranger.pk)}
+    assert Referral.objects.filter(opportunity=opp).count() == 2
+    assert Referral.objects.get(participant=other).stage == Referral.SUBMITTED
