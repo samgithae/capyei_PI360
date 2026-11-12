@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { api, ApiError, post } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DialogShell } from '@/components/shared/modals';
@@ -25,15 +24,29 @@ interface Match {
   name: string;
   status: string;
 }
-interface ContactRow {
-  kind: 'phone' | 'email';
-  value: string;
-  primary: boolean;
-}
 interface ExtraRow {
   label: string;
   value: string;
+  /** Added by hand (label editable and removable), as opposed to a standard import column. */
+  custom?: boolean;
 }
+
+/** The extra columns the import keeps, under the same labels, so a youth added by hand looks
+ * the same as one imported. */
+const IMPORT_FIELDS = [
+  'Sector',
+  'TrainingCenter',
+  'Organisation',
+  'Org Physical Address',
+  'Contact Person',
+  'Contact Person PhoneNumber',
+  'Placement Status',
+  'Placement Date',
+  'Benefits',
+  'Designation',
+];
+const freshExtras = (): ExtraRow[] =>
+  IMPORT_FIELDS.map((label) => ({ label, value: '' }));
 
 const opts = (xs: string[]) => xs.map((x) => ({ id: x, name: x }));
 const GENDERS = opts(['female', 'male', 'other', 'unknown']);
@@ -42,21 +55,18 @@ const ENROLLMENT = opts(['enrolled', 'completed', 'withdrawn', 'unknown']);
 const STEPS = ['Identity', 'Home and contact', 'Enrollment', 'Review'];
 
 const BLANK = {
-  name: '',
-  given: '',
-  family: '',
-  other: '',
+  first: '',
+  middle: '',
+  last: '',
   gender: 'unknown',
   status: 'active',
   dob: '',
-  age: '',
-  ageBasis: '',
+  phone: '',
+  email: '',
   county: '',
   resCounty: '',
   subCounty: '',
   ward: '',
-  sourceName: '',
-  sourceId: '',
   cohort: '',
   offering: '',
   enrollmentNo: '',
@@ -86,8 +96,7 @@ export function AddYouth() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [v, setV] = useState<Values>(BLANK);
-  const [contacts, setContacts] = useState<ContactRow[]>([]);
-  const [extras, setExtras] = useState<ExtraRow[]>([]);
+  const [extras, setExtras] = useState<ExtraRow[]>(freshExtras);
   const [error, setError] = useState('');
   const [matches, setMatches] = useState<Match[]>([]);
   const [confirmed, setConfirmed] = useState(false);
@@ -133,35 +142,36 @@ export function AddYouth() {
 
   const reset = () => {
     setV(BLANK);
-    setContacts([]);
-    setExtras([]);
+    setExtras(freshExtras());
     setStep(0);
     setError('');
     setMatches([]);
     setConfirmed(false);
   };
 
+  const fullName = [v.first, v.middle, v.last]
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .join(' ');
+
   const body = () => ({
-    full_name_source: v.name.trim(),
-    given_name: v.given.trim(),
-    family_name: v.family.trim(),
-    other_names: v.other.trim(),
+    full_name_source: fullName,
+    given_name: v.first.trim(),
+    family_name: v.last.trim(),
+    other_names: v.middle.trim(),
     gender: v.gender,
     status: v.status,
     date_of_birth: v.dob || null,
-    age_at_source: v.age === '' ? null : Number(v.age),
-    age_basis_date: v.ageBasis || null,
     origin_county_id: v.county || null,
     residence: {
       county_id: v.resCounty || null,
       sub_county: v.subCounty.trim(),
       ward: v.ward.trim(),
     },
-    contacts: contacts
-      .filter((c) => c.value.trim())
-      .map((c) => ({ ...c, value: c.value.trim() })),
-    source_name: v.sourceName.trim(),
-    source_id: v.sourceId.trim(),
+    contacts: [
+      { kind: 'phone', value: v.phone.trim(), primary: true },
+      { kind: 'email', value: v.email.trim(), primary: true },
+    ].filter((c) => c.value),
     ...(v.offering && {
       enrollment: {
         cohort_course_id: v.offering,
@@ -173,7 +183,9 @@ export function AddYouth() {
         qualification_code: v.qualification.trim(),
         referral_source_code: v.referralSource.trim(),
         extra: Object.fromEntries(
-          extras.filter((x) => x.label.trim()).map((x) => [x.label, x.value]),
+          extras
+            .filter((x) => x.label.trim() && x.value.trim())
+            .map((x) => [x.label.trim(), x.value.trim()]),
         ),
       },
     }),
@@ -193,7 +205,6 @@ export function AddYouth() {
       setError(m);
       // send the user back to the step that holds the problem
       if (/number|enrollment|course/i.test(m)) setStep(2);
-      else if (/ID|system/i.test(m)) setStep(1);
     },
   });
 
@@ -201,11 +212,12 @@ export function AddYouth() {
   const next = async () => {
     setError('');
     if (step === 0) {
-      if (!v.name.trim()) return setError('A name is required.');
+      if (!v.first.trim() || !v.last.trim())
+        return setError('First name and last name are required.');
       if (!confirmed) {
         try {
           const found = await api<{ matches: Match[] }>(
-            `/participants/check-name?name=${encodeURIComponent(v.name.trim())}`,
+            `/participants/check-name?name=${encodeURIComponent(fullName)}`,
           );
           if (found.matches.length) {
             setMatches(found.matches);
@@ -216,15 +228,11 @@ export function AddYouth() {
         }
       }
     }
-    if (step === 1 && v.sourceId.trim() && !v.sourceName.trim())
-      return setError('Say which system the ID is from.');
     if (step === 2 && v.cohort && !v.offering && can('config.view'))
       return setError('Choose a course for the cohort, or clear the cohort.');
     setStep((s) => s + 1);
   };
 
-  const updateContact = (i: number, patch: Partial<ContactRow>) =>
-    setContacts((r) => r.map((y, j) => (j === i ? { ...y, ...patch } : y)));
   const updateExtra = (i: number, patch: Partial<ExtraRow>) =>
     setExtras((r) => r.map((y, j) => (j === i ? { ...y, ...patch } : y)));
 
@@ -233,24 +241,26 @@ export function AddYouth() {
   const countyName = (id: string) =>
     filters.data?.counties.find((c) => c.id === id)?.name ?? '';
   const summary: [string, string][] = [
-    ['Name', v.name],
+    ['Name', fullName],
     ['Gender / status', `${v.gender} / ${v.status}`],
     ['Date of birth', v.dob],
-    ['Age', v.age ? `${v.age}${v.ageBasis ? ` (on ${v.ageBasis})` : ''}` : ''],
     ['Home county', countyName(v.county)],
     [
       'Lives in',
       [countyName(v.resCounty), v.subCounty, v.ward].filter(Boolean).join(', '),
     ],
-    ['Contacts', String(contacts.filter((c) => c.value.trim()).length)],
-    ['Source ID', v.sourceId ? `${v.sourceName}: ${v.sourceId}` : ''],
+    ['Phone', v.phone],
+    ['Email', v.email],
     [
       'Enrollment',
       v.offering
         ? `${filters.data?.cohorts.find((c) => c.id === v.cohort)?.name ?? ''} / ${offerings.data?.find((o) => o.id === v.offering)?.name ?? ''}`
         : 'None yet',
     ],
-    ['Other details', String(extras.filter((x) => x.label.trim()).length)],
+    [
+      'Other details',
+      String(extras.filter((x) => x.label.trim() && x.value.trim()).length),
+    ],
   ];
 
   return (
@@ -289,14 +299,26 @@ export function AddYouth() {
         <div className="space-y-4">
           {step === 0 && (
             <>
-              {text('name', 'Full name (as on the source sheet)', {
-                required: true,
-                onChange: (e: ChangeEvent<HTMLInputElement>) => {
-                  set('name', e.target.value);
-                  setMatches([]);
-                  setConfirmed(false);
-                },
-              })}
+              <div className="grid grid-cols-3 gap-2">
+                {(['first', 'middle', 'last'] as const).map((k) =>
+                  text(
+                    k,
+                    k === 'first'
+                      ? 'First name'
+                      : k === 'middle'
+                        ? 'Middle name'
+                        : 'Last name',
+                    {
+                      required: k !== 'middle',
+                      onChange: (e: ChangeEvent<HTMLInputElement>) => {
+                        set(k, e.target.value);
+                        setMatches([]);
+                        setConfirmed(false);
+                      },
+                    },
+                  ),
+                )}
+              </div>
               {matches.length > 0 && (
                 <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
                   Someone with this name is already in the directory:{' '}
@@ -316,11 +338,6 @@ export function AddYouth() {
                   .
                 </div>
               )}
-              <div className="grid grid-cols-3 gap-2">
-                {text('given', 'Given name')}
-                {text('family', 'Family name')}
-                {text('other', 'Other names')}
-              </div>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Gender">
                   <SelectField
@@ -341,15 +358,7 @@ export function AddYouth() {
                   />
                 </Field>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                {text('dob', 'Date of birth', { type: 'date' })}
-                {text('age', 'Age', { type: 'number', min: 0, max: 120 })}
-                {text('ageBasis', 'Age stated on', { type: 'date' })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Sources usually give an age, not a birth date. Fill in whichever
-                you have; “Age stated on” is the date that age was true.
-              </p>
+              {text('dob', 'Date of birth', { type: 'date' })}
             </>
           )}
 
@@ -382,86 +391,19 @@ export function AddYouth() {
               </div>
               {canContact && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Contact details</p>
-                  {contacts.map((c, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <SelectField
-                        label="Contact type"
-                        className="w-28 capitalize"
-                        value={c.kind}
-                        options={opts(['phone', 'email'])}
-                        onChange={(x) =>
-                          updateContact(i, { kind: x as ContactRow['kind'] })
-                        }
-                      />
-                      <Input
-                        aria-label="Contact value"
-                        placeholder={
-                          c.kind === 'phone' ? '07…' : 'name@example.com'
-                        }
-                        value={c.value}
-                        onChange={(e) =>
-                          updateContact(i, { value: e.target.value })
-                        }
-                      />
-                      <label className="flex items-center gap-1 text-xs whitespace-nowrap">
-                        <Checkbox
-                          checked={c.primary}
-                          onCheckedChange={(on) =>
-                            setContacts((r) =>
-                              r.map((y, j) =>
-                                j === i
-                                  ? { ...y, primary: on === true }
-                                  : y.kind === c.kind && on === true
-                                    ? { ...y, primary: false }
-                                    : y,
-                              ),
-                            )
-                          }
-                        />
-                        Primary
-                      </label>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Remove contact"
-                        onClick={() =>
-                          setContacts((r) => r.filter((_, j) => j !== i))
-                        }
-                      >
-                        <Trash2 />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setContacts((r) => [
-                        ...r,
-                        {
-                          kind: 'phone',
-                          value: '',
-                          primary: !r.some((x) => x.kind === 'phone'),
-                        },
-                      ])
-                    }
-                  >
-                    <Plus /> Add phone or email
-                  </Button>
+                  <p className="text-sm font-medium">Contact information</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {text('phone', 'Phone', {
+                      type: 'tel',
+                      placeholder: '07…',
+                    })}
+                    {text('email', 'Email', {
+                      type: 'email',
+                      placeholder: 'name@example.com',
+                    })}
+                  </div>
                 </div>
               )}
-              <div className="space-y-2">
-                <p className="text-sm font-medium">
-                  ID in another system (optional)
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {text('sourceName', 'System name, e.g. KCB sheet')}
-                  {text('sourceId', 'ID in that system')}
-                </div>
-              </div>
             </>
           )}
 
@@ -521,37 +463,58 @@ export function AddYouth() {
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">
-                      Other details from the source sheet
+                      Other details (same columns as the import)
                     </p>
                     {extras.map((x, i) => (
-                      <div key={i} className="flex gap-2">
-                        <Input
-                          aria-label="Detail label"
-                          placeholder="Label"
-                          value={x.label}
-                          onChange={(e) =>
-                            updateExtra(i, { label: e.target.value })
-                          }
-                        />
-                        <Input
-                          aria-label="Detail value"
-                          placeholder="Value"
-                          value={x.value}
-                          onChange={(e) =>
-                            updateExtra(i, { value: e.target.value })
-                          }
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Remove detail"
-                          onClick={() =>
-                            setExtras((r) => r.filter((_, j) => j !== i))
-                          }
-                        >
-                          <Trash2 />
-                        </Button>
+                      <div key={i} className="flex items-end gap-2">
+                        {x.custom ? (
+                          <Input
+                            aria-label="Detail label"
+                            placeholder="Label"
+                            value={x.label}
+                            onChange={(e) =>
+                              updateExtra(i, { label: e.target.value })
+                            }
+                          />
+                        ) : null}
+                        <div className="flex-1">
+                          {x.custom ? (
+                            <Input
+                              aria-label="Detail value"
+                              placeholder="Value"
+                              value={x.value}
+                              onChange={(e) =>
+                                updateExtra(i, { value: e.target.value })
+                              }
+                            />
+                          ) : (
+                            <Field label={x.label}>
+                              <Input
+                                aria-label={x.label}
+                                type={
+                                  x.label === 'Placement Date' ? 'date' : 'text'
+                                }
+                                value={x.value}
+                                onChange={(e) =>
+                                  updateExtra(i, { value: e.target.value })
+                                }
+                              />
+                            </Field>
+                          )}
+                        </div>
+                        {x.custom && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Remove detail"
+                            onClick={() =>
+                              setExtras((r) => r.filter((_, j) => j !== i))
+                            }
+                          >
+                            <Trash2 />
+                          </Button>
+                        )}
                       </div>
                     ))}
                     <Button
@@ -559,10 +522,13 @@ export function AddYouth() {
                       variant="outline"
                       size="sm"
                       onClick={() =>
-                        setExtras((r) => [...r, { label: '', value: '' }])
+                        setExtras((r) => [
+                          ...r,
+                          { label: '', value: '', custom: true },
+                        ])
                       }
                     >
-                      <Plus /> Add a detail
+                      <Plus /> Add another detail
                     </Button>
                   </div>
                 </>
