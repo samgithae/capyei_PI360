@@ -276,7 +276,13 @@ export function ReferencePage({ kind }: { kind: string }) {
   });
   // names for the parent records this kind points to
   const fkKinds = [
-    ...new Set(def.fields.filter((f) => f.fk).map((f) => f.fk!)),
+    ...new Set([
+      ...def.fields.filter((f) => f.fk).map((f) => f.fk!),
+      // cohort and course pickers label each option with its programme
+      ...(def.fields.some((f) => f.fk === 'cohorts' || f.fk === 'courses')
+        ? ['programmes']
+        : []),
+    ]),
   ];
   const parents = useQueries({
     queries: fkKinds.map((k) => ({
@@ -290,7 +296,7 @@ export function ReferencePage({ kind }: { kind: string }) {
     [fkKinds.join(), parents.map((p) => p.dataUpdatedAt).join()],
   );
   const nameOf = (k: string, id: unknown) =>
-    (parentRows[k] as Row[]).find((r) => r.id === id)?.name ?? '';
+    ((parentRows[k] ?? []) as Row[]).find((r) => r.id === id)?.name ?? '';
 
   const rowLabel = (r: Row) =>
     def.unnamed
