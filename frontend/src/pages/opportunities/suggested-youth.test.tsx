@@ -111,4 +111,16 @@ describe('SuggestedYouth', () => {
     await screen.findByText('A Strong');
     expect(screen.queryByRole('button', { name: /Refer selected/ })).toBeNull();
   });
+
+  it('refreshes the suggestions on demand', async () => {
+    api.mockResolvedValue(two);
+    show();
+    await screen.findByText('A Strong');
+    const calls = api.mock.calls.length;
+    fireEvent.click(
+      screen.getByRole('button', { name: /Refresh suggestions/ }),
+    );
+    await screen.findByText('A Strong');
+    expect(api.mock.calls.length).toBeGreaterThan(calls);
+  });
 });

@@ -244,3 +244,22 @@ def stage_history(referral) -> list[dict]:
 def counts_by_stage(user) -> dict[str, int]:
     rows = visible(user).values("stage").annotate(n=Count("pk"))
     return {r["stage"]: r["n"] for r in rows}
+
+
+def counts_by_opportunity(user) -> dict[str, dict[str, int]]:
+    """Per opportunity: referred, in progress, placed, unsuccessful (scope applied)."""
+    rows = visible(user).values("opportunity_id", "stage").annotate(n=Count("pk"))
+    out: dict[str, dict[str, int]] = {}
+    for r in rows:
+        o = out.setdefault(
+            str(r["opportunity_id"]),
+            {"referred": 0, "in_progress": 0, "placed": 0, "unsuccessful": 0},
+        )
+        o["referred"] += r["n"]
+        if r["stage"] in Referral.ACTIVE:
+            o["in_progress"] += r["n"]
+        elif r["stage"] == Referral.PLACED:
+            o["placed"] += r["n"]
+        elif r["stage"] in Referral.UNSUCCESSFUL:
+            o["unsuccessful"] += r["n"]
+    return out

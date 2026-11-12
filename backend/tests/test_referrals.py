@@ -283,3 +283,17 @@ def test_bulk_refer_reports_each_youth_separately(opp, officer, youth, stranger)
     assert {x["participant_id"] for x in body["skipped"]} == {str(youth.pk), str(stranger.pk)}
     assert Referral.objects.filter(opportunity=opp).count() == 2
     assert Referral.objects.get(participant=other).stage == Referral.SUBMITTED
+
+
+def test_counts_by_opportunity_respect_scope(opp, officer, youth, stranger):
+    c = client_for(officer)
+    c.post(
+        f"{URL}/bulk",
+        {"opportunity_id": str(opp.pk), "participant_ids": [str(youth.pk)]},
+        content_type=JSON,
+    )
+    mine = c.get(f"{URL}/by-opportunity").json()
+    assert mine[str(opp.pk)] == {"referred": 1, "in_progress": 1, "placed": 0, "unsuccessful": 0}
+    # A referral for a youth outside the officer's scope is not counted for them.
+    Referral.objects.create(participant=stranger, opportunity=opp, stage=Referral.PLACED)
+    assert c.get(f"{URL}/by-opportunity").json()[str(opp.pk)]["referred"] == 1

@@ -104,6 +104,7 @@ MATRIX = {
         "DELETE": "employers.edit",
     },
     "referrals/bulk": {"POST": "referrals.edit"},
+    "referrals/by-opportunity": {"GET": "referrals.view"},
     "referrals": {"GET": "referrals.view", "POST": "referrals.edit"},
     "referrals/summary": {"GET": "referrals.view"},
     "referrals/reasons": {"GET": "referrals.view"},

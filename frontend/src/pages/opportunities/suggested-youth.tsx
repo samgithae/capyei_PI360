@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, CircleHelp, X } from 'lucide-react';
+import { Check, CircleHelp, RefreshCw, X } from 'lucide-react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { api, ApiError } from '@/lib/api';
@@ -170,6 +170,25 @@ export function SuggestedYouth({
               uses the number of requirements each youth meets.
             </p>
           )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={q.isFetching}
+              onClick={() => void q.refetch()}
+            >
+              <RefreshCw className={q.isFetching ? 'animate-spin' : ''} />
+              {q.isFetching ? 'Refreshing...' : 'Refresh suggestions'}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Last updated{' '}
+              {new Date(q.dataUpdatedAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+              . Refresh after youth profiles, requirements or rules change.
+            </span>
+          </div>
           {canRefer && rows.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" variant="outline" onClick={topN}>

@@ -33,6 +33,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { SelectField } from '@/components/shared/select-field';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { EditOpportunity } from './opportunity-edit';
 import { SuggestedYouth } from './suggested-youth';
 
 interface Requirement {
@@ -137,6 +138,7 @@ export function OpportunityPage() {
   const [removing, setRemoving] = useState<Requirement | null>(null);
   const [confirmMove, setConfirmMove] = useState<string | null>(null);
   const [referring, setReferring] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
 
   const refresh = () => {
     setError('');
@@ -290,6 +292,14 @@ export function OpportunityPage() {
             {canEdit && (
               <>
                 {!locked && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditingDetails(true)}
+                  >
+                    <Pencil /> Edit details
+                  </Button>
+                )}
+                {!locked && (
                   <Button variant="outline" onClick={() => setDateOpen(true)}>
                     <Pencil /> Set closing date
                   </Button>
@@ -313,6 +323,9 @@ export function OpportunityPage() {
           </>
         }
       />
+      {editingDetails && (
+        <EditOpportunity id={o.id} onClose={() => setEditingDetails(false)} />
+      )}
       <ReferDialog
         open={referring}
         onOpenChange={setReferring}

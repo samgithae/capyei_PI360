@@ -189,6 +189,17 @@ class ReferralSummaryView(APIView):
         return Response({s: counts.get(s, 0) for s in STAGE_NAMES})
 
 
+class ReferralByOpportunityView(APIView):
+    """Referral counts per opportunity, for the Opportunities list analytics (scope applied)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": VIEW}
+
+    @extend_schema(operation_id="referrals_by_opportunity", responses={200: dict})
+    def get(self, request):
+        return Response(services.counts_by_opportunity(request.user))
+
+
 class ReferralReasonsView(APIView):
     permission_classes = [HasPermission]
     required_permission = {"GET": VIEW}

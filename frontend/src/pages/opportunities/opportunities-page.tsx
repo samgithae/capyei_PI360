@@ -63,6 +63,12 @@ interface Page {
   page_size: number;
   results: Row[];
 }
+interface RefCounts {
+  referred: number;
+  in_progress: number;
+  placed: number;
+  unsuccessful: number;
+}
 interface EmployerPage {
   results: { id: string; name: string }[];
 }
@@ -89,6 +95,7 @@ function AddOpportunity({
     county_id: null as string | null,
     location: '',
     description: '',
+    start_date: null as string | null,
   });
   const [error, setError] = useState('');
   const employers = useQuery({
@@ -103,6 +110,7 @@ function AddOpportunity({
         ...v,
         positions: Number(v.positions),
         closing_date: v.closing_date || null,
+        start_date: v.start_date,
       }),
     onSuccess: (o) => {
       toast.success('Opportunity saved as a draft.');
@@ -252,6 +260,21 @@ export function OpportunitiesPage() {
     queryKeys: ['opportunities', 'opportunity-count'],
     onDone: selection.clear,
   });
+  const canSeeReferrals = can('referrals.view');
+  const byOpp = useQuery({
+    queryKey: ['referrals', 'by-opportunity'],
+    queryFn: () => api<Record<string, RefCounts>>('/referrals/by-opportunity'),
+    enabled: canSeeReferrals,
+  });
+  const ref = (id: string): RefCounts =>
+    byOpp.data?.[id] ?? {
+      referred: 0,
+      in_progress: 0,
+      placed: 0,
+      unsuccessful: 0,
+    };
+  const sum = (k: keyof RefCounts) =>
+    Object.values(byOpp.data ?? {}).reduce((a, r) => a + r[k], 0);
   const total = useCount();
   const open = useCount('open');
   const draft = useCount('draft');
@@ -291,6 +314,26 @@ export function OpportunitiesPage() {
           }
         />
       </div>
+      {canSeeReferrals && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <SummaryStatCard
+            label="Referrals made"
+            value={byOpp.data ? sum('referred') : undefined}
+          />
+          <SummaryStatCard
+            label="In progress"
+            value={byOpp.data ? sum('in_progress') : undefined}
+          />
+          <SummaryStatCard
+            label="Placed"
+            value={byOpp.data ? sum('placed') : undefined}
+          />
+          <SummaryStatCard
+            label="Not successful"
+            value={byOpp.data ? sum('unsuccessful') : undefined}
+          />
+        </div>
+      )}
       <AddOpportunity open={adding} onOpenChange={setAdding} />
       {archive.dialog}
       {editing && (
@@ -377,6 +420,13 @@ export function OpportunitiesPage() {
                 <TableHead>Employer</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Positions</TableHead>
+                {canSeeReferrals && (
+                  <>
+                    <TableHead>Referred</TableHead>
+                    <TableHead>In progress</TableHead>
+                    <TableHead>Placed</TableHead>
+                  </>
+                )}
                 <TableHead>Closes</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-12">
@@ -412,6 +462,15 @@ export function OpportunitiesPage() {
                   <TableCell>{o.employer}</TableCell>
                   <TableCell className="capitalize">{o.kind}</TableCell>
                   <TableCell>{o.positions}</TableCell>
+                  {canSeeReferrals && (
+                    <>
+                      <TableCell>{ref(o.id).referred}</TableCell>
+                      <TableCell>{ref(o.id).in_progress}</TableCell>
+                      <TableCell>
+                        {ref(o.id).placed} of {o.positions}
+                      </TableCell>
+                    </>
+                  )}
                   <TableCell>{o.closing_date ?? ''}</TableCell>
                   <TableCell>
                     <StatusBadge status={o.status} />

@@ -10,6 +10,7 @@ export interface WhereWhat {
   county_id: string | null;
   location: string;
   description: string;
+  start_date: string | null;
 }
 
 interface Options {
@@ -34,6 +35,15 @@ export function WhereWhatFields({
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-start`}>Start date</Label>
+          <Input
+            id={`${idPrefix}-start`}
+            type="date"
+            value={value.start_date ?? ''}
+            onChange={(e) => onChange({ start_date: e.target.value || null })}
+          />
+        </div>
         <div className="space-y-1.5">
           <Label>Industry</Label>
           <SelectField

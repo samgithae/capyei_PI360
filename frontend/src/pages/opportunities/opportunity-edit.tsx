@@ -18,6 +18,7 @@ interface Detail {
   positions: number;
   description: string;
   closing_date: string | null;
+  start_date: string | null;
 }
 
 const KINDS = ['job', 'internship', 'apprenticeship', 'other'].map((k) => ({
@@ -56,6 +57,7 @@ export function EditOpportunity({
           positions: Number(b.positions),
           description: b.description,
           closing_date: b.closing_date || null,
+          start_date: b.start_date || null,
         }),
       }),
     onSuccess: () => {
