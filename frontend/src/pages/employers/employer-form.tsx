@@ -1,9 +1,8 @@
 import { FormEvent, useState } from 'react';
-import { useAuth } from '@/auth/auth-context';
-import { Link } from 'react-router';
 import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ManageLink } from '@/components/shared/manage-link';
 import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
 
@@ -56,7 +55,6 @@ export function EmployerForm({
   onSave: (values: EmployerValues, confirmDuplicate: boolean) => Promise<void>;
   onCancel?: () => void;
 }) {
-  const { can } = useAuth();
   const [v, setV] = useState(initial);
   const [matches, setMatches] = useState<Match[]>([]);
   const [error, setError] = useState('');
@@ -124,19 +122,11 @@ export function EmployerForm({
           ['active', 'inactive', 'prospect'].map((s) => ({ id: s, name: s })),
         )}
       </div>
-      {can('reference.manage') && (
-        <p className="text-xs text-muted-foreground">
-          Sector missing?{' '}
-          <Link
-            to="/administration/sectors"
-            className="text-primary underline"
-            target="_blank"
-          >
-            Add or manage sectors
-          </Link>{' '}
-          (opens in a new tab, then reopen this form).
-        </p>
-      )}
+      <ManageLink
+        missing="Sector"
+        to="/administration/sectors"
+        label="Add or manage sectors"
+      />
       <PlaceFields
         countyId={v.county_id ?? ''}
         subCounty={v.sub_county}

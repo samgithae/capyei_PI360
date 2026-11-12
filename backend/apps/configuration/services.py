@@ -1,8 +1,10 @@
 """Public interface of apps.configuration: reference data, feature flags, protected settings.
 Other modules import only this module. Every change is audited in the same transaction."""
 
+import json
 import re
 import uuid
+from pathlib import Path
 
 from django.conf import settings as dj_settings
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -18,6 +20,8 @@ from .models import (
     ProtectedSetting,
     ReferenceAlias,
     ReferenceLabel,
+    SubCounty,
+    Ward,
     norm,
 )
 from .reference import KINDS, OPTIONAL_FKS
@@ -38,6 +42,48 @@ class ConfigError(ValueError):
 def ensure_seed_data() -> None:
     for code, name in COUNTIES:
         County.objects.get_or_create(code=code, defaults={"name": name})
+    _seed_geography()
+
+
+def _seed_geography() -> None:
+    """Sub-counties and wards from ``geography.json`` (IEBC constituencies and their wards).
+
+    The sub-county level uses the 290 constituencies because wards are published under them.
+    Adds what is missing and never edits or removes anything, so renames, retirements and
+    records added by hand survive; it is safe to run on every migrate."""
+    data = json.loads((Path(__file__).parent / "geography.json").read_text(encoding="utf-8"))
+    counties = {c.code: c for c in County.objects.all()}
+    have_subs = {(s.county_id, s.name_normalised) for s in SubCounty.objects.all()}
+    new_subs = []
+    for ccode, subs in data.items():
+        county = counties.get(ccode)
+        if county is None:
+            continue
+        for scode, sname, _ in subs:
+            if (county.id, norm(sname)) in have_subs:
+                continue
+            new_subs.append(
+                SubCounty(county=county, code=scode, name=sname, name_normalised=norm(sname))
+            )
+    SubCounty.objects.bulk_create(new_subs)
+    sub_ids = {(s.county_id, s.name_normalised): s.id for s in SubCounty.objects.all()}
+    have_wards = {(w.sub_county_id, w.name_normalised) for w in Ward.objects.all()}
+    new_wards = []
+    for ccode, subs in data.items():
+        county = counties.get(ccode)
+        if county is None:
+            continue
+        for _, sname, wards in subs:
+            sub_id = sub_ids.get((county.id, norm(sname)))
+            if sub_id is None:
+                continue
+            for wcode, wname in wards:
+                if (sub_id, norm(wname)) in have_wards:
+                    continue
+                new_wards.append(
+                    Ward(sub_county_id=sub_id, code=wcode, name=wname, name_normalised=norm(wname))
+                )
+    Ward.objects.bulk_create(new_wards)
 
 
 # --- reference data (T-057) ------------------------------------------------

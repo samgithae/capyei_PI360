@@ -8,6 +8,7 @@ import { api, ApiError, post } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ManageLink } from '@/components/shared/manage-link';
 import { DialogShell } from '@/components/shared/modals';
 import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
@@ -448,6 +449,11 @@ export function AddYouth() {
                   </Field>
                 )}
               </div>
+              <ManageLink
+                missing="Cohort or course"
+                to="/administration/cohorts"
+                label="Manage cohorts"
+              />
               {v.offering && (
                 <>
                   <div className="grid grid-cols-2 gap-2">

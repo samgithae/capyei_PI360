@@ -2,7 +2,7 @@
 
 Living document. Update it when a phase closes or a rule changes. The plan is in `../planning/`
 (task IDs `T-xxx`, decisions `D-xxx`); the per-session history is in the Obsidian handoff log
-`Claude Handoff/capyei-pi360.md`. Last updated: 2026-11-11.
+`Claude Handoff/capyei-pi360.md`. Last updated: 2026-11-12.
 
 ## 1. Where we are
 
@@ -23,6 +23,7 @@ the import, directory and admin tooling. Everything below is on `main` at
 | Referral workflow (stages, reason codes, corrections, reassign) | Done; stage list and reason codes await D-037 | T-046 |
 | Rules engine and rule versions (draft, review, approve, activate; a version in force is never edited; every step audited) | Done; who approves awaits D-009 (Administrator holds both rule permissions for now) | T-047 |
 | Initial rule configuration (three draft rule sets, one per module, loaded by `load_initial_rules`) | Done as drafts; every value awaits D-008, D-009, D-013, D-026, D-028 | T-048 |
+| Reference admin pages for every list (programmes, cohorts, courses, counties, sub-counties, wards...); Kenya geography seeded (47 / 290 / 1,448); searchable selects | Done | T-057 |
 | YDM assessment capture | Not started, optional, gated | T-049 |
 | Modules A/B/C, dashboard, exports, case management, follow-up | Not started (M3) | T-060..T-071 |
 
@@ -81,8 +82,8 @@ duplicates a live one is not checked; official CAP-YEI SVG logo (PNG in use).
 **Finish M2: the intelligence foundation, then start M3.** See section 4 of the chat hand-off or
 `../planning/01_Implementation_Plan.md` §5 and `02_WBS.md`.
 
-1. **T-050/T-051 QA** (next): synthetic data covering all entities; iteration QA.
-2. **T-052 M2 review**: demo and acceptance.
+1. **T-050 gaps**: Playwright e2e, axe checks, synthetic data generator (not started). T-051 QA run once: see `docs/m2-review.md`.
+2. **T-052 M2 review**: `docs/m2-review.md` written; awaiting product owner sign-off.
 3. Then M3 (I05): T-064 interventions/case queues, T-065 placements and employment episodes,
    T-060 compatibility engine (Module B), T-063 support priority (Module A), T-067 employer
    reliability (Module C), T-054/T-055 consent and duplicate warnings.

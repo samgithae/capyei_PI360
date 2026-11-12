@@ -109,7 +109,7 @@ def test_same_ward_name_under_two_sub_counties(admin):
         {"code": "W9", "name": "central", "sub_county": subs[0]},
     )
     assert dup.status_code == 400
-    assert Ward.objects.count() == 2
+    assert Ward.objects.filter(sub_county_id__in=subs).count() == 2
 
 
 @pytest.mark.django_db
@@ -215,3 +215,21 @@ def test_steward_cannot_change_protected_settings(make_user):
     assert change(c).status_code == 403
     with pytest.raises(ConfigError):
         services.change_setting(actor=make_user("x"), key="nope", value=1, reason="r", password="p")
+
+
+@pytest.mark.django_db
+def test_geography_is_seeded_and_reseeding_keeps_edits():
+    from apps.configuration.models import SubCounty
+
+    assert SubCounty.objects.count() == 290
+    assert Ward.objects.count() == 1448
+    assert SubCounty.objects.filter(county__name="Mombasa", name="Changamwe").exists()
+    sub = SubCounty.objects.get(county__name="Mombasa", name="Changamwe")
+    assert sub.wards.count() > 0
+    w = sub.wards.first()
+    w.active = False
+    w.save()
+    services.ensure_seed_data()  # idempotent, leaves retired rows alone
+    assert Ward.objects.count() == 1448
+    w.refresh_from_db()
+    assert w.active is False

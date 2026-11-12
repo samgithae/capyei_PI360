@@ -22,6 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DataCard } from '@/components/data-card';
+import { ManageLink } from '@/components/shared/manage-link';
 import { FormModal } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
 import { SelectField } from '@/components/shared/select-field';
@@ -578,6 +579,13 @@ export function ReferencePage({ kind }: { kind: string }) {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, [f.key]: e.target.value }))
                 }
+              />
+            )}
+            {f.type === 'fk' && (
+              <ManageLink
+                missing={f.label}
+                to={`/administration/${f.fk}`}
+                label={`Add or manage ${f.label.toLowerCase()}`}
               />
             )}
           </div>
