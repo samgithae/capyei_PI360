@@ -1,12 +1,15 @@
 import { useState } from 'react';
+import { useAuth } from '@/auth/auth-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
+import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FormModal } from '@/components/shared/modals';
+import { PageHeader } from '@/components/shared/page-header';
 import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
@@ -14,8 +17,12 @@ import { ErrorState, LoadingState } from '@/components/states';
 interface Enrollment {
   id: string;
   programme: string;
+  programme_id: string;
   cohort: string;
+  cohort_id: string;
+  cohort_course_id: string;
   course: string;
+  institution: string;
   enrollment_no: string;
   status: string;
   enrolled_on: string | null;
@@ -49,7 +56,15 @@ interface Detail {
 }
 interface Filters {
   counties: { id: string; name: string }[];
+  programmes: { id: string; name: string }[];
+  cohorts: {
+    id: string;
+    name: string;
+    programme_id: string;
+    institution: string;
+  }[];
 }
+type Offering = { id: string; name: string };
 
 const GENDERS = ['female', 'male', 'other', 'unknown'];
 const STATUSES = ['active', 'completed', 'withdrawn', 'unknown'];
@@ -58,16 +73,97 @@ const opts = (xs: string[]) => xs.map((x) => ({ id: x, name: x }));
 const NO_COUNTY = 'none'; // Radix Select cannot hold an empty value
 
 type Core = Omit<Detail, 'enrollments'>;
-type EnrollmentDraft = Record<string, Partial<Enrollment>>;
+type EnrollmentDraft = Record<
+  string,
+  Partial<Enrollment> & { cohort_course_id?: string }
+>;
+
+/** Cohort and course pickers for one enrollment. The programme and institution belong to the
+ * cohort, so they are shown but follow the cohort choice rather than being typed. */
+function OfferingFields({
+  cohortId,
+  courseId,
+  currentCourse,
+  filters,
+  canPickCourse,
+  onChange,
+}: {
+  cohortId: string;
+  courseId: string;
+  currentCourse: string;
+  filters?: Filters;
+  canPickCourse: boolean;
+  onChange: (cohortId: string, courseId: string) => void;
+}) {
+  const cohort = filters?.cohorts.find((c) => c.id === cohortId);
+  const programme = filters?.programmes.find(
+    (p) => p.id === cohort?.programme_id,
+  );
+  const offerings = useQuery({
+    queryKey: ['offerings', cohortId],
+    enabled: canPickCourse && !!cohortId,
+    queryFn: async () => {
+      const [cc, courses] = await Promise.all([
+        api<{ id: string; course: string }[]>(
+          `/config/reference/cohort-courses?cohort=${cohortId}&active=true`,
+        ),
+        api<Offering[]>('/config/reference/courses'),
+      ]);
+      const name = new Map(courses.map((c) => [c.id, c.name]));
+      return cc.map((o) => ({
+        id: o.id,
+        name: name.get(o.course) ?? 'Course',
+      }));
+    },
+  });
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label>Cohort</Label>
+        <SelectField
+          label="Cohort"
+          value={cohortId}
+          options={filters?.cohorts ?? []}
+          // The old course belongs to the old cohort; the user must choose again.
+          onChange={(x) => onChange(x, '')}
+          className="w-full"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label>Course</Label>
+        {canPickCourse ? (
+          <SelectField
+            label="Course"
+            value={courseId}
+            emptyLabel="Choose a course"
+            options={offerings.data ?? []}
+            onChange={(x) => onChange(cohortId, x)}
+            className="w-full"
+          />
+        ) : (
+          <p className="text-sm">{currentCourse}</p>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        <Label>Programme</Label>
+        <p className="text-sm">{programme?.name ?? '-'}</p>
+        <p className="text-xs text-muted-foreground">Set by the cohort.</p>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Institution</Label>
+        <p className="text-sm">{cohort?.institution ?? '-'}</p>
+        <p className="text-xs text-muted-foreground">Set by the cohort.</p>
+      </div>
+    </>
+  );
+}
 
 /** Edit everything about a participant the API allows: identity, demographics and each enrollment. */
-export function EditParticipant({
-  id,
-  onClose,
-}: {
-  id: string;
-  onClose: () => void;
-}) {
+export function EditParticipant() {
+  const { id = '' } = useParams();
+  const navigate = useNavigate();
+  const { can } = useAuth();
+  const onClose = () => navigate(`/youth/${id}`);
   const qc = useQueryClient();
   const detail = useQuery({
     queryKey: ['participant', id],
@@ -136,6 +232,7 @@ export function EditParticipant({
       for (const [eid, change] of Object.entries(enr)) {
         if (Object.keys(change).length === 0) continue;
         const { enrollment_no, ...rest } = change;
+        delete rest.cohort_id; // UI-only; the API takes the course offering
         await api(`/participants/${id}/enrollments/${eid}`, {
           method: 'PATCH',
           body: JSON.stringify({
@@ -172,29 +269,42 @@ export function EditParticipant({
       </div>
     );
 
+  const submit = () => {
+    setError('');
+    if (contacts?.some((c) => !c.value.trim()))
+      return setError('Fill in or remove the empty contact.');
+    if (v && !v.name.trim()) return setError('Enter the full name.');
+    if (Object.values(enr).some((c) => c.cohort_course_id === ''))
+      return setError('Choose a course for the cohort you picked.');
+    save.mutate();
+  };
+
   return (
-    <FormModal
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title="Edit participant"
-      description="Only the fields you change are saved, and each change is recorded in the audit log."
-      submitLabel="Save changes"
-      pending={save.isPending}
-      error={error}
-      onSubmit={() => {
-        setError('');
-        if (contacts?.some((c) => !c.value.trim()))
-          return setError('Fill in or remove the empty contact.');
-        if (v && !v.name.trim()) return setError('Enter the full name.');
-        save.mutate();
-      }}
-    >
+    <div className="container-fluid space-y-6">
+      <Helmet>
+        <title>Edit {d?.name ?? 'youth'} | PI 360</title>
+      </Helmet>
+      <PageHeader
+        crumbs={[
+          { label: 'Youth', to: '/youth' },
+          { label: d?.name ?? '...', to: `/youth/${id}` },
+          { label: 'Edit' },
+        ]}
+        title={`Edit ${d?.name ?? 'youth'}`}
+        description="Only the fields you change are saved, and each change is recorded in the audit log."
+      />
       {detail.isPending && <LoadingState />}
       {detail.isError && (
         <ErrorState error={detail.error} onRetry={() => detail.refetch()} />
       )}
       {v && (
-        <div className="max-h-[65vh] space-y-4 overflow-y-auto pe-1">
+        <form
+          className="space-y-6"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+        >
           {text('name', 'Full name (as shown in lists)')}
           <div className="grid gap-4 sm:grid-cols-3">
             {text('given_name', 'Given name')}
@@ -389,6 +499,19 @@ export function EditParticipant({
                   {e.programme}: {e.cohort}, {e.course}
                 </legend>
                 <div className="grid gap-4 sm:grid-cols-2">
+                  <OfferingFields
+                    cohortId={m.cohort_id}
+                    courseId={m.cohort_course_id}
+                    currentCourse={e.course}
+                    filters={filters.data}
+                    canPickCourse={can('config.view')}
+                    onChange={(cohort, course) =>
+                      patchEnr(e.id, {
+                        cohort_id: cohort,
+                        cohort_course_id: course,
+                      })
+                    }
+                  />
                   <div className="space-y-1.5">
                     <Label htmlFor={`en-no-${e.id}`}>Enrollment no.</Label>
                     <Input
@@ -445,8 +568,21 @@ export function EditParticipant({
               </fieldset>
             );
           })}
-        </div>
+          <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-background py-3">
+            {error && (
+              <p role="alert" className="me-auto text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            <Button type="button" variant="outline" asChild>
+              <Link to={`/youth/${id}`}>Cancel</Link>
+            </Button>
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? 'Saving...' : 'Save changes'}
+            </Button>
+          </div>
+        </form>
       )}
-    </FormModal>
+    </div>
   );
 }

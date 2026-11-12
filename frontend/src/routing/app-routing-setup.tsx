@@ -16,6 +16,7 @@ import { OpportunityPage } from '@/pages/opportunities/opportunity-page';
 import { OverviewPage } from '@/pages/overview-page';
 import { DirectoryPage } from '@/pages/participants/directory-page';
 import { DuplicatesPage } from '@/pages/participants/duplicates-page';
+import { EditParticipant } from '@/pages/participants/participant-edit';
 import { ProfilePage } from '@/pages/participants/profile-page';
 import { PlaceholderPage } from '@/pages/placeholder-page';
 import { ReferralPage } from '@/pages/referrals/referral-page';
@@ -69,6 +70,9 @@ export function AppRoutingSetup() {
           <Route element={<RequirePermission permission="participants.view" />}>
             <Route path="/youth" element={<DirectoryPage />} />
             <Route path="/youth/:id" element={<ProfilePage />} />
+          </Route>
+          <Route element={<RequirePermission permission="participants.edit" />}>
+            <Route path="/youth/:id/edit" element={<EditParticipant />} />
           </Route>
           <Route element={<RequirePermission permission="imports.run" />}>
             <Route path="/imports" element={<ImportsPage />} />

@@ -26,7 +26,6 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { CapabilityProfile } from './capability-profile';
 import { InviteCard } from './invite-card';
-import { EditParticipant } from './participant-edit';
 
 interface Enrollment {
   id: string;
@@ -39,6 +38,7 @@ interface Enrollment {
   status: string;
   enrolled_on: string | null;
   completed_on: string | null;
+  exit_reason?: string;
 }
 interface Detail {
   archived: boolean;
@@ -48,6 +48,11 @@ interface Detail {
   age: number | null;
   status: string;
   county: string;
+  given_name?: string;
+  family_name?: string;
+  other_names?: string;
+  date_of_birth?: string | null;
+  age_basis_date?: string | null;
   enrollments: Enrollment[];
   residences: {
     county: string;
@@ -58,10 +63,29 @@ interface Detail {
   contacts?: { kind: string; value: string; primary: boolean }[];
 }
 
+/** One labelled value; an empty one says so, so a missing field is visible rather than hidden. */
+function Fact({
+  label,
+  value,
+  capitalise,
+}: {
+  label: string;
+  value?: string | null;
+  capitalise?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className={capitalise ? 'capitalize' : undefined}>
+        {value || <span className="text-muted-foreground">Not recorded</span>}
+      </dd>
+    </div>
+  );
+}
+
 export function ProfilePage() {
   const { id } = useParams();
   const { can } = useAuth();
-  const [editing, setEditing] = useState(false);
   const [referring, setReferring] = useState(false);
   const archive = useArchiveFlow({
     path: '/participants',
@@ -135,8 +159,10 @@ export function ProfilePage() {
               </Button>
             )}
             {can('participants.edit') && (
-              <Button onClick={() => setEditing(true)}>
-                <Pencil /> Edit
+              <Button asChild>
+                <Link to={`/youth/${p.id}/edit`}>
+                  <Pencil /> Edit
+                </Link>
               </Button>
             )}
           </div>
@@ -153,15 +179,66 @@ export function ProfilePage() {
           This participant is archived and hidden from lists and reports.
         </p>
       )}
-      {editing && (
-        <EditParticipant id={p.id} onClose={() => setEditing(false)} />
-      )}
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <ParticipantStatus status={p.status} />
         <span>{p.gender}</span>
         {p.age !== null && <span>Age {p.age}</span>}
         {p.county && <span>{p.county}</span>}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Personal details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <Fact label="Full name" value={p.name} />
+            <Fact label="Given name" value={p.given_name} />
+            <Fact label="Family name" value={p.family_name} />
+            <Fact label="Other names" value={p.other_names} />
+            <Fact label="Gender" value={p.gender} capitalise />
+            <Fact label="Status" value={p.status} capitalise />
+            <Fact label="Date of birth" value={p.date_of_birth} />
+            <Fact
+              label="Age"
+              value={
+                p.age === null
+                  ? ''
+                  : `${p.age}${p.age_basis_date ? ` (as at ${p.age_basis_date})` : ''}`
+              }
+            />
+            <Fact label="Home county" value={p.county} />
+            <Fact
+              label="Current county"
+              value={p.residences.find((r) => r.current)?.county}
+            />
+            <Fact
+              label="Current sub-county"
+              value={p.residences.find((r) => r.current)?.sub_county}
+            />
+            <Fact
+              label="Current ward"
+              value={p.residences.find((r) => r.current)?.ward}
+            />
+          </dl>
+          {p.residences.some((r) => !r.current) && (
+            <div className="mt-4 text-sm">
+              <p className="mb-1 font-medium">Previous addresses</p>
+              <ul className="list-disc space-y-0.5 ps-5 text-muted-foreground">
+                {p.residences
+                  .filter((r) => !r.current)
+                  .map((r, i) => (
+                    <li key={i}>
+                      {[r.county, r.sub_county, r.ward]
+                        .filter(Boolean)
+                        .join(', ') || 'Not recorded'}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <DataCard title="Enrollment history">
         <Table>
@@ -173,6 +250,9 @@ export function ProfilePage() {
               <TableHead>Institution</TableHead>
               <TableHead>Enrollment no.</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Enrolled on</TableHead>
+              <TableHead>Completed on</TableHead>
+              <TableHead>Exit reason</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -186,6 +266,9 @@ export function ProfilePage() {
                 <TableCell>
                   <ParticipantStatus status={e.status} />
                 </TableCell>
+                <TableCell>{e.enrolled_on ?? ''}</TableCell>
+                <TableCell>{e.completed_on ?? ''}</TableCell>
+                <TableCell>{e.exit_reason ?? ''}</TableCell>
               </TableRow>
             ))}
           </TableBody>

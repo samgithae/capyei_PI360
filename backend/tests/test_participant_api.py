@@ -172,3 +172,49 @@ def test_check_name_finds_existing(world, make_user):
     found = c.get(f"{URL}/check-name", {"name": "person 1"}).json()["matches"]
     assert [m["name"] for m in found] == ["Person 1"]
     assert c.get(f"{URL}/check-name", {"name": "Nobody Here"}).json()["matches"] == []
+
+
+def test_enrollment_can_move_to_another_cohort_course(world, make_user):
+    c = client_for(make_user("steward", "Data steward"))
+    p1, _ = world["1"]
+    cc2 = CohortCourse.objects.get(cohort__code="K2")
+    e = p1.enrollments.get()
+    r = c.patch(
+        f"{URL}/{p1.pk}/enrollments/{e.pk}",
+        {"cohort_course_id": str(cc2.pk)},
+        content_type="application/json",
+    )
+    assert r.status_code == 200, r.content
+    e.refresh_from_db()
+    assert e.cohort_course_id == cc2.pk
+    assert e.programme.code == "P2"  # programme follows the cohort
+    row = r.json()["enrollments"][0]
+    assert row["cohort"] == "Cohort 2" and row["cohort_course_id"] == str(cc2.pk)
+    assert AuditEvent.objects.filter(action="participant.enrollment_edited").exists()
+
+
+def test_enrollment_move_rejects_unknown_and_clashing_number(world, make_user):
+    c = client_for(make_user("steward", "Data steward"))
+    p1, _ = world["1"]
+    e = p1.enrollments.get()
+    url = f"{URL}/{p1.pk}/enrollments/{e.pk}"
+    bad = c.patch(
+        url,
+        {"cohort_course_id": "11111111-1111-1111-1111-111111111111"},
+        content_type="application/json",
+    )
+    assert bad.status_code == 400
+    # Person 2 already holds number E1 in Programme 2; moving Person 1 there must clash.
+    ParticipantEnrollment.objects.filter(participant=world["2"][0]).update(
+        source_enrollment_no="E1"
+    )
+    cc2 = CohortCourse.objects.get(cohort__code="K2")
+    clash = c.patch(url, {"cohort_course_id": str(cc2.pk)}, content_type="application/json")
+    assert clash.status_code == 400
+    e.refresh_from_db()
+    assert e.programme.code == "P1"
+
+
+def test_filter_options_cohorts_name_their_institution(world, make_user):
+    c = client_for(make_user("steward", "Data steward"))
+    assert c.get(f"{URL}/filters").json()["cohorts"][0]["institution"] == "College"

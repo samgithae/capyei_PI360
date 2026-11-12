@@ -647,12 +647,14 @@ def filter_options():
             for o in qs
         ]
 
+    cohorts = Cohort.objects.filter(active=True).select_related("institution")
+    cohort_rows = rows(cohorts.order_by("-intake_year", "name"), extra=("programme_id",))
+    institution = {str(c.pk): c.institution.name for c in cohorts}
+    for r in cohort_rows:
+        r["institution"] = institution[r["id"]]
     return {
         "programmes": rows(Programme.objects.filter(active=True).order_by("name")),
-        "cohorts": rows(
-            Cohort.objects.filter(active=True).order_by("-intake_year", "name"),
-            extra=("programme_id",),
-        ),
+        "cohorts": cohort_rows,
         "counties": rows(County.objects.order_by("code")),
         "sectors": rows(Sector.objects.filter(active=True).order_by("name")),
     }

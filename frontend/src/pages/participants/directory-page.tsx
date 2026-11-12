@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
 import { ReferenceImport } from '@/pages/admin/reference-import';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,7 +32,6 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { AddYouth } from './add-youth';
-import { EditParticipant } from './participant-edit';
 
 interface Row {
   id: string;
@@ -77,7 +75,7 @@ export function DirectoryPage() {
   const { can } = useAuth();
   const [params, setParams] = useSearchParams();
   const offset = Number(params.get('offset') ?? 0);
-  const [editing, setEditing] = useState<string | null>(null);
+  const navigate = useNavigate();
   const showArchived = params.get('archived') === '1';
   const canEdit = can('participants.edit');
   const canArchive = can('records.archive');
@@ -152,9 +150,6 @@ export function DirectoryPage() {
       />
 
       {archive.dialog}
-      {editing && (
-        <EditParticipant id={editing} onClose={() => setEditing(null)} />
-      )}
 
       <DataCard
         toolbar={
@@ -291,7 +286,11 @@ export function DirectoryPage() {
                       label={p.name}
                       viewTo={`/youth/${p.id}`}
                       archived={p.archived}
-                      onEdit={canEdit ? () => setEditing(p.id) : undefined}
+                      onEdit={
+                        canEdit
+                          ? () => navigate(`/youth/${p.id}/edit`)
+                          : undefined
+                      }
                       onArchive={
                         canArchive
                           ? () => archive.request([p.id], true)

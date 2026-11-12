@@ -62,7 +62,10 @@ def _detail(p, user):
             {
                 "id": str(e.pk),
                 "programme": e.programme.name,
+                "programme_id": str(e.programme_id),
                 "cohort": e.cohort_course.cohort.name,
+                "cohort_id": str(e.cohort_course.cohort_id),
+                "cohort_course_id": str(e.cohort_course_id),
                 "course": e.cohort_course.course.name,
                 "institution": e.institution.name,
                 "enrollment_no": e.source_enrollment_no,
@@ -363,6 +366,8 @@ class EnrollmentEditSerializer(serializers.Serializer):
     enrolled_on = serializers.DateField(allow_null=True, required=False)
     completed_on = serializers.DateField(allow_null=True, required=False)
     exit_reason = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    # Moving to another cohort/course; programme and institution follow the cohort.
+    cohort_course_id = serializers.UUIDField(required=False)
 
 
 class EnrollmentDetailView(APIView):
@@ -382,13 +387,33 @@ class EnrollmentDetailView(APIView):
             raise NotFound from None
         s = EnrollmentEditSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        before = {k: getattr(e, k) for k in s.validated_data}
-        after = {k: v for k, v in s.validated_data.items() if before[k] != v}
+        data = dict(s.validated_data)
+        offering = data.pop("cohort_course_id", None)
+        before = {k: getattr(e, k) for k in data}
+        after = {k: v for k, v in data.items() if before[k] != v}
+        programme_id = e.programme_id
+        if offering is not None and offering != e.cohort_course_id:
+            ids = configuration.offering_ids(offering)
+            if ids is None:
+                raise serializers.ValidationError({"cohort_course_id": "Unknown course offering."})
+            if p.enrollments.filter(cohort_course_id=offering).exclude(pk=e.pk).exists():
+                raise serializers.ValidationError(
+                    {"cohort_course_id": "This youth is already enrolled in that course."}
+                )
+            before["cohort_course_id"] = str(e.cohort_course_id)
+            before["programme_id"] = str(e.programme_id)
+            before["institution_id"] = str(e.institution_id)
+            after["cohort_course_id"] = offering
+            after["programme_id"], after["institution_id"] = ids
+            programme_id = ids[0]
+        # A number is checked against the programme it will belong to after the change.
         no = after.get("source_enrollment_no")
+        if no is None and programme_id != e.programme_id:
+            no = e.source_enrollment_no
         if (
             no
             and ParticipantEnrollment.objects.filter(
-                programme=e.programme_id, source_enrollment_no=no
+                programme=programme_id, source_enrollment_no=no
             )
             .exclude(pk=e.pk)
             .exists()
@@ -402,7 +427,9 @@ class EnrollmentDetailView(APIView):
             e.save()
 
             def plain(x):
-                return x.isoformat() if hasattr(x, "isoformat") else x
+                if hasattr(x, "isoformat"):
+                    return x.isoformat()
+                return str(x) if isinstance(x, uuid.UUID) else x
 
             audit.record(
                 actor=request.user,
