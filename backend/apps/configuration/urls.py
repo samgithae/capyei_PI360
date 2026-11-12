@@ -4,6 +4,8 @@ from . import views as v
 
 urlpatterns = [
     path("config/reference/<str:kind>", v.ReferenceListView.as_view()),
+    path("config/reference/<str:kind>/import", v.ReferenceImportView.as_view()),
+    path("config/reference/<str:kind>/import-template", v.ReferenceImportTemplateView.as_view()),
     path("config/reference/<str:kind>/<uuid:pk>", v.ReferenceDetailView.as_view()),
     path("config/reference/<str:kind>/<uuid:pk>/deactivate", v.ReferenceDeactivateView.as_view()),
     path("config/reference/<str:kind>/<uuid:pk>/reactivate", v.ReferenceReactivateView.as_view()),

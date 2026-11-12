@@ -233,3 +233,74 @@ def test_geography_is_seeded_and_reseeding_keeps_edits():
     assert Ward.objects.count() == 1448
     w.refresh_from_db()
     assert w.active is False
+
+
+# --- bulk import from CSV / Excel -------------------------------------------------------------
+
+
+def upload(c, kind, text, name="f.csv", dry=False):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    f = SimpleUploadedFile(name, text.encode(), content_type="text/csv")
+    return c.post(
+        f"/api/v1/config/reference/{kind}/import", {"file": f, "dry_run": "1" if dry else ""}
+    )
+
+
+@pytest.mark.django_db
+def test_import_chain_programmes_to_cohort_courses_is_idempotent(admin):
+    from apps.configuration.models import Cohort, CohortCourse, Course, Programme
+
+    c = api(admin)
+    steps = [
+        ("sectors", "code,name\nS1,Hospitality\n"),
+        ("programmes", "code,name,start,status\nP1,Prog One,2025-01-01,active\n"),
+        ("institutions", "code,name,kind,county\nI1,Test VTC,vtc,Nairobi\n"),
+        ("courses", "code,name,programme,sector\nC1,Cooking,P1,S1\n"),
+        (
+            "cohorts",
+            "code,name,programme,institution,intake_year,batch_no\nCH1,Batch 1,P1,I1,2025,1\n",
+        ),
+        ("cohort-courses", "cohort,course,capacity\nCH1,C1,30\n"),
+    ]
+    for kind, text in steps:
+        body = upload(c, kind, text).json()
+        assert (body["created"], body["failed"]) == (1, 0), (kind, body)
+        again = upload(c, kind, text).json()  # second run changes nothing
+        assert (again["created"], again["skipped"]) == (0, 1)
+    assert Programme.objects.count() == 1 and Course.objects.count() == 1
+    assert Cohort.objects.get().intake_year == 2025
+    assert CohortCourse.objects.get().capacity == 30
+    assert "reference.created" in actions()
+
+
+@pytest.mark.django_db
+def test_import_dry_run_saves_nothing_and_bad_rows_are_reported(admin):
+    from apps.configuration.models import Programme
+
+    text = "code,name,start\nP1,One,2025-01-01\nP2,Two,not-a-date\n,Three,\n"
+    body = upload(api(admin), "programmes", text, dry=True).json()
+    assert body["created"] == 1 and body["failed"] == 2
+    assert {e["row"] for e in body["errors"]} == {3, 4}
+    assert Programme.objects.count() == 0
+    real = upload(api(admin), "programmes", text).json()
+    assert real["created"] == 1 and Programme.objects.count() == 1  # valid rows still load
+
+
+@pytest.mark.django_db
+def test_import_rejects_unknown_parent_missing_column_and_bad_type(admin):
+    c = api(admin)
+    r = upload(c, "courses", "code,name\nC1,Cooking\n")
+    assert r.status_code == 400 and "programme" in str(r.json())
+    body = upload(c, "courses", "code,name,programme\nC1,Cooking,NOPE\n").json()
+    assert body["failed"] == 1 and "No programme" in body["errors"][0]["message"]
+    assert upload(c, "sectors", "x", name="f.txt").status_code == 400
+
+
+@pytest.mark.django_db
+def test_import_needs_manage_permission_and_template_downloads(admin, make_user):
+    viewer = make_user("viewer1", "Manager")
+    assert upload(api(viewer), "sectors", "code,name\nS1,A\n").status_code == 403
+    r = api(admin).get("/api/v1/config/reference/cohorts/import-template")
+    assert r.status_code == 200 and r.content.decode().startswith("code,name,programme")
+    assert api(admin).get("/api/v1/config/reference/counties/import-template").status_code == 404

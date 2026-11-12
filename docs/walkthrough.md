@@ -1,0 +1,135 @@
+# PI 360 walkthrough: youth → employer → opportunity → rules → referral
+
+A hands-on guide to try the whole flow on your local copy. It follows the order work happens in real life, and says what the system does at each step and why.
+
+> **Honest status:** the rules screens (write, review, approve, activate) are built. The rules *engine* exists, but no screen applies the active rules to a youth or opportunity yet. That wiring is Month 3 work. So in step 5 you will *see and approve* the rules, and in step 6 *you* decide the referral. The system records what you decide.
+
+## 0. Before you start
+
+- API on `http://localhost:8010`, web on `http://localhost:5174`.
+- Dev logins are created by `backend/scripts/seed_dev.py` (usernames and passwords are at the top of that file). Roles you will use:
+
+| Login | Role | What it is good for here |
+|---|---|---|
+| `dev.steward` | Data steward | create youth, employers, reference data |
+| `dev.admin` | Administrator | write, approve and activate rules; manage roles and staff |
+| `dev.officer` | Placement officer | refer youth and move referrals (only sees *their* caseload) |
+| `dev.viewer` | Manager | oversee the officer's caseload |
+
+**Why several roles?** Separation of duties. The person who creates data, the person who approves rules and the person who works referrals are different jobs, and each action is checked against the role.
+
+## 1. Set up the reference lists (once)
+
+**Where:** Administration menu.
+
+Dropdowns everywhere come from these lists, so fill them first: **Programmes → Cohorts → Courses → Cohort courses**, **Training institutions**, **Sectors**, and the geography (**Counties → Sub-counties → Wards**).
+
+- **Bulk load:** programmes, cohorts, courses, cohort courses, training institutions and sectors each have an **Import** button. Download the template, fill it in a spreadsheet, upload the .csv or .xlsx, **Preview** (nothing is saved), then confirm. Existing records are skipped, rows with errors are listed by row number and the rest still load. Import in this order: sectors, programmes, institutions, courses, cohorts, cohort courses (each file points to the earlier ones by code or name).
+- Counties (47), sub-counties (290) and wards (1,448) load automatically when the database is migrated.
+- Click a county to see its sub-counties; click a sub-county to see its wards.
+- A cohort-course is "this cohort runs this course". A youth is enrolled into one of these.
+- "Retire" hides an entry from new records but keeps it on old ones. Nothing is hard-deleted, so history stays truthful.
+
+## 2. Create a youth
+
+**Where:** Youth → **Add youth** (a four-step wizard). Log in as `dev.steward`.
+
+1. **Identity.** Only the name is required. Add national ID, date of birth, gender, status when you have them. *Why optional:* real registers are incomplete; the system flags gaps rather than blocking you.
+2. **Home and contact.** Phone, email, and the residence: County → Sub-county → Ward. Each list follows the one before it. Choosing a county first is what fills the sub-county list.
+3. **Enrollment.** Pick a Cohort, then a Course (only courses that cohort runs), and the enrollment status.
+4. **Review.** Check and save.
+
+What happens behind the scenes:
+- The system checks for a likely duplicate (same ID or very similar name and details) so one person does not become two records. Duplicates go to **Duplicates** for a person to merge or dismiss.
+- Every change is written to an audit trail: who, what, when.
+- Changing the residence later *closes the old address and keeps it in the history*, so you can always see where someone lived at a given time.
+
+**Check it:** Youth list → open the new person. You should see enrollments, contacts, residence and history.
+
+## 3. Create an employer
+
+**Where:** Employers → **Add employer**.
+
+Fields: name, sector, county, sub-county, address, website, status (active / inactive / prospect), notes.
+
+- On save, the system looks for **similar names** ("Safaricom Ltd" vs "Safaricom Limited"). You can "Save anyway" if it really is a different employer.
+- Status matters: an opportunity can only be **opened** for an *active* employer.
+- Need a sector that is missing? Use the "Add or manage sectors" link under the dropdowns.
+
+## 4. Create an opportunity (and its requirements)
+
+**Where:** Opportunities → **Add opportunity**, then open it.
+
+1. **Create:** choose the employer, title, type (job, training, attachment), number of positions, closing date. It saves as a **Draft**.
+2. **Add requirements** (on the opportunity page). Each is typed (skill, qualification, location, availability, other) and marked **mandatory** or **preferred**.
+   - *Mandatory* = if the youth lacks it they may be "not eligible".
+   - *Preferred* = only adds to a fit score.
+   - These are what the compatibility rule (Module B) will read later.
+3. **Open it.** Needs a closing date and an active employer. Only an **open** opportunity, on or before its closing date, can receive referrals.
+4. **Lifecycle:** Draft → Open → Closed / Expired. The day after the closing date a daily job marks it Expired (and referrals are blocked even before the job runs). Closed and Expired are *locked*: no edits until you **Reopen**. *Why:* so the record of what was offered cannot be rewritten after referrals were made against it.
+
+Pilot caveat: requirements are free text today. Matching will need structured values (for example "24 months", "skill X level 2"). That is Month 3.
+
+## 5. Rules: write, review, approve, activate
+
+**Where:** Rules menu. Log in as `dev.admin` (the Administrator can both draft and approve).
+
+There are three **rule sets**, one per question the system helps answer:
+
+| Module | Question | Output |
+|---|---|---|
+| A. Support priority | Who may need extra follow-up? | A flag with a reason, in a staff queue. Never blocks access to opportunities. |
+| B. Compatibility | How well does this youth fit this opportunity? | Mandatory checks → eligible / eligible with unknowns / not eligible; preferred factors → a score. |
+| C. Employer reliability | How has this employer responded in the past? | Indicators (response rate, interview and placement conversion, early retention), hidden as "insufficient evidence" when there are too few records. |
+
+A rule set has numbered **versions**. A version is a list of **factors** (the checks, e.g. "months of experience is at least the requirement") and **parameters** (the numbers they use, e.g. "how many days is too long").
+
+Walk one version through its life:
+
+1. Open a rule set, then a version. Only a **Draft** can be edited.
+2. In a draft, edit factors and parameters. For each parameter record the value, and tick **decided** only when the product owner has actually confirmed it.
+3. **Send for review.** (Rule author action.)
+4. **Approve.** Refused while any parameter is still undecided. *Why:* an unconfirmed threshold must never reach production.
+5. **Activate.** The new version goes into force and the one it replaces is **Retired**.
+6. To change anything later: **Copy as new draft** from the active version, edit the copy, repeat. The version in force is never edited, and every step records who and when. A reviewer can **Return to draft** with a note saying what to change.
+
+Why so strict: the rules decide who gets support and who is called a good fit. People must be able to see exactly which version was in force when a suggestion was made, and who approved it.
+
+**Check it:** the version page shows status, "what changed", created-by, and a history of every step.
+
+## 6. Refer a youth to the opportunity
+
+**Where:** open the opportunity → **Refer youth** (or Referrals → add). Log in as `dev.officer`.
+
+An officer sees only youth in their **caseload**; anyone else looks like they do not exist. That is by design.
+
+1. Search for the youth, choose them, then **Send referral** (or **Save draft** to hold it back).
+2. Use the opportunity's requirements and the active rules as your guide; today the *decision is yours*. The system suggests nothing automatically yet.
+3. The referral then moves through stages. Every move adds a row to its history and nothing is overwritten:
+
+```
+Draft → Submitted → Under review → Interview (optional) → Selected → Placed → Closed
+              ↘ Rejected / Withdrawn / No response → Closed
+```
+
+4. Ending unsuccessfully (Rejected, Withdrawn, No response) **requires a reason code** from a fixed list, for example "skills gap", "distance or transport cost", "employer did not respond". *Why:* so the pilot can later learn why placements fail instead of reading free text. "Other" needs a written note.
+5. **One live referral per youth per opportunity**, so there are no accidental duplicates.
+6. Made a mistake? You cannot edit history. You add a **correction** with a written note pointing at the entry it fixes. The original stays visible. Reopening a closed referral needs a **Manager**.
+
+**Check it:** Referrals list → open it → the history shows each move with who and when. Log in as `dev.viewer` (Manager) to see the same record from the supervising side.
+
+## 7. What to try as a full dry run
+
+1. Steward: add a youth in Nairobi → Westlands → Kitisuru, enrolled in a cohort.
+2. Steward: add an active employer; add an opportunity with two mandatory and one preferred requirement; open it.
+3. Admin: open the Compatibility rule set, copy the active version, decide the parameters, send for review, approve, activate.
+4. Officer: refer the youth, move it Submitted → Interview → Selected → Placed → Closed.
+5. Officer: refer a second youth and end it as Rejected. Notice the reason code is compulsory.
+6. Admin: open a rule version's history and a youth's history to see the audit trail.
+
+## 8. What is not built yet
+
+- Applying the active rules to produce a compatibility result, support-priority flag or employer reliability profile on screen (Month 3).
+- Structured requirement values (needed for matching).
+- Support cases / work queues (Month 3).
+- Placement follow-up at 30 and 90 days: shown in the pilot guide diagram, not checked by me whether it is wired up.

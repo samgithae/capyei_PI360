@@ -2,15 +2,17 @@
 
 import uuid
 
+from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.api.access import HasPermission
 
-from . import services
+from . import importer, services
 from .models import FeatureFlag
 from .reference import KINDS
 from .serializers import (
@@ -223,3 +225,56 @@ class SettingListView(APIView):
         body.is_valid(raise_exception=True)
         _run(services.change_setting, actor=request.user, **body.validated_data)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ReferenceImportView(APIView):
+    """Upload a CSV or Excel file of reference records. ``dry_run=1`` previews without saving."""
+
+    permission_classes = [HasPermission]
+    required_permission = REFERENCE
+    parser_classes = [MultiPartParser]
+
+    @extend_schema(
+        operation_id="config_reference_import",
+        request={
+            "multipart/form-data": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "format": "binary"},
+                    "dry_run": {"type": "boolean"},
+                },
+            }
+        },
+        responses={200: dict},
+    )
+    def post(self, request, kind):
+        _kind(kind)
+        upload = request.FILES.get("file")
+        if upload is None:
+            raise serializers.ValidationError({"file": "Choose a CSV or Excel file."})
+        dry = str(request.data.get("dry_run", "")).lower() in ("1", "true", "yes")
+        try:
+            result = importer.run_import(
+                actor=request.user,
+                key=kind,
+                filename=upload.name,
+                content=upload.read(),
+                dry_run=dry,
+            )
+        except importer.FileError as exc:
+            raise serializers.ValidationError({"file": str(exc)}) from exc
+        return Response(result)
+
+
+class ReferenceImportTemplateView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = VIEW
+
+    @extend_schema(operation_id="config_reference_import_template", responses={200: bytes})
+    def get(self, request, kind):
+        _kind(kind)
+        if not importer.importable(kind):
+            raise NotFound()
+        resp = HttpResponse(importer.template_csv(kind), content_type="text/csv")
+        resp["Content-Disposition"] = f'attachment; filename="{kind}-template.csv"'
+        return resp

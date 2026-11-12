@@ -487,6 +487,61 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/config/reference/{kind}/import:
+    post:
+      operationId: config_reference_import
+      description: Upload a CSV or Excel file of reference records. ``dry_run=1``
+        previews without saving.
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - config
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                dry_run:
+                  type: boolean
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/config/reference/{kind}/import-template:
+    get:
+      operationId: config_reference_import_template
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - config
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/config/settings:
     get:
       operationId: config_settings_list

@@ -28,6 +28,7 @@ import { FormModal } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
 import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
+import { ReferenceImport } from './reference-import';
 
 type FieldType = 'text' | 'number' | 'date' | 'select' | 'fk';
 interface FieldDef {
@@ -247,6 +248,17 @@ const codeFor = (name: string) =>
     .slice(0, 40);
 
 // Clicking a county opens its sub-counties; clicking a sub-county opens its wards.
+// Kinds that can be bulk-imported, with the columns the file needs (* = required).
+const IMPORT_COLUMNS: Record<string, string> = {
+  sectors: 'code*, name*',
+  institutions: 'code*, name*, kind, county* (code or name)',
+  programmes: 'code*, name*, funder, start, end, status',
+  courses: 'code*, name*, programme*, level, sector',
+  cohorts:
+    'code*, name*, programme*, institution*, intake_year*, batch_no*, phase, year_of_study, start, end, status',
+  'cohort-courses': 'cohort*, course*, programme, capacity',
+};
+
 const DRILL: Record<string, { to: string; param: string }> = {
   counties: { to: 'sub-counties', param: 'county' },
   'sub-counties': { to: 'wards', param: 'sub_county' },
@@ -429,7 +441,19 @@ export function ReferencePage({ kind }: { kind: string }) {
         description={def.description}
         actions={
           canManage && (
-            <Button onClick={() => open('new')}>Add {def.singular}</Button>
+            <div className="flex gap-2">
+              {IMPORT_COLUMNS[kind] && (
+                <ReferenceImport
+                  kind={kind}
+                  title={def.title}
+                  columns={IMPORT_COLUMNS[kind]}
+                  onDone={() => {
+                    void qc.invalidateQueries({ queryKey: ['reference'] });
+                  }}
+                />
+              )}
+              <Button onClick={() => open('new')}>Add {def.singular}</Button>
+            </div>
           )
         }
       />

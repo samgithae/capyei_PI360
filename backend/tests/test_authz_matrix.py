@@ -39,6 +39,8 @@ MATRIX = {
     "identity/users/<int:pk>/scopes": {"PUT": "identity.manage_roles"},
     "audit/events": {"GET": "audit.view"},
     "config/reference/<str:kind>": {"GET": "config.view", "POST": "reference.manage"},
+    "config/reference/<str:kind>/import": {"POST": "reference.manage"},
+    "config/reference/<str:kind>/import-template": {"GET": "config.view"},
     "config/reference/<str:kind>/<uuid:pk>": {"GET": "config.view", "PATCH": "reference.manage"},
     "config/reference/<str:kind>/<uuid:pk>/deactivate": {"POST": "reference.manage"},
     "config/reference/<str:kind>/<uuid:pk>/reactivate": {"POST": "reference.manage"},
