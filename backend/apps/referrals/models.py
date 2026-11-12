@@ -87,6 +87,12 @@ class Referral(models.Model):
         related_name="+",
     )
     referred_at = models.DateTimeField(null=True, blank=True)  # set when submitted
+    # Interview details the learner is told about. Staff-entered; the note is written for the
+    # learner (what to bring, who to ask for), so it is the only free text they see.
+    interview_at = models.DateTimeField(null=True, blank=True)
+    interview_place = models.CharField(max_length=200, blank=True)
+    interview_note = models.CharField(max_length=500, blank=True)
+    interview_set_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

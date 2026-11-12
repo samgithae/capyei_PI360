@@ -229,3 +229,19 @@ def undo_import(*, actor, placement_ids) -> int:
             object_id="bulk", after={"removed": n},
         )  # fmt: skip
     return n
+
+
+def for_enrollments(enrollment_ids) -> list[dict]:
+    """Verified-or-imported placements that were mapped as a real placement, for the learner's
+    own page. Only facts, no review notes."""
+    rows = Placement.objects.filter(enrollment_id__in=list(enrollment_ids), status="placed")
+    return [
+        {
+            "id": str(p.id),
+            "employer": p.employer.name if p.employer_id else p.employer_name_source,
+            "designation": p.designation,
+            "pathway": p.get_pathway_display() if p.pathway else "",
+            "start_date": p.start_date.isoformat() if p.start_date else None,
+        }
+        for p in rows.select_related("employer")
+    ]

@@ -72,6 +72,10 @@ MATRIX = {
     "youth/consent": {"POST": "youth.self_service"},
     "youth/profile": {"PUT": "youth.self_service"},
     "youth/details": {"PUT": "youth.self_service"},
+    "youth/journey": {"GET": "youth.self_service"},
+    "youth/notices": {"GET": "youth.self_service", "POST": "youth.self_service"},
+    "youth/placement": {"GET": "youth.self_service"},
+    "youth/opportunities/<uuid:pk>": {"GET": "youth.self_service"},
     "participants/<uuid:pk>/residence": {"PUT": "participants.edit"},
     "participants/<uuid:pk>/profile": {
         "GET": "participants.view_profile",
@@ -112,6 +116,7 @@ MATRIX = {
     "referrals/assignees": {"GET": "caseload.reassign"},
     "referrals/<uuid:pk>": {"GET": "referrals.view"},
     "referrals/<uuid:pk>/transition": {"POST": "referrals.edit"},
+    "referrals/<uuid:pk>/interview": {"PUT": "referrals.edit"},
     "referrals/<uuid:pk>/correct": {"POST": "referrals.view"},  # + stage check in view
     "referrals/<uuid:pk>/assign": {"POST": "caseload.reassign"},
     "referrals/<uuid:pk>/history": {"GET": "referrals.view"},

@@ -272,3 +272,115 @@ def test_youth_edits_their_own_details_but_not_the_risky_ones(steward, person):
     assert Participant.objects.get(pk=person.pk).status == before
     ev = AuditEvent.objects.filter(action="youth.details_edited").latest("at")
     assert "0712" not in str(ev.after)
+
+
+def _referral(person, title, stages, note="private staff note"):
+    """A referral that has moved through `stages`, with history, built directly."""
+    from datetime import date
+
+    from apps.employers.models import Employer, Opportunity
+    from apps.referrals.models import Referral, StageEvent
+
+    opp = Opportunity.objects.create(
+        employer=Employer.objects.create(name=f"Employer {title}"),
+        title=title,
+        status=Opportunity.OPEN,
+        closing_date=date.today() + timedelta(days=30),
+    )
+    r = Referral.objects.create(
+        participant=person,
+        opportunity=opp,
+        stage=stages[-1],
+        referred_at=timezone.now(),
+        reason_note=note,
+    )
+    prev = ""
+    for s in stages:
+        StageEvent.objects.create(
+            referral=r, from_stage=prev, to_stage=s, actor_label="Officer", at=timezone.now(),
+            note=note,
+        )  # fmt: skip
+        prev = s
+    return r
+
+
+def test_youth_sees_only_their_own_referrals_in_plain_words(steward, person):
+    from django.contrib.auth.models import User
+
+    activate(person, steward)
+    youth = api(User.objects.get(username=EMAIL))
+    assert youth.get("/api/v1/youth/journey").status_code == 400  # notice not accepted yet
+    youth.post(
+        "/api/v1/youth/consent",
+        {"version": services.CONSENT_VERSION},
+        content_type="application/json",
+    )
+    assert youth.get("/api/v1/youth/journey").json()["latest"] is None
+
+    mine = _referral(person, "Welder", ["draft", "submitted", "under_review", "interview"])
+    refused = _referral(
+        person, "Cashier", ["draft", "submitted", "rejected", "closed"], note="too junior"
+    )
+    other = Participant.objects.create(full_name_source="Someone Else")
+    theirs = _referral(other, "Driver", ["draft", "submitted"])
+    _referral(person, "Unsent", ["draft"])  # a draft is not shown to the youth yet
+
+    j = youth.get("/api/v1/youth/journey").json()
+    assert [x["opportunity"] for x in j["items"]] == ["Cashier", "Welder"] or {
+        x["opportunity"] for x in j["items"]
+    } == {"Welder", "Cashier"}
+    assert j["counts"] == {"referred": 2, "interview": 1, "selected": 0, "placed": 0}
+    by_title = {x["opportunity"]: x for x in j["items"]}
+    assert by_title["Welder"]["stage_label"] == "Interview"
+    assert by_title["Cashier"]["stage_label"] == "Not selected"
+    assert by_title["Cashier"]["ended"] is True
+    text = str(j)
+    assert "too junior" not in text and "private staff note" not in text
+    assert "score" not in text and "Someone Else" not in text
+
+    d = youth.get(f"/api/v1/youth/opportunities/{mine.pk}").json()
+    assert d["opportunity"] == "Welder"
+    assert [t["label"] for t in d["timeline"]] == ["Referred", "Under review", "Interview"]
+    assert "private staff note" not in str(d)
+    assert youth.get(f"/api/v1/youth/opportunities/{theirs.pk}").status_code == 404
+    assert youth.get(f"/api/v1/youth/opportunities/{refused.pk}").status_code == 200
+
+
+def test_interview_details_notices_and_placement(steward, person):
+    from django.contrib.auth.models import User
+
+    from apps.referrals import services as ref
+    from apps.referrals.models import Referral
+
+    activate(person, steward)
+    youth = api(User.objects.get(username=EMAIL))
+    youth.post(
+        "/api/v1/youth/consent",
+        {"version": services.CONSENT_VERSION},
+        content_type="application/json",
+    )
+    r = _referral(person, "Welder", ["draft", "submitted", "under_review"])
+    staff = User.objects.get(pk=steward.pk) if hasattr(steward, "pk") else steward
+    # interview details need the interview stage
+    try:
+        ref.set_interview(actor=staff, referral=r, at=timezone.now())
+        raise AssertionError("expected a rule violation")
+    except ref.RuleViolation:
+        pass
+    Referral.objects.filter(pk=r.pk).update(stage="interview")
+    at = timezone.now() + timedelta(days=3)
+    ref.set_interview(actor=staff, referral=r, at=at, place="Town office", note="Bring your ID")
+    d = youth.get(f"/api/v1/youth/opportunities/{r.pk}").json()
+    assert d["interview"]["place"] == "Town office"
+    assert d["interview"]["note"] == "Bring your ID"
+
+    n = youth.get("/api/v1/youth/notices").json()
+    assert n["unread"] >= 1 and any("interview" in i["text"] for i in n["items"])
+    seen = youth.post("/api/v1/youth/notices").json()
+    assert seen["unread"] == 0
+
+    assert youth.get("/api/v1/youth/placement").json() == {"placements": [], "referrals": []}
+    done = _referral(person, "Cook", ["draft", "submitted", "selected", "placed"])
+    p = youth.get("/api/v1/youth/placement").json()
+    assert [x["designation"] for x in p["referrals"]] == ["Cook"]
+    assert str(done.pk) == p["referrals"][0]["id"]

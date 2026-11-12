@@ -21,6 +21,8 @@ from apps.api import access
 from apps.audit import services as audit
 from apps.identity import services as identity
 from apps.participants import services as participants
+from apps.placements import services as placements
+from apps.referrals import services as referrals
 
 from .models import YouthAccount, YouthInvite
 
@@ -255,3 +257,50 @@ def write_details(*, user, data) -> dict:
     except participants.DetailsError as exc:
         raise PortalError(exc.field, str(exc)) from exc
     return read(user)
+
+
+def journey(*, user) -> dict:
+    """The learner's dashboard: counters, journey steps and their own referrals."""
+    account = _own(user)
+    if not _consented(account):
+        raise PortalError("consent", "Accept the notice before using your dashboard.")
+    return referrals.learner_journey(account.participant_id)
+
+
+def opportunity(*, user, referral_id) -> dict:
+    account = _own(user)
+    if not _consented(account):
+        raise PortalError("consent", "Accept the notice before using your dashboard.")
+    row = referrals.learner_referral(account.participant_id, referral_id)
+    if row is None:
+        raise PortalError("account", "Not found.")
+    return row
+
+
+def _consented_account(user):
+    account = _own(user)
+    if not _consented(account):
+        raise PortalError("consent", "Accept the notice before using your dashboard.")
+    return account
+
+
+def notices(*, user) -> dict:
+    account = _consented_account(user)
+    return referrals.learner_notices(account.participant_id, account.notices_seen_at)
+
+
+def mark_notices_seen(*, user) -> dict:
+    account = _consented_account(user)
+    account.notices_seen_at = timezone.now()
+    account.save(update_fields=["notices_seen_at"])
+    return referrals.learner_notices(account.participant_id, account.notices_seen_at)
+
+
+def placement(*, user) -> dict:
+    """The learner's own placements: imported records and placed referrals."""
+    account = _consented_account(user)
+    pid = account.participant_id
+    return {
+        "placements": placements.for_enrollments(participants.enrollment_ids(pid)),
+        "referrals": referrals.learner_placed(pid),
+    }

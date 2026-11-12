@@ -10,7 +10,7 @@ export const YOUTH_GUIDES: Guide[] = [
     group: 'Getting started',
     needs: YOUTH,
     start: true,
-    to: { path: '/me', label: 'Open my profile' },
+    to: { path: '/me/profile', label: 'Open my profile' },
     steps: [
       'Your page is called My profile. It shows your qualifications, skills, work experience and when you are available.',
       'You can add or change these. Staff who work on your placement can see them.',
@@ -27,7 +27,7 @@ export const YOUTH_GUIDES: Guide[] = [
     summary: 'What you agree to before your profile is shown.',
     group: 'Getting started',
     needs: YOUTH,
-    to: { path: '/me', label: 'Open my profile' },
+    to: { path: '/me/profile', label: 'Open my profile' },
     steps: [
       'The first time you sign in, you see a short notice explaining how your information is used.',
       'Read it, then choose "I understand and agree". Your profile opens after that.',
@@ -42,7 +42,7 @@ export const YOUTH_GUIDES: Guide[] = [
     summary: 'Tell us what you can do and when you can start.',
     group: 'Youth',
     needs: YOUTH,
-    to: { path: '/me', label: 'Open my profile' },
+    to: { path: '/me/profile', label: 'Open my profile' },
     steps: [
       'On My profile, choose Edit.',
       'Add your highest qualification, the skills you have and how well you know them, and any work experience.',
@@ -60,7 +60,7 @@ export const YOUTH_GUIDES: Guide[] = [
     summary: 'Names, date of birth, where you live and how to reach you.',
     group: 'Youth',
     needs: YOUTH,
-    to: { path: '/me', label: 'Open my profile' },
+    to: { path: '/me/profile', label: 'Open my profile' },
     steps: [
       'On My profile, find the My details card.',
       'Change your names (first, middle and last), gender, date of birth and home county.',
@@ -69,6 +69,27 @@ export const YOUTH_GUIDES: Guide[] = [
       'Choose Save my details.',
     ],
     why: 'Your status, course enrollment and assigned officer are kept by staff, because they affect your placement and reports. The e-mail you sign in with does not change here. Ask your officer if one of those is wrong.',
+    related: ['youth-add-skills'],
+    updated: '2026-11',
+  },
+  {
+    slug: 'youth-track-opportunities',
+    title: 'Follow your opportunities',
+    summary:
+      'See every job or training you were referred to and how far it has got.',
+    group: 'Youth',
+    needs: YOUTH,
+    to: { path: '/me', label: 'Open my dashboard' },
+    steps: [
+      'Open My dashboard. The four numbers show how many opportunities you were referred to, and how many reached interview, selection and placement.',
+      'Latest opportunity shows the most recent one and the five steps: Referred, Under review, Interview, Selected, Placed. Ticked steps are done; the bold one is where you are now.',
+      'Choose My opportunities for the full list, then open one to see what it is, when it starts or closes, and the dates each step happened.',
+      'A status of Not selected or Withdrawn means that opportunity has ended. It stays in your list so you can see your history.',
+      'When an interview is set up, a Your interview box appears on that opportunity with the date, place and anything to bring.',
+      'Updates on My dashboard lists each step reached and any interview details added. Choose Mark as read once you have seen them.',
+      'My placement shows where you were placed, once you are: the employer, the role and the start date.',
+    ],
+    why: 'You only see your own opportunities. Marks, rankings and staff notes are not shown here. Ask your officer if you want to know more about a decision, or if something looks wrong.',
     related: ['youth-add-skills'],
     updated: '2026-11',
   },

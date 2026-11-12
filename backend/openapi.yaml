@@ -3238,6 +3238,50 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/referrals/{id}/interview:
+    put:
+      operationId: referrals_interview_put
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - referrals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                at:
+                  type: string
+                  format: date-time
+                place:
+                  type: string
+                note:
+                  type: string
+              required:
+              - at
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/referrals/{id}/correct:
     post:
       operationId: referrals_correct_create
@@ -3945,6 +3989,87 @@ paths:
             schema:
               type: object
               additionalProperties: {}
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/journey:
+    get:
+      operationId: youth_journey_get
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/notices:
+    get:
+      operationId: youth_notices_get
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: youth_notices_seen
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/placement:
+    get:
+      operationId: youth_placement_get
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/opportunities/{id}:
+    get:
+      operationId: youth_opportunity_get
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - youth
       security:
       - cookieAuth: []
       responses:

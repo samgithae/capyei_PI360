@@ -19,6 +19,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { SelectField } from '@/components/shared/select-field';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { InterviewCard } from './interview-card';
 import {
   stageName,
   STAGES,
@@ -282,6 +283,16 @@ export function ReferralPage() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
+          {r.stage === 'interview' && r.can.edit && (
+            <InterviewCard
+              key={r.interview_at ?? 'new'}
+              id={r.id}
+              at={r.interview_at}
+              place={r.interview_place}
+              note={r.interview_note}
+              onSaved={refresh}
+            />
+          )}
           <Section title="Overview">
             <DetailList
               items={[

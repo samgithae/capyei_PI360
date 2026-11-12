@@ -179,7 +179,9 @@ class YouthDetailsSerializer(serializers.Serializer):
     given_name = serializers.CharField(max_length=100, allow_blank=True, required=False)
     family_name = serializers.CharField(max_length=100, allow_blank=True, required=False)
     other_names = serializers.CharField(max_length=100, allow_blank=True, required=False)
-    gender = serializers.ChoiceField(choices=[g for g, _ in participants.GENDERS], required=False)
+    gender = serializers.ChoiceField(
+        choices=[g for g, _ in participants.GENDER_CHOICES], required=False
+    )
     date_of_birth = serializers.DateField(allow_null=True, required=False)
     county_id = serializers.UUIDField(allow_null=True, required=False)
     residence = _YouthResidenceSerializer(required=False)
@@ -200,3 +202,31 @@ class YouthDetailsView(_Youth):
         s = YouthDetailsSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         return self.run(services.write_details, data=s.validated_data)
+
+
+class YouthJourneyView(_Youth):
+    @extend_schema(operation_id="youth_journey_get", responses={200: dict})
+    def get(self, request):
+        return self.run(services.journey)
+
+
+class YouthOpportunityView(_Youth):
+    @extend_schema(operation_id="youth_opportunity_get", responses={200: dict})
+    def get(self, request, pk):
+        return self.run(services.opportunity, referral_id=pk)
+
+
+class YouthNoticesView(_Youth):
+    @extend_schema(operation_id="youth_notices_get", responses={200: dict})
+    def get(self, request):
+        return self.run(services.notices)
+
+    @extend_schema(operation_id="youth_notices_seen", request=None, responses={200: dict})
+    def post(self, request):
+        return self.run(services.mark_notices_seen)
+
+
+class YouthPlacementView(_Youth):
+    @extend_schema(operation_id="youth_placement_get", responses={200: dict})
+    def get(self, request):
+        return self.run(services.placement)

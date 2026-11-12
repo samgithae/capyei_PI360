@@ -90,3 +90,18 @@ duplicates a live one is not checked; official CAP-YEI SVG logo (PNG in use).
 
 Done in this phase: T-046 referral workflow, T-047 rules engine and versioning, T-048 initial
 draft rules.
+
+## 4. Learner portal roadmap (youth as a personal placement tracker)
+
+- **Phase 1 (done, 2026-11):** dashboard at /me, My opportunities list and detail, built from
+  existing referral data. Youth never see scores, rejection reasons or staff notes.
+- **Phase 2 (built, awaiting commit):** interview details, My placement page, in-app notifications.
+- **Phase 3 (later, when we have the data): support issues and follow-ups. New module, needs
+  design.** Design draft: `docs/learner-support-design.md`.
+  - Support tickets with a reference number, category, status, assigned officer and message history.
+  - Sensitive categories (safety, harassment) need restricted access and must never reach the
+    employer.
+  - Follow-ups at 1 week, 30, 60 and 90 days and 6 months, with a short check-in the learner
+    answers. The data they produce is the retention outcome.
+  - Open before building: who owns tickets, phone check-ins, retention period, and a reliable
+    placement start date.

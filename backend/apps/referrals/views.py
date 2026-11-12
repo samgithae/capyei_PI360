@@ -53,6 +53,9 @@ def _summary(r):
         "assigned_to_id": r.assigned_to_id,
         "referred_at": r.referred_at.isoformat() if r.referred_at else None,
         "closed_at": r.closed_at.isoformat() if r.closed_at else None,
+        "interview_at": r.interview_at.isoformat() if r.interview_at else None,
+        "interview_place": r.interview_place,
+        "interview_note": r.interview_note,
         "updated_at": r.updated_at.isoformat(),
     }
 
@@ -108,6 +111,12 @@ class ReferralMoveSerializer(serializers.Serializer):
     to = serializers.ChoiceField(choices=[s for s, _ in Referral.STAGES])
     reason_id = serializers.UUIDField(required=False, allow_null=True)
     note = serializers.CharField(required=False, allow_blank=True, max_length=2000, default="")
+
+
+class ReferralInterviewSerializer(serializers.Serializer):
+    at = serializers.DateTimeField()
+    place = serializers.CharField(required=False, allow_blank=True, max_length=200, default="")
+    note = serializers.CharField(required=False, allow_blank=True, max_length=500, default="")
 
 
 class ReferralAssignSerializer(serializers.Serializer):
@@ -281,6 +290,31 @@ class ReferralTransitionView(APIView):
                 actor=request.user, referral=r, to=d["to"], reason_id=d.get("reason_id"),
                 note=d["note"],
             )  # fmt: skip
+        except services.RuleViolation as exc:
+            return _violation(exc)
+        return Response(_detail(_get(request, pk), request.user))
+
+
+class ReferralInterviewView(APIView):
+    """Staff set the interview time, place and a note for the learner."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"PUT": EDIT}
+
+    @extend_schema(
+        operation_id="referrals_interview_put",
+        request=ReferralInterviewSerializer,
+        responses={200: dict, 409: dict},
+    )
+    def put(self, request, pk):
+        r = _get(request, pk)
+        s = ReferralInterviewSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        try:
+            services.set_interview(
+                actor=request.user, referral=r, at=d["at"], place=d["place"], note=d["note"]
+            )
         except services.RuleViolation as exc:
             return _violation(exc)
         return Response(_detail(_get(request, pk), request.user))

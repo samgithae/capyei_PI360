@@ -21,9 +21,27 @@ import { type MenuConfig } from './types';
 export const MENU_SIDEBAR: MenuConfig = [
   { title: 'Overview', icon: LayoutDashboard, path: '/' },
   {
+    title: 'My dashboard',
+    icon: LayoutDashboard,
+    path: '/me',
+    permission: 'youth.self_service',
+  },
+  {
+    title: 'My opportunities',
+    icon: Briefcase,
+    path: '/me/opportunities',
+    permission: 'youth.self_service',
+  },
+  {
+    title: 'My placement',
+    icon: Briefcase,
+    path: '/me/placement',
+    permission: 'youth.self_service',
+  },
+  {
     title: 'My profile',
     icon: UserRound,
-    path: '/me',
+    path: '/me/profile',
     permission: 'youth.self_service',
   },
   { heading: 'Participants' },

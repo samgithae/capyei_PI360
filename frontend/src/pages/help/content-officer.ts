@@ -62,6 +62,7 @@ export const OFFICER_GUIDES: Guide[] = [
       'Open the referral from the Referrals list.',
       'Choose the next stage. The usual path is Draft, Submitted, Under review, Interview (optional), Selected, Placed, Closed.',
       'To end a referral as Rejected, Withdrawn or No response, pick a reason code. "Other" needs a written note.',
+      'At Interview, an Interview details box appears. Enter the date and time, the place and a short note for the learner (what to bring, who to ask for), then save. The learner sees it on their opportunity page and in their Updates.',
       'Every move adds a line to the history with who and when.',
     ],
     why: 'Reason codes let the pilot learn why placements fail instead of reading free text.',

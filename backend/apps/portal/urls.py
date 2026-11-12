@@ -10,4 +10,8 @@ urlpatterns = [
     path("youth/consent", views.YouthConsentView.as_view()),
     path("youth/profile", views.YouthProfileView.as_view()),
     path("youth/details", views.YouthDetailsView.as_view()),
+    path("youth/notices", views.YouthNoticesView.as_view()),
+    path("youth/placement", views.YouthPlacementView.as_view()),
+    path("youth/journey", views.YouthJourneyView.as_view()),
+    path("youth/opportunities/<uuid:pk>", views.YouthOpportunityView.as_view()),
 ]

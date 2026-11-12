@@ -16,6 +16,7 @@ class YouthAccount(models.Model):
     )
     consent_version = models.CharField(max_length=20, blank=True)
     consented_at = models.DateTimeField(null=True, blank=True)
+    notices_seen_at = models.DateTimeField(null=True, blank=True)  # updates read up to here
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

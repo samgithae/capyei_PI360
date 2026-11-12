@@ -25,6 +25,12 @@ import { RuleSetPage } from '@/pages/rules/rule-set-page';
 import { RuleVersionPage } from '@/pages/rules/rule-version-page';
 import { RulesPage } from '@/pages/rules/rules-page';
 import { ActivatePage } from '@/pages/youth/activate-page';
+import { DashboardPage } from '@/pages/youth/dashboard-page';
+import {
+  MyOpportunitiesPage,
+  MyOpportunityPage,
+} from '@/pages/youth/my-opportunities';
+import { MyPlacementPage } from '@/pages/youth/my-placement';
 import { PortalPage } from '@/pages/youth/portal-page';
 import { Navigate, Route, Routes } from 'react-router';
 import { Layout1 } from '@/components/layouts/layout-1';
@@ -57,7 +63,14 @@ export function AppRoutingSetup() {
           <Route
             element={<RequirePermission permission="youth.self_service" />}
           >
-            <Route path="/me" element={<PortalPage />} />
+            <Route path="/me" element={<DashboardPage />} />
+            <Route path="/me/placement" element={<MyPlacementPage />} />
+            <Route path="/me/profile" element={<PortalPage />} />
+            <Route path="/me/opportunities" element={<MyOpportunitiesPage />} />
+            <Route
+              path="/me/opportunities/:id"
+              element={<MyOpportunityPage />}
+            />
           </Route>
           {SECTIONS.map(([path, permission, title]) => (
             <Route

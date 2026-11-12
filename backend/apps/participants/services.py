@@ -541,4 +541,13 @@ from .self_details import DetailsError  # noqa: E402,F401
 from .self_details import read_own as read_own_details  # noqa: E402,F401
 from .self_details import write_own as write_own_details  # noqa: E402,F401
 
-GENDERS = _P.GENDERS
+GENDER_CHOICES = _P.GENDERS
+
+
+def enrollment_ids(participant_id) -> list:
+    """Ids of a participant's enrollments (for modules that hold records per enrollment)."""
+    return list(
+        _P.enrollments.rel.related_model.objects.filter(participant_id=participant_id).values_list(
+            "pk", flat=True
+        )
+    )

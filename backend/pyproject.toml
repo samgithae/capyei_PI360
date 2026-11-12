@@ -143,10 +143,10 @@ source_modules = ["apps.identity", "apps.participants", "apps.portal", "apps.emp
 forbidden_modules = ["apps.intelligence"]
 
 [[tool.importlinter.contracts]]
-name = "Youth portal coordinates identity and participants only"
+name = "Youth portal coordinates identity, participants, referrals and placements only"
 type = "forbidden"
 source_modules = ["apps.portal"]
-forbidden_modules = ["apps.employers", "apps.referrals", "apps.placements", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "apps.platform", "apps.configuration", "config"]
+forbidden_modules = ["apps.employers", "apps.intelligence", "apps.imports", "apps.dataquality", "apps.reporting", "apps.platform", "apps.configuration", "config"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]

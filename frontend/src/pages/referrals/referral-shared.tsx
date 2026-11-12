@@ -47,6 +47,9 @@ export interface StageEvent {
 export interface ReferralDetail extends ReferralRow {
   reason_id: string | null;
   reason_note: string;
+  interview_at: string | null;
+  interview_place: string;
+  interview_note: string;
   created_by: string;
   created_at: string;
   next_stages: string[];

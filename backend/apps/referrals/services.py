@@ -176,6 +176,31 @@ def transition(*, actor, referral, to, reason_id=None, note=""):
 
 
 @transaction.atomic
+def set_interview(*, actor, referral, at, place="", note=""):
+    """Record when and where the interview is, for the learner to see. Only while the referral
+    is at the interview stage, so the details never describe a stage it is not in."""
+    referral = Referral.objects.select_for_update().get(pk=referral.pk)
+    if referral.stage != Referral.INTERVIEW:
+        raise RuleViolation(
+            "stage", "Move the referral to Interview before adding interview details.",
+            "not_interview",
+        )  # fmt: skip
+    before = {"interview_at": referral.interview_at.isoformat() if referral.interview_at else None}
+    referral.interview_at, referral.interview_place = at, place
+    referral.interview_note, referral.interview_set_at = note, timezone.now()
+    referral.save(
+        update_fields=[
+            "interview_at", "interview_place", "interview_note", "interview_set_at", "updated_at"
+        ]
+    )  # fmt: skip
+    audit.record(
+        actor=actor, action="referral.interview_set", object_type="referral",
+        object_id=referral.pk, before=before, after={"interview_at": at.isoformat()},
+    )  # fmt: skip
+    return referral
+
+
+@transaction.atomic
 def correct(*, actor, referral, to, note, reason_id=None):
     """Put a referral back to the stage it should be in (FR-19), e.g. reopen a closed one.
 
@@ -271,4 +296,169 @@ def counts_by_opportunity(user) -> dict[str, dict[str, int]]:
             o["placed"] += r["n"]
         elif r["stage"] in Referral.UNSUCCESSFUL:
             o["unsuccessful"] += r["n"]
+    return out
+
+
+# ---- the learner's own view (youth portal) ---------------------------------------------------
+# A youth sees only their own submitted referrals, in plain words. Never exposed here: match
+# scores, other youth, staff notes, reasons for a rejection, or who handled it.
+
+LEARNER_STEPS = [
+    (Referral.SUBMITTED, "Referred"),
+    (Referral.UNDER_REVIEW, "Under review"),
+    (Referral.INTERVIEW, "Interview"),
+    (Referral.SELECTED, "Selected"),
+    (Referral.PLACED, "Placed"),
+]
+_STEP_KEYS = [k for k, _ in LEARNER_STEPS]
+_LEARNER_LABEL = {
+    **dict(LEARNER_STEPS),
+    Referral.REJECTED: "Not selected",
+    Referral.NO_RESPONSE: "Not selected",
+    Referral.WITHDRAWN: "Withdrawn",
+}
+
+
+def _learner_stage(referral, reached: set) -> str:
+    """The stage as the learner sees it. A closed referral shows how it ended."""
+    if referral.stage != Referral.CLOSED:
+        return referral.stage
+    for s in (Referral.PLACED, Referral.REJECTED, Referral.NO_RESPONSE, Referral.WITHDRAWN):
+        if s in reached:
+            return s
+    return Referral.CLOSED
+
+
+def _learner_interview(r):
+    if r.interview_at is None:
+        return None
+    return {"at": r.interview_at.isoformat(), "place": r.interview_place, "note": r.interview_note}
+
+
+def _learner_row(r, reached) -> dict:
+    stage = _learner_stage(r, reached)
+    o = r.opportunity
+    return {
+        "id": str(r.id),
+        "opportunity": o.title,
+        "employer": o.employer.name,
+        "kind": o.kind,
+        "location": o.location or (o.county.name if o.county_id else ""),
+        "stage": stage,
+        "stage_label": _LEARNER_LABEL.get(stage, "Closed"),
+        "ended": stage not in Referral.ACTIVE and stage != Referral.PLACED,
+        "referred_at": r.referred_at.date().isoformat() if r.referred_at else None,
+        "updated_at": r.updated_at.date().isoformat(),
+        "reached": [s for s in _STEP_KEYS if s in reached or s == stage],
+        "interview": _learner_interview(r) if stage == Referral.INTERVIEW else None,
+    }
+
+
+def _learner_qs(participant_id):
+    return (
+        Referral.objects.filter(participant_id=participant_id)
+        .exclude(stage=Referral.DRAFT)
+        .select_related("opportunity__employer", "opportunity__county")
+        .prefetch_related("events")
+        .order_by("-referred_at", "-created_at")
+    )
+
+
+def learner_journey(participant_id) -> dict:
+    """Counters, the journey steps and the learner's referrals, newest first."""
+    rows = []
+    for r in _learner_qs(participant_id):
+        reached = {e.to_stage for e in r.events.all()}
+        rows.append(_learner_row(r, reached))
+    counts = {
+        "referred": len(rows),
+        "interview": sum(1 for x in rows if "interview" in x["reached"]),
+        "selected": sum(1 for x in rows if "selected" in x["reached"]),
+        "placed": sum(1 for x in rows if x["stage"] == Referral.PLACED),
+    }
+    return {
+        "steps": [{"key": k, "label": label} for k, label in LEARNER_STEPS],
+        "counts": counts,
+        "latest": rows[0] if rows else None,
+        "items": rows,
+    }
+
+
+def learner_referral(participant_id, referral_id) -> dict | None:
+    """One of the learner's own referrals with its plain-language timeline, or None."""
+    r = _learner_qs(participant_id).filter(pk=referral_id).first()
+    if r is None:
+        return None
+    events = list(r.events.order_by("at", "id"))
+    reached = {e.to_stage for e in events}
+    o = r.opportunity
+    timeline = [
+        {
+            "label": _LEARNER_LABEL.get(e.to_stage, "Closed"),
+            "at": e.at.date().isoformat(),
+        }
+        for e in events
+        if e.to_stage in _LEARNER_LABEL and e.kind == StageEvent.TRANSITION
+    ]
+    return {
+        **_learner_row(r, reached),
+        "description": o.description,
+        "start_date": o.start_date.isoformat() if o.start_date else None,
+        "closing_date": o.closing_date.isoformat() if o.closing_date else None,
+        "timeline": timeline,
+    }
+
+
+def learner_notices(participant_id, since=None) -> dict:
+    """Plain-language updates for the learner, newest first: each step reached and each time
+    interview details were set or changed. ``unread`` counts those after ``since``."""
+    items = []
+    for r in _learner_qs(participant_id):
+        title = r.opportunity.title
+        for e in r.events.all():
+            if e.kind == StageEvent.TRANSITION and e.to_stage in _LEARNER_LABEL:
+                items.append(
+                    {
+                        "referral_id": str(r.id),
+                        "text": f"{title}: {_LEARNER_LABEL[e.to_stage]}",
+                        "at": e.at,
+                    }
+                )
+        if r.interview_set_at and r.stage == Referral.INTERVIEW:
+            items.append(
+                {
+                    "referral_id": str(r.id),
+                    "text": f"{title}: interview details added or changed",
+                    "at": r.interview_set_at,
+                }
+            )
+    items.sort(key=lambda i: i["at"], reverse=True)
+    unread = sum(1 for i in items if since is None or i["at"] > since)
+    return {
+        "unread": unread,
+        "items": [{**i, "at": i["at"].isoformat()} for i in items[:30]],
+    }
+
+
+def learner_placed(participant_id) -> list[dict]:
+    """Referrals that ended in a placement, as the learner sees them."""
+    out = []
+    for r in _learner_qs(participant_id):
+        reached = {e.to_stage for e in r.events.all()}
+        if _learner_stage(r, reached) == Referral.PLACED:
+            o = r.opportunity
+            placed_at = max(
+                (e.at for e in r.events.all() if e.to_stage == Referral.PLACED), default=None
+            )
+            out.append(
+                {
+                    "id": str(r.id),
+                    "employer": o.employer.name,
+                    "designation": o.title,
+                    "kind": o.kind,
+                    "location": o.location or (o.county.name if o.county_id else ""),
+                    "start_date": o.start_date.isoformat() if o.start_date else None,
+                    "placed_on": placed_at.date().isoformat() if placed_at else None,
+                }
+            )
     return out
