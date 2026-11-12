@@ -201,3 +201,17 @@ def test_youth_can_be_created_with_capability_in_one_step(db, make_user):
     assert not Participant.objects.filter(full_name_source="Bad Capable").exists()  # all or nothing
     opts = c.get("/api/v1/participants/profile-options").json()
     assert {"levels", "skills", "sectors", "work_patterns"} <= set(opts)
+
+
+def test_qualification_grade_is_saved_changed_and_cleared(world, make_user):
+    c = api(make_user("steward", "Data steward"))
+    degree = str(world["degree"].pk)
+    r = put(c, world, {"qualifications": [{"level_id": degree, "grade": "Second class upper"}]})
+    assert r.status_code == 200, r.json()
+    q = r.json()["qualifications"][0]
+    assert q["grade"] == "Second class upper"
+    # A new grade on the same row replaces it (and so drops any verification).
+    r = put(c, world, {"qualifications": [{"id": q["id"], "level_id": degree, "grade": "First"}]})
+    assert r.json()["qualifications"][0]["grade"] == "First"
+    r = put(c, world, {"qualifications": [{"id": q["id"], "level_id": degree}]})
+    assert r.json()["qualifications"][0]["grade"] == ""

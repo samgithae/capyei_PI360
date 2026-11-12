@@ -5480,6 +5480,9 @@ components:
         institution:
           type: string
           maxLength: 200
+        grade:
+          type: string
+          maxLength: 60
         year_awarded:
           type: integer
           maximum: 2100

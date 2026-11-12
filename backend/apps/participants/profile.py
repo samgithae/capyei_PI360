@@ -74,6 +74,7 @@ def _read(p: Participant) -> dict:
                 "title": q.title,
                 "institution": q.institution,
                 "year_awarded": q.year_awarded,
+                "grade": q.grade,
             }
             for q in quals
         ],
@@ -171,6 +172,7 @@ def write(*, actor, p: Participant, data: dict, source=ProfileFact.STAFF) -> dic
                 "title": r.get("title", "").strip(),
                 "institution": r.get("institution", "").strip(),
                 "year_awarded": r.get("year_awarded"),
+                "grade": r.get("grade", "").strip(),
             }
 
         counts["qualifications"] = _sync(
@@ -178,7 +180,7 @@ def write(*, actor, p: Participant, data: dict, source=ProfileFact.STAFF) -> dic
             ParticipantQualification.objects.filter(participant=p),
             data["qualifications"],
             qual,
-            {"level", "title", "institution", "year_awarded"},
+            {"level", "title", "institution", "year_awarded", "grade"},
             actor,
             source,
         )

@@ -87,6 +87,7 @@ export const STAFF_GUIDES: Guide[] = [
     to: { path: '/youth', label: 'Open Youth' },
     steps: [
       'You can add these while creating the youth (the Skills and readiness step), or later: open a youth, find the Skills and readiness card, then choose Edit.',
+      'For each qualification pick the level, then record how well they did in Grade or class: a grade such as C+ for secondary school, a class such as Second class upper for a degree, or Distinction, Credit or Pass for a diploma or certificate. Suggestions appear for the level; you can type anything.',
       'Add qualifications, skills with a proficiency, work experience (sector and months) and availability.',
       'Fill only what you know. Empty means missing, never failed.',
       'After checking evidence, choose Verify on an entry. Editing an entry removes its verification.',

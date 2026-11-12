@@ -19,6 +19,7 @@ export interface QualDraft {
   level_id: string;
   title: string;
   institution: string;
+  grade: string;
   year_awarded: string;
 }
 export interface SkillDraft {
@@ -62,6 +63,46 @@ export const LEVELS = [
  * The API shape for a draft. With `skipBlank`, rows the user started but left
  * without their key field are dropped (the wizard), instead of being sent and rejected.
  */
+const KCSE = [
+  'A',
+  'A-',
+  'B+',
+  'B',
+  'B-',
+  'C+',
+  'C',
+  'C-',
+  'D+',
+  'D',
+  'D-',
+  'E',
+];
+const CLASSES = [
+  'First class',
+  'Second class upper',
+  'Second class lower',
+  'Pass',
+];
+const MARKS = ['Distinction', 'Credit', 'Pass'];
+
+/** Common ways the result is written for a level. Only suggestions: any text can be typed. */
+export function gradeOptions(level?: string): string[] {
+  const n = (level ?? '').toLowerCase();
+  if (n.includes('secondary')) return KCSE;
+  if (/bachelor|master|doctor|postgraduate/.test(n)) return CLASSES;
+  if (/diploma|certificate/.test(n)) return MARKS;
+  return [];
+}
+
+export function gradeHint(level?: string): string {
+  const n = (level ?? '').toLowerCase();
+  if (n.includes('secondary')) return 'Grade, e.g. C+';
+  if (/bachelor|master|doctor|postgraduate/.test(n))
+    return 'Class, e.g. Second class upper';
+  if (/diploma|certificate/.test(n)) return 'Result, e.g. Credit';
+  return 'Grade or class';
+}
+
 export function draftToPayload(d: CapabilityDraft, skipBlank = false) {
   const q = skipBlank ? d.quals.filter((x) => x.level_id) : d.quals;
   const s = skipBlank ? d.skills.filter((x) => x.skill_id) : d.skills;
@@ -160,6 +201,25 @@ export function CapabilityFields({
               }
             />
             <Input
+              className="w-44"
+              aria-label="Grade or class"
+              placeholder={gradeHint(
+                o.levels.find((l) => l.id === x.level_id)?.name,
+              )}
+              list={`grades-${i}`}
+              value={x.grade}
+              onChange={(e) =>
+                patch(quals, setQuals, i, { grade: e.target.value })
+              }
+            />
+            <datalist id={`grades-${i}`}>
+              {gradeOptions(
+                o.levels.find((l) => l.id === x.level_id)?.name,
+              ).map((g) => (
+                <option key={g} value={g} />
+              ))}
+            </datalist>
+            <Input
               className="w-24"
               aria-label="Year"
               inputMode="numeric"
@@ -191,6 +251,7 @@ export function CapabilityFields({
                 level_id: '',
                 title: '',
                 institution: '',
+                grade: '',
                 year_awarded: '',
               },
             ])

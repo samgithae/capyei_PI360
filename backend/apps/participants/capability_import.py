@@ -27,7 +27,7 @@ from .models import (
 )
 
 ERROR_CAP = 200
-HEADER = ["enrollment_no", "programme", "type", "value", "detail", "months", "year"]
+HEADER = ["enrollment_no", "programme", "type", "value", "detail", "months", "year", "grade"]
 ALIASES = {
     "enrollment_no": ("enrollment no", "enrolment no", "enrollment number", "enrollment"),
     "programme": ("programme code",),
@@ -36,12 +36,22 @@ ALIASES = {
     "detail": ("extra", "notes"),
     "months": ("months of experience",),
     "year": ("year awarded",),
+    "grade": ("result", "class"),
 }
 EXAMPLES = [
-    ["E-0001", "P01", "qualification", "Diploma", "Diploma in Food Production", "", "2023"],
-    ["E-0001", "P01", "skill", "Customer service", "advanced", "", ""],
-    ["E-0001", "P01", "experience", "Waiter", "Example Hotel", "18", ""],
-    ["E-0001", "P01", "availability", "2026-12-01", "full_time; part_time", "", ""],
+    [
+        "E-0001",
+        "P01",
+        "qualification",
+        "Diploma",
+        "Diploma in Food Production",
+        "",
+        "2023",
+        "Credit",
+    ],
+    ["E-0001", "P01", "skill", "Customer service", "advanced", "", "", ""],
+    ["E-0001", "P01", "experience", "Waiter", "Example Hotel", "18", "", ""],
+    ["E-0001", "P01", "availability", "2026-12-01", "full_time; part_time", "", "", ""],
 ]
 LEVELS = {"basic": 1, "working": 2, "advanced": 3, "1": 1, "2": 2, "3": 3}
 PATTERNS = {c: c for c, _ in WORK_PATTERNS} | {n.lower(): c for c, n in WORK_PATTERNS}
@@ -149,7 +159,11 @@ def _apply(actor, p, row):
         if qs.exists():
             return kind, "skipped"
         obj = ParticipantQualification(
-            participant=p, level=level, title=detail[:200], year_awarded=year
+            participant=p,
+            level=level,
+            title=detail[:200],
+            year_awarded=year,
+            grade=row.get("grade", "")[:60],
         )
     elif kind == "skill":
         skill, problem = configuration.find_active_reference("skills", value)

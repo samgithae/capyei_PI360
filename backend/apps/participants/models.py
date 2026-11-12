@@ -297,6 +297,8 @@ class ParticipantQualification(ProfileFact):
     title = models.CharField(max_length=200, blank=True)  # e.g. "Diploma in Food Production"
     institution = models.CharField(max_length=200, blank=True)
     year_awarded = models.PositiveSmallIntegerField(null=True, blank=True)
+    # How well they did, as written on the certificate: "C+", "Second class upper", "Distinction".
+    grade = models.CharField(max_length=60, blank=True)
 
     class Meta:
         ordering = ["-level__rank", "title"]
