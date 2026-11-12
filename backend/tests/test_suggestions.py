@@ -107,3 +107,56 @@ def test_without_weights_youth_are_ranked_by_requirements_met(world, make_user):
     assert top["met"] >= 1 and top["checked"] >= top["met"]
     by = {s["name"]: s for s in body["suggestions"]}
     assert by["A Strong"]["met"] > by["B Partial"]["met"]
+
+
+def test_requirements_from_the_simplified_form_drive_the_same_matching(db, make_user):
+    """The add-requirement form sends friendly picks as the usual structured payload. Matching
+    must treat them exactly like requirements made any other way (meets / fails / unknown)."""
+    activate_compatibility()
+    ql5 = QualificationLevel.objects.get(code="QL05")
+    cook = Skill.objects.get(code="SK-FOOD")
+    mk = lambda n: Participant.objects.create(full_name_source=n)  # noqa: E731
+    meets, fails, unknown = mk("Meets"), mk("Fails"), mk("Unknown")
+    ParticipantQualification.objects.create(participant=meets, level=ql5)
+    ParticipantSkill.objects.create(participant=meets, skill=cook)
+    ParticipantExperience.objects.create(participant=meets, role_title="Cook", months=24)
+    ParticipantQualification.objects.create(
+        participant=fails, level=QualificationLevel.objects.get(code="QL01")
+    )
+    ParticipantSkill.objects.create(participant=unknown, skill=cook)
+    o = Opportunity.objects.create(
+        employer=Employer.objects.create(name="Acme"), title="Cook", status="open"
+    )
+    admin = api(make_user("admin", "Administrator"))
+    blank = {
+        "qualification_level_id": None, "skill_id": None, "min_months": None,
+        "needed_by": None, "work_pattern": "",
+    }  # fmt: skip
+    forms = [
+        {**blank, "factor": "qualification", "is_mandatory": True,
+         "qualification_level_id": str(ql5.pk),
+         "description": "Diploma or higher — Credit"},
+        {**blank, "factor": "skill", "is_mandatory": True, "skill_id": str(cook.pk),
+         "description": "Food preparation — Level needed: Intermediate"},
+        {**blank, "factor": "experience", "is_mandatory": False, "min_months": 12,
+         "description": "Kitchen"},
+        {**blank, "factor": "other", "is_mandatory": False,
+         "description": "Certification / Training: Food hygiene — Copy of the certificate"},
+    ]  # fmt: skip
+    for f in forms:
+        r = admin.post(
+            f"/api/v1/opportunities/{o.pk}/requirements", f, content_type="application/json"
+        )
+        assert r.status_code == 201, r.content
+    by = {
+        s["name"]: s
+        for s in admin.get(f"/api/v1/opportunities/{o.pk}/suggestions").json()["suggestions"]
+    }
+    assert by["Meets"]["group"] == "eligible" and by["Meets"]["score"] == 100
+    assert by["Fails"]["group"] == "not_eligible"  # a mandatory miss still disqualifies
+    assert by["Unknown"]["group"] == "eligible_with_unknowns"  # missing is not failure
+    assert "Diploma" in " ".join(by["Unknown"]["missing"])
+    # The grade note rides in the description; it never changes the structured check.
+    assert OpportunityRequirement.objects.get(
+        opportunity=o, factor="qualification"
+    ).description.endswith("Credit")

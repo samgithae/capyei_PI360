@@ -12,13 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Table,
   TableBody,
   TableCell,
@@ -30,22 +23,24 @@ import { ActivityTimeline } from '@/components/shared/activity-timeline';
 import { DetailList, Section } from '@/components/shared/info-card';
 import { ConfirmDialog, FormModal } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
-import { SelectField } from '@/components/shared/select-field';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EditOpportunity } from './opportunity-edit';
+import { RequirementForm } from './requirement-form';
+import {
+  BLANK,
+  categoryLabel,
+  summary,
+  toDraft,
+  toPayload,
+  type Draft,
+  type Lookup,
+  type Req,
+} from './requirement-model';
 import { SuggestedYouth } from './suggested-youth';
 
-interface Requirement {
+interface Requirement extends Req {
   id: string;
-  factor: string;
-  description: string;
-  is_mandatory: boolean;
-  qualification_level_id: string | null;
-  skill_id: string | null;
-  min_months: number | null;
-  needed_by: string | null;
-  work_pattern: string;
   needs_structuring: boolean;
 }
 interface Opt {
@@ -81,49 +76,12 @@ interface Event {
   after?: Record<string, unknown> | null;
 }
 
-const FACTORS = [
-  'skill',
-  'qualification',
-  'experience',
-  'availability',
-  'location',
-  'other',
-];
 const NEXT: Record<string, { to: string; label: string }[]> = {
   draft: [{ to: 'open', label: 'Open' }],
   open: [{ to: 'closed', label: 'Close' }],
   closed: [{ to: 'open', label: 'Reopen' }],
   expired: [{ to: 'open', label: 'Reopen' }],
 };
-const BLANK = {
-  factor: 'skill',
-  description: '',
-  is_mandatory: false,
-  qualification_level_id: '',
-  skill_id: '',
-  min_months: '',
-  needed_by: '',
-  work_pattern: '',
-};
-
-/** Send only the typed value that belongs to the chosen category; empty means "not set". */
-function payload(r: typeof BLANK) {
-  return {
-    factor: r.factor,
-    description: r.description,
-    is_mandatory: r.is_mandatory,
-    qualification_level_id:
-      r.factor === 'qualification' ? r.qualification_level_id || null : null,
-    skill_id: r.factor === 'skill' ? r.skill_id || null : null,
-    min_months:
-      r.factor === 'experience' && r.min_months !== ''
-        ? Number(r.min_months)
-        : null,
-    needed_by: r.factor === 'availability' ? r.needed_by || null : null,
-    work_pattern: r.factor === 'availability' ? r.work_pattern : '',
-  };
-}
-
 export function OpportunityPage() {
   const { id } = useParams();
   const { can } = useAuth();
@@ -134,7 +92,8 @@ export function OpportunityPage() {
   const [closing, setClosing] = useState('');
   const [reqOpen, setReqOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [req, setReq] = useState(BLANK);
+  const [req, setReq] = useState<Draft>(BLANK);
+  const [reqError, setReqError] = useState('');
   const [removing, setRemoving] = useState<Requirement | null>(null);
   const [confirmMove, setConfirmMove] = useState<string | null>(null);
   const [referring, setReferring] = useState(false);
@@ -158,6 +117,12 @@ export function OpportunityPage() {
     queryFn: () => api<Detail>(`/opportunities/${id}`),
     retry: false,
   });
+  const ro = q.data?.requirement_options;
+  const lookup: Lookup = {
+    levels: ro?.levels ?? [],
+    skills: ro?.skills ?? [],
+    patterns: ro?.work_patterns ?? [],
+  };
   const history = useQuery({
     queryKey: ['opportunity-history', id],
     queryFn: () => api<Event[]>(`/opportunities/${id}/history`),
@@ -190,9 +155,9 @@ export function OpportunityPage() {
       editingId
         ? api(`/opportunities/${id}/requirements/${editingId}`, {
             method: 'PATCH',
-            body: JSON.stringify(payload(req)),
+            body: JSON.stringify(toPayload(req, lookup)),
           })
-        : post(`/opportunities/${id}/requirements`, payload(req)),
+        : post(`/opportunities/${id}/requirements`, toPayload(req, lookup)),
     onSuccess: () => {
       toast.success(editingId ? 'Requirement updated.' : 'Requirement added.');
       setReqOpen(false);
@@ -200,7 +165,8 @@ export function OpportunityPage() {
       setEditingId(null);
       refresh();
     },
-    onError: fail,
+    onError: (e) =>
+      setReqError(e instanceof ApiError ? e.message : 'Could not save.'),
   });
   const delReq = useMutation({
     mutationFn: (rid: string) =>
@@ -238,20 +204,13 @@ export function OpportunityPage() {
   const openAdd = () => {
     setEditingId(null);
     setReq(BLANK);
+    setReqError('');
     setReqOpen(true);
   };
   const openEdit = (r: Requirement) => {
     setEditingId(r.id);
-    setReq({
-      factor: r.factor,
-      description: r.description,
-      is_mandatory: r.is_mandatory,
-      qualification_level_id: r.qualification_level_id ?? '',
-      skill_id: r.skill_id ?? '',
-      min_months: r.min_months?.toString() ?? '',
-      needed_by: r.needed_by ?? '',
-      work_pattern: r.work_pattern,
-    });
+    setReq(toDraft(r));
+    setReqError('');
     setReqOpen(true);
   };
 
@@ -394,8 +353,8 @@ export function OpportunityPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
-                      <TableHead>Category</TableHead>
                       <TableHead>Requirement</TableHead>
+                      <TableHead>Category</TableHead>
                       <TableHead>Type</TableHead>
                       {canEdit && !locked && (
                         <TableHead className="w-24">
@@ -407,9 +366,18 @@ export function OpportunityPage() {
                   <TableBody>
                     {o.requirements.map((r) => (
                       <TableRow key={r.id}>
-                        <TableCell className="capitalize">{r.factor}</TableCell>
                         <TableCell>
-                          {r.description}
+                          <span className="font-medium">
+                            {summary(r, lookup).name}
+                          </span>
+                          {summary(r, lookup).extras.map((x) => (
+                            <span
+                              key={x}
+                              className="ms-2 text-xs text-muted-foreground"
+                            >
+                              {x}
+                            </span>
+                          ))}
                           {r.needs_structuring && (
                             <Badge
                               className="ms-2"
@@ -421,6 +389,7 @@ export function OpportunityPage() {
                             </Badge>
                           )}
                         </TableCell>
+                        <TableCell>{categoryLabel(r)}</TableCell>
                         <TableCell>
                           <Badge
                             variant={r.is_mandatory ? 'primary' : 'secondary'}
@@ -435,7 +404,7 @@ export function OpportunityPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                aria-label={`Edit ${r.description}`}
+                                aria-label={`Edit ${summary(r, lookup).name}`}
                                 onClick={() => openEdit(r)}
                               >
                                 <Pencil />
@@ -443,7 +412,7 @@ export function OpportunityPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                aria-label={`Remove ${r.description}`}
+                                aria-label={`Remove ${summary(r, lookup).name}`}
                                 onClick={() => setRemoving(r)}
                               >
                                 <Trash2 />
@@ -499,121 +468,24 @@ export function OpportunityPage() {
         </div>
       </FormModal>
 
-      <FormModal
+      <RequirementForm
         open={reqOpen}
         onOpenChange={setReqOpen}
-        title={editingId ? 'Edit requirement' : 'Add requirement'}
-        description="Requirements are checked against participants when compatibility is assessed."
-        submitLabel={editingId ? 'Save changes' : 'Add requirement'}
+        editing={editingId !== null}
+        draft={req}
+        onChange={setReq}
+        lookup={lookup}
+        canAddSkill={can('reference.manage')}
+        onCatalogueChanged={() =>
+          void qc.invalidateQueries({ queryKey: ['opportunity', id] })
+        }
         pending={saveReq.isPending}
-        onSubmit={() => saveReq.mutate()}
-      >
-        <div className="space-y-1.5">
-          <Label>Category</Label>
-          <Select
-            value={req.factor}
-            onValueChange={(v) => setReq({ ...req, factor: v })}
-          >
-            <SelectTrigger aria-label="Category" className="capitalize">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {FACTORS.map((f) => (
-                <SelectItem key={f} value={f} className="capitalize">
-                  {f}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {req.factor === 'qualification' && (
-          <div className="space-y-1.5">
-            <Label>Minimum qualification</Label>
-            <SelectField
-              label="Minimum qualification"
-              className="w-full"
-              value={req.qualification_level_id}
-              options={o.requirement_options.levels}
-              onChange={(v) => setReq({ ...req, qualification_level_id: v })}
-            />
-          </div>
-        )}
-        {req.factor === 'skill' && (
-          <div className="space-y-1.5">
-            <Label>Skill</Label>
-            <SelectField
-              label="Skill"
-              className="w-full"
-              value={req.skill_id}
-              options={o.requirement_options.skills}
-              onChange={(v) => setReq({ ...req, skill_id: v })}
-            />
-          </div>
-        )}
-        {req.factor === 'experience' && (
-          <div className="space-y-1.5">
-            <Label htmlFor="req-months">Minimum months of experience</Label>
-            <Input
-              id="req-months"
-              inputMode="numeric"
-              value={req.min_months}
-              onChange={(e) => setReq({ ...req, min_months: e.target.value })}
-            />
-          </div>
-        )}
-        {req.factor === 'availability' && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="req-needed-by">Must be able to start by</Label>
-              <Input
-                id="req-needed-by"
-                type="date"
-                value={req.needed_by}
-                onChange={(e) => setReq({ ...req, needed_by: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Work pattern</Label>
-              <SelectField
-                label="Work pattern"
-                className="w-full"
-                emptyLabel="Any"
-                value={req.work_pattern}
-                options={o.requirement_options.work_patterns}
-                onChange={(v) => setReq({ ...req, work_pattern: v })}
-              />
-            </div>
-          </div>
-        )}
-        <div className="space-y-1.5">
-          <Label htmlFor="req-description">
-            Requirement
-            {['location', 'other'].includes(req.factor) && (
-              <span className="text-destructive"> *</span>
-            )}
-          </Label>
-          <Input
-            id="req-description"
-            required={['location', 'other'].includes(req.factor)}
-            placeholder={
-              ['location', 'other'].includes(req.factor)
-                ? ''
-                : 'Optional: written from your choice above if left empty'
-            }
-            maxLength={300}
-            value={req.description}
-            onChange={(e) => setReq({ ...req, description: e.target.value })}
-          />
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={req.is_mandatory}
-            onChange={(e) => setReq({ ...req, is_mandatory: e.target.checked })}
-          />
-          Mandatory (otherwise preferred)
-        </label>
-      </FormModal>
+        error={reqError}
+        onSubmit={() => {
+          setReqError('');
+          saveReq.mutate();
+        }}
+      />
 
       <ConfirmDialog
         open={removing !== null}

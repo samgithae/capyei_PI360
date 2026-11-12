@@ -154,7 +154,8 @@ export const STAFF_GUIDES: Guide[] = [
     to: { path: '/opportunities', label: 'Open Opportunities' },
     steps: [
       'Open Opportunities and choose Add opportunity. Pick the employer, title, type, positions and closing date, then the start date, industry, county, location and a description. It saves as a Draft. You can change any of these later with Edit.',
-      'Open it and add requirements: skill, qualification, experience, availability, location or other.',
+      'Open it and choose Add requirement. Answer three questions: what kind it is (skill, competency, qualification, experience, certification or training, interest, working condition), what exactly is required (pick from the list, or add a new skill if you are allowed), and whether it is mandatory or preferred. Add as many as you need; edit or remove any later from the list.',
+      'Skills, qualifications, experience and working conditions are checked automatically against youth profiles. Certification or training and interest are recorded for staff to read but are not checked automatically yet. Optional details such as a minimum grade or level needed are shown in the list and are for staff to read.',
       'Mark each requirement mandatory (a youth without it may be not eligible) or preferred (only adds to a fit score).',
       'For skill, qualification, experience and availability, pick the value from the lists so the rules can check it.',
       'Open the opportunity. It needs a closing date and an active employer.',
