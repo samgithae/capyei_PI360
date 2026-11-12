@@ -17,7 +17,7 @@ class Kind:
 
 KINDS = {
     "sectors": Kind(m.Sector, "Sector"),
-    "counties": Kind(m.County, "County", creatable=False),  # the 47 are seeded
+    "counties": Kind(m.County, "County"),
     "sub-counties": Kind(m.SubCounty, "Sub-county", fks={"county": "counties"}),
     "wards": Kind(m.Ward, "Ward", fks={"sub_county": "sub-counties"}),
     "institutions": Kind(

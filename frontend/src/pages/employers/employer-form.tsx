@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
 
 export interface Option {
@@ -136,11 +137,13 @@ export function EmployerForm({
           (opens in a new tab, then reopen this form).
         </p>
       )}
-      <Input
-        aria-label="Sub-county"
-        placeholder="Sub-county"
-        value={v.sub_county}
-        onChange={(e) => set('sub_county', e.target.value)}
+      <PlaceFields
+        countyId={v.county_id ?? ''}
+        subCounty={v.sub_county}
+        showWard={false}
+        onChange={(p) =>
+          p.subCounty !== undefined && set('sub_county', p.subCounty)
+        }
       />
       <Input
         aria-label="Address"

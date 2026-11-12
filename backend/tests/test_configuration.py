@@ -45,9 +45,9 @@ def test_forty_seven_counties_seeded_in_order():
 
 
 @pytest.mark.django_db
-def test_counties_cannot_be_added(admin):
+def test_counties_can_be_added_by_a_manager(admin):
     r = post(api(admin), "/api/v1/config/reference/counties", {"code": "48", "name": "X"})
-    assert r.status_code == 400
+    assert r.status_code == 201
 
 
 @pytest.mark.django_db

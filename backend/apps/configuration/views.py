@@ -82,7 +82,7 @@ class ReferenceListView(APIView):
         if q and spec.named:
             qs = qs.filter(name__icontains=q)
         qs = qs.order_by("name" if spec.named else "pk")
-        return Response([_out(kind, o) for o in qs[:1000]])
+        return Response([_out(kind, o) for o in qs[:3000]])
 
     @extend_schema(request=ReferenceInputSerializer, responses={201: dict})
     def post(self, request, kind):

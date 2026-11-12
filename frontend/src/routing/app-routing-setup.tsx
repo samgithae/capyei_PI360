@@ -1,5 +1,5 @@
 import { RequireAuth, RequirePermission } from '@/auth/guards';
-import { SectorsPage } from '@/pages/admin/sectors-page';
+import { REFERENCE_KINDS, ReferencePage } from '@/pages/admin/reference-page';
 import { UsersPage } from '@/pages/admin/users-page';
 import { EmployerPage } from '@/pages/employers/employer-page';
 import { EmployersPage } from '@/pages/employers/employers-page';
@@ -72,7 +72,13 @@ export function AppRoutingSetup() {
             <Route path="/rules/versions/:id" element={<RuleVersionPage />} />
           </Route>
           <Route element={<RequirePermission permission="config.view" />}>
-            <Route path="/administration/sectors" element={<SectorsPage />} />
+            {Object.keys(REFERENCE_KINDS).map((k) => (
+              <Route
+                key={k}
+                path={`/administration/${k}`}
+                element={<ReferencePage kind={k} />}
+              />
+            ))}
           </Route>
           <Route
             element={<RequirePermission permission="identity.view_users" />}

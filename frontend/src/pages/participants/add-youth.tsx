@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DialogShell } from '@/components/shared/modals';
+import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
 
 interface Option {
@@ -382,12 +383,21 @@ export function AddYouth() {
                   className="w-full"
                   value={v.resCounty}
                   options={filters.data?.counties ?? []}
-                  onChange={(x) => set('resCounty', x)}
+                  onChange={(x) =>
+                    setV((p) => ({
+                      ...p,
+                      resCounty: x,
+                      subCounty: '',
+                      ward: '',
+                    }))
+                  }
                 />
-                <div className="grid grid-cols-2 gap-2">
-                  {text('subCounty', 'Sub-county')}
-                  {text('ward', 'Ward')}
-                </div>
+                <PlaceFields
+                  countyId={v.resCounty}
+                  subCounty={v.subCounty}
+                  ward={v.ward}
+                  onChange={(p) => setV((x) => ({ ...x, ...p }))}
+                />
               </div>
               {canContact && (
                 <div className="space-y-2">

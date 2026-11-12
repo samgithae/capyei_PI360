@@ -88,8 +88,48 @@ export const MENU_SIDEBAR: MenuConfig = [
         permission: 'identity.view_users',
       },
       {
+        title: 'Programmes',
+        path: '/administration/programmes',
+        permission: 'config.view',
+      },
+      {
+        title: 'Cohorts',
+        path: '/administration/cohorts',
+        permission: 'config.view',
+      },
+      {
+        title: 'Courses',
+        path: '/administration/courses',
+        permission: 'config.view',
+      },
+      {
+        title: 'Cohort courses',
+        path: '/administration/cohort-courses',
+        permission: 'config.view',
+      },
+      {
+        title: 'Training institutions',
+        path: '/administration/institutions',
+        permission: 'config.view',
+      },
+      {
         title: 'Sectors',
         path: '/administration/sectors',
+        permission: 'config.view',
+      },
+      {
+        title: 'Counties',
+        path: '/administration/counties',
+        permission: 'config.view',
+      },
+      {
+        title: 'Sub-counties',
+        path: '/administration/sub-counties',
+        permission: 'config.view',
+      },
+      {
+        title: 'Wards',
+        path: '/administration/wards',
         permission: 'config.view',
       },
     ],
