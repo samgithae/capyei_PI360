@@ -224,3 +224,51 @@ def test_withdraw_removes_the_pending_account(steward, person):
     r = api(steward).delete(f"/api/v1/participants/{person.pk}/invite")
     assert r.status_code == 200 and r.json()["state"] == "none"
     assert not YouthAccount.objects.exists()
+
+
+def test_youth_edits_their_own_details_but_not_the_risky_ones(steward, person):
+    from django.contrib.auth.models import User
+
+    from apps.configuration.models import County
+
+    activate(person, steward)
+    youth = api(User.objects.get(username=EMAIL))
+    put = lambda body: youth.put(  # noqa: E731
+        "/api/v1/youth/details", body, content_type="application/json"
+    )
+    assert put({"given_name": "Amina"}).status_code == 400  # notice not accepted yet
+    youth.post(
+        "/api/v1/youth/consent",
+        {"version": services.CONSENT_VERSION},
+        content_type="application/json",
+    )
+    county = County.objects.first()
+    r = put(
+        {
+            "given_name": "Amina",
+            "family_name": "Njeri",
+            "other_names": "Test",
+            "gender": "female",
+            "date_of_birth": "2003-04-05",
+            "county_id": str(county.pk),
+            "residence": {
+                "county_id": str(county.pk),
+                "sub_county": "Westlands",
+                "ward": "Parklands",
+            },
+            "contacts": [
+                {"kind": "email", "value": EMAIL, "primary": True},
+                {"kind": "phone", "value": "0712 345 678", "primary": True},
+            ],
+        }
+    )
+    assert r.status_code == 200, r.content
+    d = r.json()["details"]
+    assert d["given_name"] == "Amina" and d["date_of_birth"] == "2003-04-05"
+    assert d["residence"]["sub_county"] == "Westlands" and len(d["contacts"]) == 2
+    # Risky fields are ignored even when sent: status, officer, enrollment.
+    before = Participant.objects.get(pk=person.pk).status
+    put({"status": "withdrawn", "assigned_officer": "x", "enrollments": []})
+    assert Participant.objects.get(pk=person.pk).status == before
+    ev = AuditEvent.objects.filter(action="youth.details_edited").latest("at")
+    assert "0712" not in str(ev.after)

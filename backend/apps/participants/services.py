@@ -534,3 +534,11 @@ def profile_serializer():
 
 def display_name(p: Participant) -> str:
     return str(p)
+
+
+from .models import Participant as _P  # noqa: E402
+from .self_details import DetailsError  # noqa: E402,F401
+from .self_details import read_own as read_own_details  # noqa: E402,F401
+from .self_details import write_own as write_own_details  # noqa: E402,F401
+
+GENDERS = _P.GENDERS

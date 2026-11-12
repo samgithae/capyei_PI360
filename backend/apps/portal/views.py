@@ -158,3 +158,45 @@ class YouthProfileView(_Youth):
         s = participants.profile_serializer()(data=request.data)
         s.is_valid(raise_exception=True)
         return self.run(services.write_profile, data=s.validated_data)
+
+
+class _YouthContactSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=["phone", "email"])
+    value = serializers.CharField(max_length=200)
+    primary = serializers.BooleanField(default=False)
+
+
+class _YouthResidenceSerializer(serializers.Serializer):
+    county_id = serializers.UUIDField(allow_null=True, required=False)
+    sub_county = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    ward = serializers.CharField(max_length=100, allow_blank=True, required=False)
+
+
+class YouthDetailsSerializer(serializers.Serializer):
+    """Only what a youth may change. Status, enrollment and the like are staff-only."""
+
+    full_name = serializers.CharField(max_length=200, required=False)
+    given_name = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    family_name = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    other_names = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    gender = serializers.ChoiceField(choices=[g for g, _ in participants.GENDERS], required=False)
+    date_of_birth = serializers.DateField(allow_null=True, required=False)
+    county_id = serializers.UUIDField(allow_null=True, required=False)
+    residence = _YouthResidenceSerializer(required=False)
+    contacts = _YouthContactSerializer(many=True, max_length=20, required=False)
+
+    def validate_contacts(self, rows):
+        for kind in ("phone", "email"):
+            if sum(1 for r in rows if r["kind"] == kind and r["primary"]) > 1:
+                raise serializers.ValidationError(f"Only one primary {kind} is allowed.")
+        return rows
+
+
+class YouthDetailsView(_Youth):
+    @extend_schema(
+        operation_id="youth_details_put", request=YouthDetailsSerializer, responses={200: dict}
+    )
+    def put(self, request):
+        s = YouthDetailsSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        return self.run(services.write_details, data=s.validated_data)

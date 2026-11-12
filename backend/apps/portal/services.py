@@ -204,6 +204,7 @@ def read(user) -> dict:
         },
     }
     if out["consent"]["given"]:
+        out["details"] = participants.read_own_details(account.participant)
         out["profile"] = {
             **participants.read_profile(account.participant, hide_staff=True),
             "options": participants.profile_options(),
@@ -241,5 +242,16 @@ def write_profile(*, user, data) -> dict:
             source="youth",
         )
     except participants.ProfileError as exc:
+        raise PortalError(exc.field, str(exc)) from exc
+    return read(user)
+
+
+def write_details(*, user, data) -> dict:
+    account = _own(user)
+    if not _consented(account):
+        raise PortalError("consent", "Accept the notice before editing your details.")
+    try:
+        participants.write_own_details(actor=user, p=account.participant, data=data)
+    except participants.DetailsError as exc:
         raise PortalError(exc.field, str(exc)) from exc
     return read(user)

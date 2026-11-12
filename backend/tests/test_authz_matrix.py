@@ -71,6 +71,7 @@ MATRIX = {
     "youth/me": {"GET": "youth.self_service"},
     "youth/consent": {"POST": "youth.self_service"},
     "youth/profile": {"PUT": "youth.self_service"},
+    "youth/details": {"PUT": "youth.self_service"},
     "participants/<uuid:pk>/residence": {"PUT": "participants.edit"},
     "participants/<uuid:pk>/profile": {
         "GET": "participants.view_profile",

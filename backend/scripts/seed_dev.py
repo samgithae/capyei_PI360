@@ -8,6 +8,8 @@ Run (development only):
 Creates a Data steward login (no MFA needed): dev.steward / dev-steward-password-1
 For referrals: dev.officer / dev-officer-password (Placement officer with three youth assigned);
 dev.viewer is the Manager over that officer's caseload.
+Youth portal: catherine.macharia@example.org / dev-youth-password-1 (needs a youth named
+"Catherine Njeri Macharia" in the dev database; skipped if there is none).
 """
 
 from django.conf import settings
@@ -127,6 +129,23 @@ for title in ("Sales assistant", "Data entry clerk"):
             "closing_date": date.today() + timedelta(days=60),
         },
     )
+# A youth portal login for one named dev youth, so the youth view can be tried by hand.
+from apps.portal import services as portal  # noqa: E402
+
+_youth = Participant.objects.filter(full_name_source="Catherine Njeri Macharia").first()
+if _youth is not None and portal.invite_status(_youth)["state"] == "none":
+    _email = "catherine.macharia@example.org"
+    if not ParticipantContact.objects.filter(participant=_youth, value=_email).exists():
+        ParticipantContact.objects.create(participant=_youth, kind="email", value=_email)
+    _admin = User.objects.get(username="dev.admin")
+    portal.send_invite(actor=_admin, participant=_youth, email=_email)
+    _invite = _youth.youth_account.invites.latest("created_at")
+    _token = "dev-seed-token-" + str(_youth.pk)
+    import hashlib  # noqa: E402
+
+    _invite.token_hash = hashlib.sha256(_token.encode()).hexdigest()
+    _invite.save(update_fields=["token_hash"])
+    portal.activate(token=_token, password="dev-youth-password-1")  # noqa: S106
 # Draft rule versions for the product owner to review (T-048). Safe to run again.
 from apps.intelligence import initial_rules  # noqa: E402
 

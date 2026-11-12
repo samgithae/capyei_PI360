@@ -9,4 +9,5 @@ urlpatterns = [
     path("youth/me", views.YouthMeView.as_view()),
     path("youth/consent", views.YouthConsentView.as_view()),
     path("youth/profile", views.YouthProfileView.as_view()),
+    path("youth/details", views.YouthDetailsView.as_view()),
 ]

@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { DataCard } from '@/components/data-card';
 import { PageHeader } from '@/components/shared/page-header';
 import { ErrorState, LoadingState } from '@/components/states';
+import { MyDetailsCard, type MyDetails } from './my-details';
 
 interface Me {
   name: string;
   consent: { version: string; text: string; given: boolean };
+  details?: MyDetails;
 }
 
 /** A youth's own page: the consent notice first, then their skills and availability. */
@@ -62,7 +64,15 @@ export function PortalPage() {
           </div>
         </DataCard>
       ) : (
-        <CapabilityProfile id="me" self />
+        <>
+          {me.details && (
+            <MyDetailsCard
+              key={JSON.stringify(me.details)}
+              details={me.details}
+            />
+          )}
+          <CapabilityProfile id="me" self />
+        </>
       )}
     </div>
   );
