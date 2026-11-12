@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from apps.api.access import HasPermission
 from apps.api.archive import ARCHIVE, BulkArchiveView, archived_filter
+from apps.api.pagination import page_size_of
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
@@ -17,7 +18,6 @@ from . import services
 from .models import Employer, EmployerContact, Opportunity, OpportunityRequirement
 
 VIEW, EDIT = "employers.view", "employers.edit"
-PAGE = 50
 
 
 def _archive_one(request, queryset, pk, object_type):
@@ -166,7 +166,7 @@ class EmployerListView(APIView):
         operation_id="employers_list",
         parameters=[
             OpenApiParameter(n, str)
-            for n in ("q", "status", "sector", "county", "archived", "offset")
+            for n in ("q", "status", "sector", "county", "archived", "offset", "page_size")
         ],
         responses={200: dict},
     )
@@ -184,15 +184,17 @@ class EmployerListView(APIView):
                 qs = qs.filter(county_id=uuid.UUID(g["county"]))
         except ValueError:
             raise serializers.ValidationError({"filter": ["Invalid filter value."]}) from None
+        size = page_size_of(g)
         try:
             offset = max(int(g.get("offset", 0)), 0)
         except ValueError:
             offset = 0
+        size = page_size_of(g)
         return Response(
             {
                 "total": qs.count(),
-                "page_size": PAGE,
-                "results": [_summary(e) for e in qs[offset : offset + PAGE]],
+                "page_size": size,
+                "results": [_summary(e) for e in qs[offset : offset + size]],
             }
         )
 
@@ -394,7 +396,7 @@ class OpportunityListView(APIView):
         operation_id="opportunities_list",
         parameters=[
             OpenApiParameter(n, str)
-            for n in ("q", "status", "employer", "kind", "archived", "offset")
+            for n in ("q", "status", "employer", "kind", "archived", "offset", "page_size")
         ],
         responses={200: dict},
     )
@@ -415,11 +417,12 @@ class OpportunityListView(APIView):
             offset = max(int(g.get("offset", 0)), 0)
         except ValueError:
             raise serializers.ValidationError({"filter": ["Invalid filter value."]}) from None
+        size = page_size_of(g)
         return Response(
             {
                 "total": qs.count(),
-                "page_size": PAGE,
-                "results": [_opp_summary(o) for o in qs[offset : offset + PAGE]],
+                "page_size": size,
+                "results": [_opp_summary(o) for o in qs[offset : offset + size]],
             }
         )
 

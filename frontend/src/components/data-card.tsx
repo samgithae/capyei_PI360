@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -121,24 +121,49 @@ export function FilterSelect({
   );
 }
 
-/** Footer pager: "1-11 of 11" on the left, Previous/Next on the right. */
+export const PAGE_SIZES = [10, 30, 50, 100];
+
+/** Footer pager: "1-11 of 11", a rows-per-page picker, and Previous/Next. */
 export function Pager({
   offset,
   pageSize,
   total,
   onMove,
+  onPageSize,
 }: {
   offset: number;
   pageSize: number;
   total: number;
   onMove: (to: number) => void;
+  onPageSize?: (size: number) => void;
 }) {
+  const sizes = PAGE_SIZES.includes(pageSize)
+    ? PAGE_SIZES
+    : [...PAGE_SIZES, pageSize].sort((x, y) => x - y);
   return (
     <>
       <span className="text-sm text-muted-foreground">
-        {offset + 1}-{Math.min(offset + pageSize, total)} of {total}
+        {total === 0 ? 0 : offset + 1}-{Math.min(offset + pageSize, total)} of{' '}
+        {total}
       </span>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-3">
+        {onPageSize && (
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            Rows per page
+            <select
+              aria-label="Rows per page"
+              className="h-8 rounded-md border bg-background px-2 text-foreground"
+              value={pageSize}
+              onChange={(e) => onPageSize(Number(e.target.value))}
+            >
+              {sizes.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -158,6 +183,30 @@ export function Pager({
       </div>
     </>
   );
+}
+
+/** Client-side paging for tables that already hold every row. */
+export function useClientPage<T>(rows: T[], initial = 30) {
+  const [size, setSize] = useState(initial);
+  const [offset, setOffset] = useState(0);
+  const last = Math.max(rows.length - 1, 0);
+  const start = Math.min(offset, last - (last % size));
+  return {
+    rows: rows.slice(start, start + size),
+    pager:
+      rows.length > 0 ? (
+        <Pager
+          offset={start}
+          pageSize={size}
+          total={rows.length}
+          onMove={(to) => setOffset(Math.max(to, 0))}
+          onPageSize={(n) => {
+            setSize(n);
+            setOffset(0);
+          }}
+        />
+      ) : undefined,
+  };
 }
 
 /** Kept for existing imports; delegates to the shared StatusBadge so one colour map rules. */

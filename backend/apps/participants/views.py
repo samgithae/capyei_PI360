@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from apps.api.access import HasPermission, has_permission
 from apps.api.archive import ARCHIVE, BulkArchiveView
+from apps.api.pagination import page_size_of
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
@@ -26,7 +27,6 @@ from .models import (
 )
 
 VIEW, EDIT, CONTACT = "participants.view", "participants.edit", "participants.view_contact"
-PAGE = 50
 
 
 def _visible(request, archived=False):
@@ -234,7 +234,16 @@ class ParticipantListView(APIView):
         operation_id="participants_list",
         parameters=[
             OpenApiParameter(n, str)
-            for n in ("q", "status", "programme", "cohort", "county", "archived", "offset")
+            for n in (
+                "q",
+                "status",
+                "programme",
+                "cohort",
+                "county",
+                "archived",
+                "offset",
+                "page_size",
+            )
         ],
         responses={200: dict},
     )
@@ -257,15 +266,16 @@ class ParticipantListView(APIView):
                 Q(full_name_source__icontains=q) | Q(enrollments__source_enrollment_no__icontains=q)
             )
         qs = qs.distinct().order_by("full_name_source", "pk")
+        size = page_size_of(g)
         try:
             offset = max(int(g.get("offset", 0)), 0)
         except ValueError:
             offset = 0
         page = qs.select_related("origin_county").prefetch_related(
             "enrollments__programme", "enrollments__cohort_course__cohort"
-        )[offset : offset + PAGE]
+        )[offset : offset + size]
         return Response(
-            {"total": qs.count(), "page_size": PAGE, "results": [_summary(p) for p in page]}
+            {"total": qs.count(), "page_size": size, "results": [_summary(p) for p in page]}
         )
 
 

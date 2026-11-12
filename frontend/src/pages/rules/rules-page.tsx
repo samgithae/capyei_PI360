@@ -18,7 +18,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { DataCard, FilterSelect, SearchBox } from '@/components/data-card';
+import {
+  DataCard,
+  FilterSelect,
+  SearchBox,
+  useClientPage,
+} from '@/components/data-card';
 import { RowActions } from '@/components/shared/bulk';
 import { FormModal } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
@@ -65,6 +70,8 @@ export function RulesPage() {
       (!needle || `${r.name} ${r.code}`.toLowerCase().includes(needle)),
   );
 
+  const paged = useClientPage(rows);
+
   return (
     <div className="container-fluid space-y-5">
       <Helmet>
@@ -88,6 +95,7 @@ export function RulesPage() {
         }
       />
       <DataCard
+        footer={paged.pager}
         toolbar={
           <>
             <SearchBox
@@ -144,7 +152,7 @@ export function RulesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((r) => (
+              {paged.rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>
                     <Link

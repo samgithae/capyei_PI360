@@ -28,6 +28,7 @@ export function SelectField({
   onChange,
   emptyLabel,
   className,
+  disabled,
 }: {
   label: string;
   value: string;
@@ -35,6 +36,7 @@ export function SelectField({
   onChange: (value: string) => void;
   emptyLabel?: string;
   className?: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const chosen = options.find((o) => o.id === value);
@@ -51,6 +53,7 @@ export function SelectField({
           type="button"
           variant="outline"
           role="combobox"
+          disabled={disabled}
           aria-label={label}
           aria-expanded={open}
           className={cn('justify-between font-normal', className)}

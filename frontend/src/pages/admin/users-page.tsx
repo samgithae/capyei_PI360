@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DataCard } from '@/components/data-card';
+import { DataCard, useClientPage } from '@/components/data-card';
 import { PageHeader } from '@/components/shared/page-header';
 import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
@@ -80,6 +80,8 @@ export function UsersPage() {
 
   const canManage = can('identity.manage_users');
 
+  const paged = useClientPage(users.data ?? []);
+
   return (
     <div className="container-fluid space-y-5">
       <Helmet>
@@ -100,6 +102,7 @@ export function UsersPage() {
 
       <DataCard
         title="Staff"
+        footer={paged.pager}
         toolbar={
           <InputWrapper className="w-72">
             <Search />
@@ -123,7 +126,7 @@ export function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.data?.map((u) => (
+            {paged.rows.map((u) => (
               <TableRow key={u.id}>
                 <TableCell>
                   <div className="font-medium">

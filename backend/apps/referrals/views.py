@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.api.access import HasPermission, has_permission
+from apps.api.pagination import page_size_of
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
@@ -22,7 +23,6 @@ from .models import Referral
 VIEW, EDIT, APPROVE, REASSIGN = (
     "referrals.view", "referrals.edit", "referrals.approve", "caseload.reassign"
 )  # fmt: skip
-PAGE = 50
 STAGE_NAMES = dict(Referral.STAGES)
 
 
@@ -114,7 +114,7 @@ class ReferralListView(APIView):
         operation_id="referrals_list",
         parameters=[
             OpenApiParameter(n, str)
-            for n in ("q", "stage", "participant", "opportunity", "mine", "offset")
+            for n in ("q", "stage", "participant", "opportunity", "mine", "offset", "page_size")
         ],
         responses={200: dict},
     )
@@ -141,11 +141,12 @@ class ReferralListView(APIView):
             offset = max(int(g.get("offset", 0)), 0)
         except ValueError:
             raise serializers.ValidationError({"filter": ["Invalid filter value."]}) from None
+        size = page_size_of(g)
         return Response(
             {
                 "total": qs.count(),
-                "page_size": PAGE,
-                "results": [_summary(r) for r in qs[offset : offset + PAGE]],
+                "page_size": size,
+                "results": [_summary(r) for r in qs[offset : offset + size]],
             }
         )
 

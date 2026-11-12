@@ -53,7 +53,17 @@ export function PlaceFields({
 
   return (
     <div className="grid grid-cols-2 gap-2">
-      {subRows.length > 0 ? (
+      {!countyId ? (
+        <SelectField
+          label="Sub-county"
+          emptyLabel="Choose a county first"
+          className="w-full"
+          disabled
+          value=""
+          options={[]}
+          onChange={() => {}}
+        />
+      ) : subRows.length > 0 ? (
         <SelectField
           label="Sub-county"
           emptyLabel="Sub-county"
@@ -71,7 +81,17 @@ export function PlaceFields({
         />
       )}
       {showWard &&
-        (wardRows.length > 0 ? (
+        (!subCounty ? (
+          <SelectField
+            label="Ward"
+            emptyLabel="Choose a sub-county first"
+            className="w-full"
+            disabled
+            value=""
+            options={[]}
+            onChange={() => {}}
+          />
+        ) : wardRows.length > 0 ? (
           <SelectField
             label="Ward"
             emptyLabel="Ward"

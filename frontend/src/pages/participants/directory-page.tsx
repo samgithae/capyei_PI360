@@ -196,6 +196,12 @@ export function DirectoryPage() {
             <Pager
               offset={offset}
               pageSize={data.page_size}
+              onPageSize={(n) => {
+                const next = new URLSearchParams(params);
+                next.set('page_size', String(n));
+                next.delete('offset');
+                setParams(next);
+              }}
               total={data.total}
               onMove={move}
             />

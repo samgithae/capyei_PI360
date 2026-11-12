@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api, ApiError, post } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DataCard } from '@/components/data-card';
+import { DataCard, useClientPage } from '@/components/data-card';
 import { ManageLink } from '@/components/shared/manage-link';
 import { FormModal } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
@@ -245,7 +246,11 @@ const codeFor = (name: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
 
-const SHOW = 100;
+// Clicking a county opens its sub-counties; clicking a sub-county opens its wards.
+const DRILL: Record<string, { to: string; param: string }> = {
+  counties: { to: 'sub-counties', param: 'county' },
+  'sub-counties': { to: 'wards', param: 'sub_county' },
+};
 
 export function ReferencePage({ kind }: { kind: string }) {
   const def = REFERENCE_KINDS[kind];
@@ -259,6 +264,11 @@ export function ReferencePage({ kind }: { kind: string }) {
   const [codeEdited, setCodeEdited] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [sp] = useSearchParams();
+  // the parent record this list is narrowed to, e.g. /administration/sub-counties?county=<id>
+  const parentField = def.fields.find((f) => f.fk && sp.get(f.key));
+  const parentId = parentField ? sp.get(parentField.key)! : '';
+  const drill = DRILL[kind];
 
   const list = useQuery({
     queryKey: ['reference', kind],
@@ -359,7 +369,8 @@ export function ReferencePage({ kind }: { kind: string }) {
         Object.fromEntries(
           def.fields
             .filter((f) => f.type === 'select')
-            .map((f) => [f.key, f.options![0]]),
+            .map((f) => [f.key, f.options![0]])
+            .concat(parentField ? [[parentField.key, parentId]] : []),
         ),
       );
     } else {
@@ -378,11 +389,27 @@ export function ReferencePage({ kind }: { kind: string }) {
   const rows = (list.data ?? []).filter((r) => {
     const q = search.trim().toLowerCase();
     return (
-      !q ||
-      rowLabel(r).toLowerCase().includes(q) ||
-      (r.code ?? '').toLowerCase().includes(q)
+      (!parentField || r[parentField.key] === parentId) &&
+      (!q ||
+        rowLabel(r).toLowerCase().includes(q) ||
+        (r.code ?? '').toLowerCase().includes(q))
     );
   });
+  const paged = useClientPage(rows);
+  const parentName = parentField ? nameOf(parentField.fk!, parentId) : '';
+  const parentUp =
+    parentField?.fk === 'counties'
+      ? null
+      : parentField
+        ? {
+            to: `/administration/sub-counties?county=${
+              ((parentRows['sub-counties'] as Row[]).find(
+                (r) => r.id === parentId,
+              )?.county as string | undefined) ?? ''
+            }`,
+            label: 'Back to sub-counties',
+          }
+        : null;
   const columns = def.fields.filter((f) => f.column);
 
   return (
@@ -392,7 +419,7 @@ export function ReferencePage({ kind }: { kind: string }) {
       </Helmet>
       <PageHeader
         crumbs={[{ label: 'Administration' }, { label: def.title }]}
-        title={def.title}
+        title={parentName ? `${def.title} in ${parentName}` : def.title}
         description={def.description}
         actions={
           canManage && (
@@ -401,15 +428,29 @@ export function ReferencePage({ kind }: { kind: string }) {
         }
       />
       <DataCard
-        title={`All ${def.title.toLowerCase()}`}
+        title={
+          parentName
+            ? `${def.title} in ${parentName}`
+            : `All ${def.title.toLowerCase()}`
+        }
+        footer={paged.pager}
         toolbar={
-          <Input
-            aria-label={`Search ${def.title.toLowerCase()}`}
-            placeholder="Search…"
-            className="w-56"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <>
+            {parentField && (
+              <Button variant="outline" asChild>
+                <Link to={parentUp?.to ?? `/administration/${parentField.fk}`}>
+                  {parentUp?.label ?? 'All counties'}
+                </Link>
+              </Button>
+            )}
+            <Input
+              aria-label={`Search ${def.title.toLowerCase()}`}
+              placeholder="Search…"
+              className="w-56"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </>
         }
       >
         {list.isLoading ? (
@@ -433,9 +474,20 @@ export function ReferencePage({ kind }: { kind: string }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.slice(0, SHOW).map((r) => (
+                {paged.rows.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-medium">{rowLabel(r)}</TableCell>
+                    <TableCell className="font-medium">
+                      {drill ? (
+                        <Link
+                          className="text-primary hover:underline"
+                          to={`/administration/${drill.to}?${drill.param}=${r.id}`}
+                        >
+                          {rowLabel(r)}
+                        </Link>
+                      ) : (
+                        rowLabel(r)
+                      )}
+                    </TableCell>
                     {!def.unnamed && (
                       <TableCell className="text-muted-foreground">
                         {r.code}
@@ -482,13 +534,11 @@ export function ReferencePage({ kind }: { kind: string }) {
                 ))}
               </TableBody>
             </Table>
-            <p className="px-5 py-3 text-xs text-muted-foreground">
-              {rows.length === 0
-                ? `No ${def.title.toLowerCase()} found.`
-                : rows.length > SHOW
-                  ? `Showing the first ${SHOW} of ${rows.length}. Use search to narrow.`
-                  : `${rows.length} shown.`}
-            </p>
+            {rows.length === 0 && (
+              <p className="px-5 py-3 text-xs text-muted-foreground">
+                No {def.title.toLowerCase()} found.
+              </p>
+            )}
           </>
         )}
       </DataCard>

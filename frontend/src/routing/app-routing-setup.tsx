@@ -76,7 +76,7 @@ export function AppRoutingSetup() {
               <Route
                 key={k}
                 path={`/administration/${k}`}
-                element={<ReferencePage kind={k} />}
+                element={<ReferencePage key={k} kind={k} />}
               />
             ))}
           </Route>

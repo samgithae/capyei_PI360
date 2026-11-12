@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FormModal } from '@/components/shared/modals';
+import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
 
@@ -290,27 +291,26 @@ export function EditParticipant({
                     setHome((h) => ({
                       ...h,
                       county_id: x === NO_COUNTY ? '' : x,
+                      sub_county: '',
+                      ward: '',
                     }))
                   }
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="res-sub">Sub-county</Label>
-                <Input
-                  id="res-sub"
-                  value={res.sub_county}
-                  onChange={(e) =>
-                    setHome((h) => ({ ...h, sub_county: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="res-ward">Ward</Label>
-                <Input
-                  id="res-ward"
-                  value={res.ward}
-                  onChange={(e) =>
-                    setHome((h) => ({ ...h, ward: e.target.value }))
+              <div className="col-span-2 space-y-1.5">
+                <Label>Sub-county and ward</Label>
+                <PlaceFields
+                  countyId={res.county_id}
+                  subCounty={res.sub_county}
+                  ward={res.ward}
+                  onChange={(p) =>
+                    setHome((h) => ({
+                      ...h,
+                      ...(p.subCounty !== undefined && {
+                        sub_county: p.subCounty,
+                      }),
+                      ...(p.ward !== undefined && { ward: p.ward }),
+                    }))
                   }
                 />
               </div>

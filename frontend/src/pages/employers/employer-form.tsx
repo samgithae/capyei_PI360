@@ -97,7 +97,10 @@ export function EmployerForm({
       value={v[k] ?? ''}
       emptyLabel={k !== 'status' ? label : undefined}
       options={items}
-      onChange={(x) => set(k, x)}
+      onChange={(x) => {
+        set(k, x);
+        if (k === 'county_id') set('sub_county', '');
+      }}
     />
   );
 

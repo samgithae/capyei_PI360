@@ -149,3 +149,13 @@ def test_django_request_log_carries_request_id(client, caplog):
     res = client.post("/api/v1/_echo", {}, content_type="application/json")
     ids = {getattr(r, "request_id", None) for r in caplog.records if r.name == "django.request"}
     assert ids == {res["X-Request-ID"]}
+
+
+def test_page_size_param_is_bounded():
+    from apps.api.pagination import page_size_of
+
+    assert page_size_of({}) == 50
+    assert page_size_of({"page_size": "10"}) == 10
+    assert page_size_of({"page_size": "0"}) == 50
+    assert page_size_of({"page_size": "9999"}) == 50
+    assert page_size_of({"page_size": "x"}) == 50

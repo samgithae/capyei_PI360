@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DataCard } from '@/components/data-card';
+import { DataCard, useClientPage } from '@/components/data-card';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { StatusBadge, type Batch } from './shared';
@@ -37,6 +37,8 @@ export function ImportsPage() {
     </div>
   );
 
+  const paged = useClientPage(list.data ?? []);
+
   return (
     <>
       <Helmet>
@@ -60,7 +62,7 @@ export function ImportsPage() {
           />
         )}
         {list.data && list.data.length > 0 && (
-          <DataCard title="Import history">
+          <DataCard title="Import history" footer={paged.pager}>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -72,7 +74,7 @@ export function ImportsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {list.data.map((b) => (
+                {paged.rows.map((b) => (
                   <TableRow key={b.id}>
                     <TableCell>
                       <Link
