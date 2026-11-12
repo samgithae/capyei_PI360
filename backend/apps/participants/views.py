@@ -370,6 +370,70 @@ class EnrollmentEditSerializer(serializers.Serializer):
     cohort_course_id = serializers.UUIDField(required=False)
 
 
+class EnrollmentCreateView(APIView):
+    """Add a further enrollment (e.g. another course completed) to an existing youth."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": EDIT}
+
+    @extend_schema(
+        operation_id="participants_enrollment_add",
+        request=_NewEnrollmentSerializer,
+        responses={201: dict},
+    )
+    def post(self, request, pk):
+        try:
+            p = _visible(request, archived=None).get(pk=pk)
+        except Participant.DoesNotExist:
+            raise NotFound from None
+        s = _NewEnrollmentSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        ids = configuration.offering_ids(d["cohort_course_id"])
+        if ids is None:
+            raise serializers.ValidationError({"cohort_course_id": "Unknown course offering."})
+        if p.enrollments.filter(cohort_course_id=d["cohort_course_id"]).exists():
+            raise serializers.ValidationError(
+                {"cohort_course_id": "This youth is already enrolled in that course."}
+            )
+        no = d.get("enrollment_no", "").strip()
+        if (
+            no
+            and ParticipantEnrollment.objects.filter(
+                programme_id=ids[0], source_enrollment_no=no
+            ).exists()
+        ):
+            raise serializers.ValidationError(
+                {"enrollment_no": "Another enrollment in this programme has that number."}
+            )
+        e = ParticipantEnrollment.objects.create(
+            participant=p,
+            cohort_course_id=d["cohort_course_id"],
+            programme_id=ids[0],
+            institution_id=ids[1],
+            source_enrollment_no=no,
+            status=d["status"],
+            enrolled_on=d.get("enrolled_on"),
+            completed_on=d.get("completed_on"),
+            exit_reason=d.get("exit_reason", ""),
+            source_qualification_code=d.get("qualification_code", ""),
+            referral_source_code=d.get("referral_source_code", ""),
+            extra=d.get("extra") or {},
+        )
+        audit.record(
+            actor=request.user,
+            action="participant.enrollment_added",
+            object_type="participant",
+            object_id=p.pk,
+            after={
+                "cohort_course_id": str(e.cohort_course_id),
+                "status": e.status,
+                "enrollment_no": e.source_enrollment_no,
+            },
+        )
+        return Response(_detail(p, request.user), status=201)
+
+
 class EnrollmentDetailView(APIView):
     permission_classes = [HasPermission]
     required_permission = {"PATCH": EDIT}

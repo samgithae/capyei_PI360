@@ -218,3 +218,27 @@ def test_enrollment_move_rejects_unknown_and_clashing_number(world, make_user):
 def test_filter_options_cohorts_name_their_institution(world, make_user):
     c = client_for(make_user("steward", "Data steward"))
     assert c.get(f"{URL}/filters").json()["cohorts"][0]["institution"] == "College"
+
+
+def test_add_further_enrollment_to_existing_youth(world, make_user):
+    c = client_for(make_user("steward", "Data steward"))
+    p1, _ = world["1"]
+    cc2 = CohortCourse.objects.get(cohort__code="K2")
+    url = f"{URL}/{p1.pk}/enrollments"
+    r = c.post(
+        url,
+        {"cohort_course_id": str(cc2.pk), "status": "completed", "completed_on": "2026-06-30"},
+        content_type="application/json",
+    )
+    assert r.status_code == 201, r.content
+    assert len(r.json()["enrollments"]) == 2
+    assert p1.enrollments.count() == 2
+    assert AuditEvent.objects.filter(action="participant.enrollment_added").exists()
+    again = c.post(url, {"cohort_course_id": str(cc2.pk)}, content_type="application/json")
+    assert again.status_code == 400  # already enrolled in that course
+    bad = c.post(
+        url,
+        {"cohort_course_id": "11111111-1111-1111-1111-111111111111"},
+        content_type="application/json",
+    )
+    assert bad.status_code == 400

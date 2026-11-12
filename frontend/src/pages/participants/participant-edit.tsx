@@ -73,6 +73,22 @@ const opts = (xs: string[]) => xs.map((x) => ({ id: x, name: x }));
 const NO_COUNTY = 'none'; // Radix Select cannot hold an empty value
 
 type Core = Omit<Detail, 'enrollments'>;
+interface NewEnrollment {
+  cohort_id: string;
+  cohort_course_id: string;
+  status: string;
+  enrollment_no: string;
+  enrolled_on: string;
+  completed_on: string;
+}
+const BLANK_NEW: NewEnrollment = {
+  cohort_id: '',
+  cohort_course_id: '',
+  status: 'enrolled',
+  enrollment_no: '',
+  enrolled_on: '',
+  completed_on: '',
+};
 type EnrollmentDraft = Record<
   string,
   Partial<Enrollment> & { cohort_course_id?: string }
@@ -177,6 +193,7 @@ export function EditParticipant() {
   const [enr, setEnr] = useState<EnrollmentDraft>({});
   const [error, setError] = useState('');
   const [contacts, setContacts] = useState<Contact[] | null>(null);
+  const [added, setAdded] = useState<NewEnrollment[]>([]);
   const [home, setHome] = useState<Partial<Residence>>({});
   const d = detail.data;
   const list = contacts ?? d?.contacts ?? [];
@@ -229,6 +246,18 @@ export function EditParticipant() {
           }),
         });
       }
+      for (const n of added) {
+        await api(`/participants/${id}/enrollments`, {
+          method: 'POST',
+          body: JSON.stringify({
+            cohort_course_id: n.cohort_course_id,
+            status: n.status,
+            enrollment_no: n.enrollment_no,
+            enrolled_on: n.enrolled_on || null,
+            completed_on: n.completed_on || null,
+          }),
+        });
+      }
       for (const [eid, change] of Object.entries(enr)) {
         if (Object.keys(change).length === 0) continue;
         const { enrollment_no, ...rest } = change;
@@ -274,6 +303,8 @@ export function EditParticipant() {
     if (contacts?.some((c) => !c.value.trim()))
       return setError('Fill in or remove the empty contact.');
     if (v && !v.name.trim()) return setError('Enter the full name.');
+    if (added.some((n) => !n.cohort_course_id))
+      return setError('Choose a cohort and a course for each new enrollment.');
     if (Object.values(enr).some((c) => c.cohort_course_id === ''))
       return setError('Choose a course for the cohort you picked.');
     save.mutate();
@@ -568,6 +599,84 @@ export function EditParticipant() {
               </fieldset>
             );
           })}
+          {added.map((n, i) => {
+            const set = (p: Partial<NewEnrollment>) =>
+              setAdded(added.map((x, j) => (j === i ? { ...x, ...p } : x)));
+            return (
+              <fieldset
+                key={i}
+                className="space-y-3 rounded-lg border border-border p-3"
+              >
+                <legend className="px-1 text-sm font-medium">
+                  New enrollment
+                </legend>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <OfferingFields
+                    cohortId={n.cohort_id}
+                    courseId={n.cohort_course_id}
+                    currentCourse=""
+                    filters={filters.data}
+                    canPickCourse={can('config.view')}
+                    onChange={(cohort, course) =>
+                      set({ cohort_id: cohort, cohort_course_id: course })
+                    }
+                  />
+                  <div className="space-y-1.5">
+                    <Label>Enrollment status</Label>
+                    <SelectField
+                      label="New enrollment status"
+                      value={n.status}
+                      options={opts(ENROLLMENT)}
+                      onChange={(x) => set({ status: x })}
+                      className="capitalize"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`new-no-${i}`}>Enrollment no.</Label>
+                    <Input
+                      id={`new-no-${i}`}
+                      value={n.enrollment_no}
+                      onChange={(e) => set({ enrollment_no: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`new-start-${i}`}>Enrolled on</Label>
+                    <Input
+                      id={`new-start-${i}`}
+                      type="date"
+                      value={n.enrolled_on}
+                      onChange={(e) => set({ enrolled_on: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`new-end-${i}`}>Completed on</Label>
+                    <Input
+                      id={`new-end-${i}`}
+                      type="date"
+                      value={n.completed_on}
+                      onChange={(e) => set({ completed_on: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAdded(added.filter((_, j) => j !== i))}
+                >
+                  <Trash2 /> Remove this enrollment
+                </Button>
+              </fieldset>
+            );
+          })}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setAdded([...added, BLANK_NEW])}
+          >
+            <Plus /> Add another enrollment or course
+          </Button>
+
           <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-background py-3">
             {error && (
               <p role="alert" className="me-auto text-sm text-destructive">

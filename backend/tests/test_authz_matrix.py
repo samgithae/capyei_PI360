@@ -56,6 +56,7 @@ MATRIX = {
         "PATCH": "participants.edit",
         "DELETE": "records.archive",
     },
+    "participants/<uuid:pk>/enrollments": {"POST": "participants.edit"},
     "participants/<uuid:pk>/enrollments/<uuid:enrollment_id>": {"PATCH": "participants.edit"},
     "participants/<uuid:pk>/contacts": {"PUT": "participants.edit"},
     "participants/<uuid:pk>/invite": {

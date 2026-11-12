@@ -19,6 +19,7 @@ urlpatterns = [
     path("participants/profile-import-template", pv.ProfileImportTemplateView.as_view()),
     path("participants/<uuid:pk>/profile", pv.ProfileView.as_view()),
     path("participants/<uuid:pk>/profile/verify", pv.ProfileVerifyView.as_view()),
+    path("participants/<uuid:pk>/enrollments", v.EnrollmentCreateView.as_view()),
     path("participants/<uuid:pk>/residence", v.ResidenceView.as_view()),
     path("participants/archive", v.ParticipantArchiveView.as_view()),
     path("participants/restore", v.ParticipantRestoreView.as_view()),
