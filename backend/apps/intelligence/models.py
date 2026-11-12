@@ -146,3 +146,44 @@ class RuleVersion(models.Model):
         if self.status != self.DRAFT:
             raise Immutable("Only a draft rule version can be discarded.")
         return super().delete(*args, **kwargs)
+
+
+class RuleSetting(models.Model):
+    """One number an administrator has changed from its default (``settings_registry``).
+    A key with no row simply uses the default, so a fresh install needs no setup."""
+
+    key = models.CharField(max_length=60, primary_key=True)
+    value = models.DecimalField(max_digits=10, decimal_places=2)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="+",
+    )  # fmt: skip
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.key}={self.value}"
+
+
+class SupportReview(models.Model):
+    """An officer looked at a flagged youth. It pauses the flag for a while (a setting) so the
+    queue shows what still needs attention. Append-only in practice: a new review is a new row."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    participant = models.ForeignKey(
+        "participants.Participant", on_delete=models.CASCADE, related_name="+"
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="+",
+    )  # fmt: skip
+    outcome = models.CharField(max_length=20)  # one of services.REVIEW_OUTCOMES
+    note = models.CharField(max_length=500, blank=True)
+    flags = models.JSONField(default=list)  # the flag codes shown when it was reviewed
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["participant", "-created_at"])]
+
+    def __str__(self):
+        return f"review:{self.participant_id}:{self.outcome}"

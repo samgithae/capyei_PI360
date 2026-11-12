@@ -180,7 +180,7 @@ def test_validate_refuses_a_definition_without_factors():
     assert pi360_rules.validate([])[0]["path"] == ""
 
 
-def test_a_parameter_is_approved_only_with_a_value_and_the_approved_mark():
+def test_a_parameter_waits_only_while_it_has_no_value():
     definition = {
         "factors": [factor()],
         "parameters": {
@@ -189,4 +189,4 @@ def test_a_parameter_is_approved_only_with_a_value_and_the_approved_mark():
             "c": {"value": None, "approved": False},
         },
     }
-    assert pi360_rules.unapproved(definition) == ["b", "c"]
+    assert pi360_rules.unapproved(definition) == ["c"]  # the approver signs off the rest

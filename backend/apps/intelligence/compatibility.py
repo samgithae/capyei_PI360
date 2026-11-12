@@ -150,7 +150,11 @@ def assess(definition: dict, opp: dict, snapshot: dict, today) -> dict:
         if have:
             score = round(sum(c["weight"] * (c["score"] or 0) for c in known) / have * 100)
     met = sum(1 for c in live if c["outcome"] == pi360_rules.PASS)
+    # The interim display (D-009): how many preferred factors are met, with no weights needed.
+    preferred_met = sum(1 for c in preferred if c["outcome"] == pi360_rules.PASS)
     return {
+        "preferred_met": preferred_met,
+        "preferred_total": len(preferred),
         "group": group,
         "met": met,
         "checked": len(live),

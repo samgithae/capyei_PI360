@@ -462,3 +462,68 @@ def learner_placed(participant_id) -> list[dict]:
                 }
             )
     return out
+
+
+# ---- Facts for the intelligence modules (counts only; no judgement lives here) ----
+
+
+def employer_counts(employer_id, since) -> dict:
+    """What happened to referrals sent to one employer since ``since``: raw counts and the
+    waiting times, nothing interpreted. Retention and feedback are not recorded yet."""
+    sent = Referral.objects.filter(opportunity__employer_id=employer_id, referred_at__gte=since)
+    ids = list(sent.values_list("pk", flat=True))
+    first_reply = {}
+    for ev in StageEvent.objects.filter(
+        referral_id__in=ids, kind=StageEvent.TRANSITION, from_stage=Referral.SUBMITTED
+    ).order_by("at", "id"):
+        first_reply.setdefault(ev.referral_id, ev.at)
+    referred_at = dict(sent.values_list("pk", "referred_at"))
+    days = sorted((first_reply[i] - referred_at[i]).total_seconds() / 86400 for i in first_reply)
+    reached = StageEvent.objects.filter(
+        referral_id__in=ids, to_stage=Referral.INTERVIEW
+    ).values("referral_id").distinct().count()  # fmt: skip
+    placed = (
+        StageEvent.objects.filter(referral_id__in=ids, to_stage=Referral.PLACED)
+        .values("referral_id")
+        .distinct()
+        .count()
+    )
+    return {
+        "sent": len(ids),
+        "replied": len(first_reply),
+        "reply_days_median": round(days[len(days) // 2], 1) if days else None,
+        "interview": reached,
+        "placed": placed,
+    }
+
+
+def support_facts(ids, *, since, stalled_before) -> dict:
+    """Per-youth facts that the support-priority flags read (Module A): unsuccessful referrals
+    since a date, open referrals untouched since a date, and who has ever been referred."""
+    ids = list(ids)
+    unsuccessful = dict(
+        StageEvent.objects.filter(
+            referral__participant_id__in=ids,
+            to_stage__in=Referral.UNSUCCESSFUL,
+            kind=StageEvent.TRANSITION,
+            at__gte=since,
+        )
+        .values_list("referral__participant_id")
+        .annotate(n=Count("referral_id", distinct=True))
+    )
+    stalled: dict = {}
+    open_stages = Referral.ACTIVE - {Referral.DRAFT}
+    for r in (
+        Referral.objects.filter(
+            participant_id__in=ids, stage__in=open_stages, updated_at__lte=stalled_before
+        )
+        .select_related("opportunity")
+        .order_by("updated_at")
+    ):
+        stalled.setdefault(r.participant_id, (r.opportunity.title, r.updated_at))
+    referred = set(
+        Referral.objects.filter(participant_id__in=ids)
+        .exclude(stage=Referral.DRAFT)
+        .values_list("participant_id", flat=True)
+    )
+    return {"unsuccessful": unsuccessful, "stalled": stalled, "referred": referred}

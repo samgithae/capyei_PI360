@@ -542,6 +542,34 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/config/reference/cohort-courses/bulk:
+    post:
+      operationId: config_reference_cohort_courses_bulk_create
+      description: Link many courses to one cohort in a single step.
+      tags:
+      - config
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CohortCoursesBulk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CohortCoursesBulk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CohortCoursesBulk'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/config/settings:
     get:
       operationId: config_settings_list
@@ -834,6 +862,30 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/employers/{id}/evidence:
+    get:
+      operationId: employer_evidence
+      description: 'Module C evidence for one employer: counts, period and source
+        for each indicator.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/employers/{id}/history:
     get:
       operationId: employers_history
@@ -2555,6 +2607,42 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/{id}/enrollments:
+    post:
+      operationId: participants_enrollment_add
+      description: Add a further enrollment (e.g. another course completed) to an
+        existing youth.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_NewEnrollment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/_NewEnrollment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/_NewEnrollment'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/{id}/enrollments/{enrollment_id}:
     patch:
       operationId: participants_enrollment_edit
@@ -2796,6 +2884,39 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/{id}/support-review:
+    post:
+      operationId: support_review
+      description: An officer records that they looked at a flagged youth (pauses
+        the flag for a while).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/participants/archive:
     post:
       operationId: participants_archive_create
@@ -3070,6 +3191,23 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/participants/profile-options:
+    get:
+      operationId: participants_profile_options
+      description: What the capability form may choose from, before any youth exists
+        (Add youth).
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/restore:
     post:
       operationId: participants_restore_create
@@ -3238,50 +3376,6 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/v1/referrals/{id}/interview:
-    put:
-      operationId: referrals_interview_put
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - referrals
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                at:
-                  type: string
-                  format: date-time
-                place:
-                  type: string
-                note:
-                  type: string
-              required:
-              - at
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: {}
-          description: ''
-        '409':
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: {}
-          description: ''
   /api/v1/referrals/{id}/correct:
     post:
       operationId: referrals_correct_create
@@ -3348,6 +3442,48 @@ paths:
                 type: array
                 items: {}
           description: ''
+  /api/v1/referrals/{id}/interview:
+    put:
+      operationId: referrals_interview_put
+      description: Staff set the interview time, place and a note for the learner.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - referrals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralInterview'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReferralInterview'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReferralInterview'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/referrals/{id}/transition:
     post:
       operationId: referrals_transition_create
@@ -3403,6 +3539,54 @@ paths:
               schema:
                 type: array
                 items: {}
+          description: ''
+  /api/v1/referrals/bulk:
+    post:
+      operationId: referrals_bulk_create
+      description: |-
+        Refer several youth to one opportunity at once. Each youth is its own referral, so one
+        who cannot be referred (already has an open referral, not visible) is reported and the rest
+        still go through.
+      tags:
+      - referrals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralBulk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReferralBulk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReferralBulk'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/referrals/by-opportunity:
+    get:
+      operationId: referrals_by_opportunity
+      description: Referral counts per opportunity, for the Opportunities list analytics
+        (scope applied).
+      tags:
+      - referrals
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
           description: ''
   /api/v1/referrals/reasons:
     get:
@@ -3516,6 +3700,55 @@ paths:
       description: The fixed operators a factor may use, for the rules screen.
       tags:
       - rules
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+  /api/v1/rules/settings:
+    get:
+      operationId: rule_settings_get
+      description: |-
+        The numbers behind support flags and employer evidence. Anyone who can see rules reads
+        them; changing them needs intelligence.manage_rules. Every change is audited.
+      tags:
+      - rules
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+    put:
+      operationId: rule_settings_put
+      description: |-
+        The numbers behind support flags and employer evidence. Anyone who can see rules reads
+        them; changing them needs intelligence.manage_rules. Every change is audited.
+      tags:
+      - rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
       security:
       - cookieAuth: []
       responses:
@@ -3884,6 +4117,24 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/support/queue:
+    get:
+      operationId: support_queue
+      description: |-
+        Module A review queue: youth who may need extra support, with the reason for each flag.
+        Scope limits whose flags are shown.
+      tags:
+      - support
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/youth/activate:
     post:
       operationId: youth_activate
@@ -3955,40 +4206,22 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/v1/youth/me:
-    get:
-      operationId: youth_me_get
-      tags:
-      - youth
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: {}
-          description: ''
-  /api/v1/youth/profile:
+  /api/v1/youth/details:
     put:
-      operationId: youth_profile_put
+      operationId: youth_details_put
       tags:
       - youth
       requestBody:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/YouthDetails'
           application/x-www-form-urlencoded:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/YouthDetails'
           multipart/form-data:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/YouthDetails'
       security:
       - cookieAuth: []
       responses:
@@ -4002,6 +4235,21 @@ paths:
   /api/v1/youth/journey:
     get:
       operationId: youth_journey_get
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/me:
+    get:
+      operationId: youth_me_get
       tags:
       - youth
       security:
@@ -4043,21 +4291,6 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/v1/youth/placement:
-    get:
-      operationId: youth_placement_get
-      tags:
-      - youth
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: {}
-          description: ''
   /api/v1/youth/opportunities/{id}:
     get:
       operationId: youth_opportunity_get
@@ -4080,9 +4313,24 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/v1/youth/details:
+  /api/v1/youth/placement:
+    get:
+      operationId: youth_placement_get
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/profile:
     put:
-      operationId: youth_details_put
+      operationId: youth_profile_put
       tags:
       - youth
       requestBody:
@@ -4249,6 +4497,20 @@ components:
       - action
       - key
       - spellings
+    CohortCoursesBulk:
+      type: object
+      properties:
+        cohort:
+          type: string
+          format: uuid
+        courses:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+      - cohort
+      - courses
     Consent:
       type: object
       properties:
@@ -4682,6 +4944,8 @@ components:
           maxLength: 60
         enrollment:
           $ref: '#/components/schemas/_NewEnrollment'
+        capability:
+          $ref: '#/components/schemas/Profile'
       required:
       - full_name_source
     PasswordChange:
@@ -4789,6 +5053,9 @@ components:
         exit_reason:
           type: string
           maxLength: 200
+        cohort_course_id:
+          type: string
+          format: uuid
     PatchedFlag:
       type: object
       properties:
@@ -5035,6 +5302,28 @@ components:
           maxLength: 2000
       required:
       - user_id
+    ReferralBulk:
+      type: object
+      properties:
+        opportunity_id:
+          type: string
+          format: uuid
+        participant_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 200
+          minItems: 1
+        note:
+          type: string
+          maxLength: 2000
+        submit:
+          type: boolean
+          default: true
+      required:
+      - opportunity_id
+      - participant_ids
     ReferralCreate:
       type: object
       properties:
@@ -5053,6 +5342,22 @@ components:
       required:
       - opportunity_id
       - participant_id
+    ReferralInterview:
+      type: object
+      properties:
+        at:
+          type: string
+          format: date-time
+        place:
+          type: string
+          default: ''
+          maxLength: 200
+        note:
+          type: string
+          default: ''
+          maxLength: 500
+      required:
+      - at
     ReferralMove:
       type: object
       properties:
@@ -5540,6 +5845,39 @@ components:
         * `qualification` - qualification
         * `readiness` - readiness
         * `skill` - skill
+    YouthDetails:
+      type: object
+      description: Only what a youth may change. Status, enrollment and the like are
+        staff-only.
+      properties:
+        full_name:
+          type: string
+          maxLength: 200
+        given_name:
+          type: string
+          maxLength: 100
+        family_name:
+          type: string
+          maxLength: 100
+        other_names:
+          type: string
+          maxLength: 100
+        gender:
+          $ref: '#/components/schemas/GenderEnum'
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        county_id:
+          type: string
+          format: uuid
+          nullable: true
+        residence:
+          $ref: '#/components/schemas/_YouthResidence'
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/_YouthContact'
     _Experience:
       type: object
       properties:
@@ -5685,6 +6023,33 @@ components:
           $ref: '#/components/schemas/ProficiencyEnum'
       required:
       - skill_id
+    _YouthContact:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/Kind204Enum'
+        value:
+          type: string
+          maxLength: 200
+        primary:
+          type: boolean
+          default: false
+      required:
+      - kind
+      - value
+    _YouthResidence:
+      type: object
+      properties:
+        county_id:
+          type: string
+          format: uuid
+          nullable: true
+        sub_county:
+          type: string
+          maxLength: 100
+        ward:
+          type: string
+          maxLength: 100
   securitySchemes:
     cookieAuth:
       type: apiKey

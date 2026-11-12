@@ -175,3 +175,16 @@ def test_a_referred_youth_leaves_the_suggestions(world, make_user):
     ref.stage = Referral.WITHDRAWN  # an unsuccessful referral does not hide them
     ref.save()
     assert "A Strong" in {s["name"] for s in admin.get(world["url"]).json()["suggestions"]}
+
+
+def test_preferred_factors_met_count_orders_ties_without_weights(world, make_user):
+    """The interim display: how many preferred factors are met, no weights needed."""
+    initial_rules.load()
+    v = RuleVersion.objects.get(rule_set__code="compatibility-default")
+    v.status = RuleVersion.ACTIVE
+    v.save()
+    body = api(make_user("admin", "Administrator")).get(world["url"]).json()
+    by = {s["name"]: s for s in body["suggestions"]}
+    assert by["A Strong"]["preferred_total"] == 1  # the 12-month experience requirement
+    assert by["A Strong"]["preferred_met"] == 1
+    assert by["B Partial"]["preferred_met"] == 0

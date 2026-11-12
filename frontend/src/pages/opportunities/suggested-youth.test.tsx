@@ -69,6 +69,8 @@ describe('SuggestedYouth', () => {
       score: null,
       met: 2 - i,
       checked: 2,
+      preferred_met: 1 - i,
+      preferred_total: 1,
       coverage: null,
       checks: [
         {
@@ -90,6 +92,7 @@ describe('SuggestedYouth', () => {
     show();
     expect(await screen.findByText('A Strong')).toBeTruthy();
     expect(screen.getByText('Meets 2 of 2')).toBeTruthy();
+    expect(screen.getByText('Preferred: 1 of 1')).toBeTruthy();
     expect(screen.getAllByText(/Skill: Welding/).length).toBe(2);
     expect(screen.getByText(/percentage fit is not shown/i)).toBeTruthy();
     expect(screen.getByText('1.')).toBeTruthy();

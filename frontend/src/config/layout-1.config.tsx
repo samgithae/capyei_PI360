@@ -67,7 +67,7 @@ export const MENU_SIDEBAR: MenuConfig = [
     title: 'Support priority',
     icon: LifeBuoy,
     path: '/support',
-    permission: 'ydm.view',
+    permission: 'participants.view_profile',
   },
   { heading: 'Placement' },
   {

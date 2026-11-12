@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { api, ApiError, post } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ActivityTimeline,
@@ -133,8 +134,9 @@ export function RuleVersionPage() {
   const [editing, setEditing] = useState<'wizard' | 'json' | null>(null);
   const [draft, setDraft] = useState({ json: '', notes: '' });
   const [param, setParam] = useState<string | null>(null);
-  const [paramForm, setParamForm] = useState({ value: '', approved: false });
+  const [paramForm, setParamForm] = useState({ value: '' });
   const [discarding, setDiscarding] = useState(false);
+  const [tab, setTab] = useState('factors');
 
   const q = useQuery({
     queryKey: ['rule-version', id],
@@ -237,7 +239,6 @@ export function RuleVersionPage() {
           : typeof p.value === 'string'
             ? p.value
             : JSON.stringify(p.value),
-      approved: p?.approved === true,
     });
     setError('');
     setParam(name);
@@ -324,15 +325,76 @@ export function RuleVersionPage() {
       {v.unapproved.length > 0 && (
         <Notice
           tone="warning"
-          title={`${v.unapproved.length} parameter${v.unapproved.length === 1 ? ' is' : 's are'} waiting for a decision.`}
+          title={`${v.unapproved.length} parameter${v.unapproved.length === 1 ? ' is' : 's are'} waiting for a value.`}
         >
-          This version cannot be approved until each has a value and is marked
-          as decided: {v.unapproved.join(', ')}.
+          This version cannot be approved until each has a value.{' '}
+          <button
+            type="button"
+            className="text-primary underline"
+            onClick={() => setTab('parameters')}
+          >
+            Go to parameters
+          </button>
         </Notice>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              ['Created', `${v.created_by || 'System'}, ${when(v.created_at)}`],
+              v.approved_by && [
+                'Approved',
+                `${v.approved_by}${v.approved_at ? `, ${when(v.approved_at)}` : ''}`,
+              ],
+              v.effective_from && ['In force from', when(v.effective_from)],
+              v.retired_at && ['Retired', when(v.retired_at)],
+            ]
+              .filter((x): x is string[] => Array.isArray(x))
+              .map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="text-foreground">{value}</dd>
+                </div>
+              ))}
+          </dl>
+          {v.change_notes && (
+            <p className="border-t pt-3 text-sm text-muted-foreground">
+              <span className="text-foreground">What changed: </span>
+              {v.change_notes}
+            </p>
+          )}
+          {d.notes && (
+            <details className="border-t pt-3 text-sm">
+              <summary className="cursor-pointer text-foreground">
+                Version notes
+              </summary>
+              <p className="mt-2 whitespace-pre-line text-muted-foreground">
+                {d.notes}
+              </p>
+            </details>
+          )}
+        </CardContent>
+      </Card>
+
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList
+          variant="line"
+          size="sm"
+          className="overflow-x-auto whitespace-nowrap"
+        >
+          <TabsTrigger value="factors">Factors ({factors.length})</TabsTrigger>
+          <TabsTrigger value="parameters">
+            Parameters ({parameters.length})
+            {v.unapproved.length > 0 && (
+              <Badge variant="warning" appearance="light" className="ms-2">
+                {v.unapproved.length} to set
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+        </TabsList>
+        <TabsContent value="factors">
           <Section
             title="Factors"
             description="Each factor is one check. A missing value gives unknown, never a silent fail."
@@ -365,11 +427,11 @@ export function RuleVersionPage() {
                       <TableRow key={f.code}>
                         <TableCell className="whitespace-normal">
                           <p className="font-medium text-foreground">
-                            {f.label}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {f.code}
-                            {f.enabled === false && ' · switched off'}
+                            {f.label}{' '}
+                            <span className="font-mono text-xs font-normal text-muted-foreground">
+                              {f.code}
+                              {f.enabled === false && ' · switched off'}
+                            </span>
                           </p>
                           {f.note && (
                             <p className="mt-1 text-xs text-muted-foreground">
@@ -418,10 +480,11 @@ export function RuleVersionPage() {
               </div>
             )}
           </Section>
-
+        </TabsContent>
+        <TabsContent value="parameters">
           <Section
             title="Parameters"
-            description="Thresholds and weights the factors use. Each needs a decision from the product owner before the version can be approved."
+            description="Thresholds and weights the factors use. Each needs a value before approval."
             flush
           >
             {parameters.length === 0 ? (
@@ -446,10 +509,7 @@ export function RuleVersionPage() {
                   </TableHeader>
                   <TableBody>
                     {parameters.map(([name, p]) => {
-                      const decided =
-                        p.approved === true &&
-                        p.value !== null &&
-                        p.value !== undefined;
+                      const decided = p.value !== null && p.value !== undefined;
                       return (
                         <TableRow key={name}>
                           <TableCell className="whitespace-normal">
@@ -476,12 +536,13 @@ export function RuleVersionPage() {
                           </TableCell>
                           <TableCell>{p.decision || '-'}</TableCell>
                           <TableCell>
-                            <Badge
-                              variant={decided ? 'success' : 'warning'}
-                              appearance="light"
-                            >
-                              {decided ? 'Decided' : 'Awaiting decision'}
-                            </Badge>
+                            {decided ? (
+                              <span className="text-muted-foreground">Set</span>
+                            ) : (
+                              <Badge variant="warning" appearance="light">
+                                Needs a value
+                              </Badge>
+                            )}
                           </TableCell>
                           {canEdit && (
                             <TableCell>
@@ -503,26 +564,11 @@ export function RuleVersionPage() {
               </div>
             )}
           </Section>
-
-          {d.notes && (
-            <Section title="Notes">
-              <p className="whitespace-pre-line text-sm text-foreground">
-                {d.notes}
-              </p>
-            </Section>
-          )}
-        </div>
-
-        <div className="space-y-5">
+        </TabsContent>
+        <TabsContent value="history" className="grid gap-5 lg:grid-cols-2">
           <Section title="Details">
             <DetailList
               items={[
-                {
-                  label: 'Status',
-                  value: (
-                    <StatusBadge status={v.status} label={v.status_label} />
-                  ),
-                },
                 { label: 'What changed', value: v.change_notes },
                 { label: 'Created by', value: v.created_by || 'System' },
                 { label: 'Created', value: when(v.created_at) },
@@ -553,8 +599,8 @@ export function RuleVersionPage() {
               <ActivityTimeline events={audit.data ?? []} />
             )}
           </Section>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       <FormModal
         open={step !== null}
@@ -646,14 +692,12 @@ export function RuleVersionPage() {
         open={param !== null}
         onOpenChange={(o) => !o && close()}
         title={`Set ${param ? d.parameters?.[param]?.label || param : 'value'}`}
-        description="Record the value that was decided. Tick the box only when the product owner has confirmed it."
+        description="Record the value. The administrator who approves the version signs off every number."
         pending={save.isPending}
         error={error}
         onSubmit={() => {
           if (!param) return;
           const value = parseValue(paramForm.value);
-          if (paramForm.approved && value === null)
-            return setError('A decided parameter needs a value.');
           save.mutate({
             definition: {
               ...d,
@@ -662,7 +706,7 @@ export function RuleVersionPage() {
                 [param]: {
                   ...d.parameters?.[param],
                   value,
-                  approved: paramForm.approved,
+                  approved: value !== null,
                 },
               },
             },
@@ -688,18 +732,6 @@ export function RuleVersionPage() {
             is undecided.
           </p>
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={paramForm.approved}
-            onCheckedChange={(c) =>
-              setParamForm({ ...paramForm, approved: c === true })
-            }
-          />
-          Decided
-          {param && d.parameters?.[param]?.decision
-            ? ` (decision ${d.parameters[param].decision})`
-            : ''}
-        </label>
       </FormModal>
 
       <ConfirmDialog

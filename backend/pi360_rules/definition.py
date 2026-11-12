@@ -122,12 +122,13 @@ def validate(definition) -> list[dict]:
 
 
 def unapproved(definition) -> list[str]:
-    """Names of parameters that still wait for a decision: not marked approved, or no value.
-    A version cannot be approved while this list is not empty (T-048)."""
+    """Names of parameters that still have no value. The administrator who approves the version
+    is the sign-off, so there is no separate per-number confirmation. A version cannot be
+    approved while this list is not empty (T-048)."""
     if not isinstance(definition, dict) or not isinstance(definition.get("parameters"), dict):
         return []
     return sorted(
         name
         for name, p in definition["parameters"].items()
-        if not isinstance(p, dict) or p.get("approved") is not True or p.get("value") is None
+        if not isinstance(p, dict) or p.get("value") is None
     )

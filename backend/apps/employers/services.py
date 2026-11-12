@@ -32,6 +32,10 @@ class DuplicateWarning(Exception):
         self.matches = matches
 
 
+def exists(employer_id) -> bool:
+    return Employer.objects.filter(pk=employer_id).exists()
+
+
 def find_similar(name, *, exclude=None):
     """Existing employers whose name is the same after normalising, or nearly so."""
     key = norm(name)

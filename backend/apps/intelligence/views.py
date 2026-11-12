@@ -164,6 +164,117 @@ class RuleSetListView(APIView):
         )
 
 
+def _settings_payload():
+    from .settings_registry import REGISTRY
+
+    values = services.setting_values()
+    return [
+        {
+            "key": m.key,
+            "group": m.group,
+            "label": m.label,
+            "unit": m.unit,
+            "help": m.help,
+            "default": m.default,
+            "minimum": m.minimum,
+            "value": values[m.key],
+        }
+        for m in REGISTRY
+    ]
+
+
+class RuleSettingsView(APIView):
+    """The numbers behind support flags and employer evidence. Anyone who can see rules reads
+    them; changing them needs intelligence.manage_rules. Every change is audited."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": VIEW, "PUT": MANAGE}
+
+    @extend_schema(operation_id="rule_settings_get", responses={200: dict(type="array", items={})})
+    def get(self, request):
+        return Response(_settings_payload())
+
+    @extend_schema(
+        operation_id="rule_settings_put",
+        request=dict,
+        responses={200: dict(type="array", items={})},
+    )
+    def put(self, request):
+        values = request.data.get("values") if isinstance(request.data, dict) else None
+        if not isinstance(values, dict) or not values:
+            raise serializers.ValidationError({"values": ["Send the numbers to change."]})
+        try:
+            services.update_settings(actor=request.user, values=values)
+        except services.RuleViolation as exc:
+            raise serializers.ValidationError({exc.field: [exc.message]}) from exc
+        return Response(_settings_payload())
+
+
+class EmployerEvidenceView(APIView):
+    """Module C evidence for one employer: counts, period and source for each indicator."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": VIEW}
+
+    @extend_schema(operation_id="employer_evidence", responses={200: dict})
+    def get(self, request, pk):
+        from datetime import date
+
+        from apps.employers import services as employers
+
+        if not employers.exists(pk):
+            raise NotFound()
+        return Response(services.employer_evidence(pk, date.today()))
+
+
+class SupportQueueView(APIView):
+    """Module A review queue: youth who may need extra support, with the reason for each flag.
+    Scope limits whose flags are shown."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": "participants.view_profile"}
+
+    @extend_schema(operation_id="support_queue", responses={200: dict})
+    def get(self, request):
+        from datetime import date
+
+        from apps.participants import services as participants
+
+        return Response(
+            services.support_queue(
+                participants.visible_ids(request.user).values_list("pk", flat=True), date.today()
+            )
+        )
+
+
+class SupportReviewView(APIView):
+    """An officer records that they looked at a flagged youth (pauses the flag for a while)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": "referrals.edit"}
+
+    @extend_schema(operation_id="support_review", request=dict, responses={204: None})
+    def post(self, request, pk):
+        from apps.participants import services as participants
+
+        p = participants.find_active(pk) if participants.is_visible(request.user, pk) else None
+        if p is None:
+            raise NotFound()
+        data = request.data if isinstance(request.data, dict) else {}
+        flags = data.get("flags") if isinstance(data.get("flags"), list) else []
+        try:
+            services.review_support(
+                actor=request.user,
+                participant=p,
+                outcome=str(data.get("outcome", "")),
+                note=str(data.get("note", "")),
+                flags=[str(f) for f in flags],
+            )
+        except services.RuleViolation as exc:
+            raise serializers.ValidationError({exc.field: [exc.message]}) from exc
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class OperatorListView(APIView):
     """The fixed operators a factor may use, for the rules screen."""
 

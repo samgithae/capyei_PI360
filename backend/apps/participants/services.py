@@ -536,6 +536,27 @@ def display_name(p: Participant) -> str:
     return str(p)
 
 
+def names(ids) -> dict:
+    """``{id: display name}`` for a batch of youth."""
+    return {p.pk: str(p) for p in Participant.objects.filter(pk__in=list(ids))}
+
+
+def ready_since(ids, today) -> dict:
+    """``{id: date}`` for enrolled or completed youth who said they can start work, and from
+    when. Those with no availability recorded are left out: that is missing, not "not ready"."""
+    from .models import ParticipantEnrollment, ParticipantReadiness
+
+    rows = ParticipantReadiness.objects.filter(
+        participant_id__in=list(ids), available_from__isnull=False, available_from__lte=today
+    ).filter(
+        participant__enrollments__status__in=[
+            ParticipantEnrollment.ENROLLED,
+            ParticipantEnrollment.COMPLETED,
+        ]
+    )
+    return dict(rows.values_list("participant_id", "available_from").distinct())
+
+
 from .models import Participant as _P  # noqa: E402
 from .self_details import DetailsError  # noqa: E402,F401
 from .self_details import read_own as read_own_details  # noqa: E402,F401

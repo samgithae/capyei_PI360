@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogBody,
@@ -98,9 +97,10 @@ export function RuleEditor({
             className="w-32"
             inputMode="decimal"
             value={valueText(p.value)}
-            onChange={(e) =>
-              setParam(name, { value: parseValue(e.target.value) })
-            }
+            onChange={(e) => {
+              const value = parseValue(e.target.value);
+              setParam(name, { value, approved: value !== null });
+            }}
           />
           {p.unit && (
             <span className="text-sm text-muted-foreground">
@@ -112,14 +112,6 @@ export function RuleEditor({
               {Math.round((num / total) * 100)}% of the total
             </span>
           )}
-          <label className="ms-auto flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={p.approved === true}
-              onCheckedChange={(c) => setParam(name, { approved: c === true })}
-            />
-            Confirmed by the product owner
-            {p.decision ? ` (${p.decision})` : ''}
-          </label>
         </div>
       </div>
     );
@@ -128,20 +120,12 @@ export function RuleEditor({
   const next = () => {
     setProblem('');
     if (step === 1) {
-      const bad = Object.entries(params).find(
-        ([, p]) =>
-          p.approved === true && (p.value === null || p.value === undefined),
-      );
-      if (bad)
-        return setProblem(
-          `"${bad[1].label || bad[0]}" is marked confirmed but has no value.`,
-        );
     }
     setStep((s) => s + 1);
   };
 
   const waiting = Object.values(params).filter(
-    (p) => !(p.approved === true && p.value !== null && p.value !== undefined),
+    (p) => p.value === null || p.value === undefined,
   ).length;
 
   return (
@@ -281,8 +265,8 @@ export function RuleEditor({
                 </ul>
                 <p role="status">
                   {waiting
-                    ? `${waiting} number(s) still wait for the product owner. You can save the draft, but it cannot be approved until they are confirmed.`
-                    : 'Every number is confirmed.'}
+                    ? `${waiting} number(s) have no value yet. You can save the draft, but it cannot be approved until each has one.`
+                    : 'Every number has a value.'}
                 </p>
               </div>
               <div className="space-y-1.5">

@@ -82,16 +82,21 @@ export function RulesPage() {
         title="Rules"
         description="The rules behind support priority, compatibility and employer reliability. Each change is a new version; only one version is in force at a time."
         actions={
-          can('intelligence.manage_rules') && (
-            <Button
-              onClick={() => {
-                setError('');
-                setAdding(true);
-              }}
-            >
-              <Plus /> New rule set
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link to="/rules/settings">Settings</Link>
             </Button>
-          )
+            {can('intelligence.manage_rules') && (
+              <Button
+                onClick={() => {
+                  setError('');
+                  setAdding(true);
+                }}
+              >
+                <Plus /> New rule set
+              </Button>
+            )}
+          </div>
         }
       />
       <DataCard

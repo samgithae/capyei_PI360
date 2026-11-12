@@ -4,7 +4,11 @@ from . import views as v
 
 urlpatterns = [
     path("opportunities/<uuid:pk>/suggestions", v.OpportunitySuggestionsView.as_view()),
+    path("employers/<uuid:pk>/evidence", v.EmployerEvidenceView.as_view()),
+    path("support/queue", v.SupportQueueView.as_view()),
+    path("participants/<uuid:pk>/support-review", v.SupportReviewView.as_view()),
     path("rules", v.RuleSetListView.as_view()),
+    path("rules/settings", v.RuleSettingsView.as_view()),
     path("rules/operators", v.OperatorListView.as_view()),
     path("rules/<uuid:pk>", v.RuleSetDetailView.as_view()),
     path("rules/versions/<uuid:pk>", v.RuleVersionView.as_view()),

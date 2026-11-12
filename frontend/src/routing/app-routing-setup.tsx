@@ -22,8 +22,10 @@ import { PlaceholderPage } from '@/pages/placeholder-page';
 import { ReferralPage } from '@/pages/referrals/referral-page';
 import { ReferralsPage } from '@/pages/referrals/referrals-page';
 import { RuleSetPage } from '@/pages/rules/rule-set-page';
+import { RuleSettingsPage } from '@/pages/rules/rule-settings-page';
 import { RuleVersionPage } from '@/pages/rules/rule-version-page';
 import { RulesPage } from '@/pages/rules/rules-page';
+import { SupportQueuePage } from '@/pages/support/support-queue-page';
 import { ActivatePage } from '@/pages/youth/activate-page';
 import { DashboardPage } from '@/pages/youth/dashboard-page';
 import {
@@ -36,7 +38,6 @@ import { Navigate, Route, Routes } from 'react-router';
 import { Layout1 } from '@/components/layouts/layout-1';
 
 const SECTIONS: [string, string, string][] = [
-  ['/support', 'ydm.view', 'Support priority'],
   ['/reports', 'reports.view_aggregate', 'Reports'],
 ];
 
@@ -102,12 +103,20 @@ export function AppRoutingSetup() {
             <Route path="/opportunities" element={<OpportunitiesPage />} />
             <Route path="/opportunities/:id" element={<OpportunityPage />} />
           </Route>
+          <Route
+            element={
+              <RequirePermission permission="participants.view_profile" />
+            }
+          >
+            <Route path="/support" element={<SupportQueuePage />} />
+          </Route>
           <Route element={<RequirePermission permission="referrals.view" />}>
             <Route path="/referrals" element={<ReferralsPage />} />
             <Route path="/referrals/:id" element={<ReferralPage />} />
           </Route>
           <Route element={<RequirePermission permission="intelligence.view" />}>
             <Route path="/rules" element={<RulesPage />} />
+            <Route path="/rules/settings" element={<RuleSettingsPage />} />
             <Route path="/rules/:id" element={<RuleSetPage />} />
             <Route path="/rules/versions/:id" element={<RuleVersionPage />} />
           </Route>

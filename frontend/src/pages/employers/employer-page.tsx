@@ -27,6 +27,7 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { EmployerEvidence } from './employer-evidence';
 import { EmployerForm, EmployerValues, Options } from './employer-form';
 
 interface Contact {
@@ -338,6 +339,8 @@ export function EmployerPage() {
             </Section>
           )}
         </div>
+
+        <EmployerEvidence id={e.id} />
 
         <Section title="Activity">
           {history.isPending ? (

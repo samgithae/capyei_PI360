@@ -411,6 +411,7 @@ def suggest_youth(opportunity_id, visible_ids, today: date, limit: int = 50) -> 
         key=lambda r: (
             compatibility.GROUP_ORDER[r["group"]],
             -(r["score"] if r["score"] is not None else -1),
+            -r["preferred_met"],  # the interim count while weights are undecided (D-009)
             -(r["met"] / r["checked"] if r["checked"] else 0),
             -r["met"],
             r["name"],
@@ -427,3 +428,254 @@ def suggest_youth(opportunity_id, visible_ids, today: date, limit: int = 50) -> 
         "suggestions": rows[:limit],
         "truncated": len(rows) > limit,
     }
+
+
+# ---- Settings: the numbers an administrator can change (settings_registry) ----
+
+
+def setting_values() -> dict:
+    """Every setting's current value: the stored one, or the default."""
+    from .models import RuleSetting
+    from .settings_registry import REGISTRY
+
+    stored = {r.key: int(r.value) for r in RuleSetting.objects.all()}
+    return {s.key: stored.get(s.key, s.default) for s in REGISTRY}
+
+
+def setting(key: str) -> int:
+    return setting_values()[key]
+
+
+def update_settings(*, actor, values: dict) -> dict:
+    """Save changed numbers. An unknown key, a non-whole number or one below the setting's
+    minimum is refused and nothing is saved."""
+    from .models import RuleSetting
+    from .settings_registry import BY_KEY
+
+    clean = {}
+    for key, raw in values.items():
+        meta = BY_KEY.get(key)
+        if meta is None:
+            raise RuleViolation(key, "There is no such setting.", "unknown")
+        if isinstance(raw, bool) or not isinstance(raw, int):
+            raise RuleViolation(key, "Enter a whole number.", "invalid")
+        if raw < meta.minimum or raw > 3650:
+            raise RuleViolation(key, f"Enter a number from {meta.minimum} to 3650.", "invalid")
+        clean[key] = raw
+    with transaction.atomic():
+        before = setting_values()
+        for key, raw in clean.items():
+            RuleSetting.objects.update_or_create(
+                key=key, defaults={"value": raw, "updated_by": actor}
+            )
+        after = setting_values()
+        changed = {k: v for k, v in after.items() if before[k] != v}
+        if changed:
+            audit.record(
+                actor=actor,
+                action="rule_settings.update",
+                object_type="rule_settings",
+                object_id="rule_settings",
+                before={k: before[k] for k in changed},
+                after=changed,
+            )
+    return after
+
+
+# ---- Module C: employer evidence ----
+
+
+def employer_evidence(employer_id, today: date) -> dict:
+    """What PI 360 knows about an employer's referrals, with its period and source. Every
+    indicator shows its counts. Until enough referrals exist (the minimum is a setting) the
+    result is "insufficient evidence", never a score, and there is no overall rating (D-027)."""
+    from datetime import timedelta
+
+    from apps.referrals import services as referrals
+
+    days = setting("employer.window_days")
+    minimum = setting("employer.min_referrals")
+    since = timezone.now() - timedelta(days=days)
+    c = referrals.employer_counts(employer_id, since)
+    enough = c["sent"] >= minimum
+    source = "PI 360 referrals"
+
+    def ratio(label, n, d, what):
+        return {
+            "label": label,
+            "source": source,
+            "count": n,
+            "of": d,
+            "text": f"{n} of {d} {what}",
+            "percent": round(n / d * 100) if enough and d else None,
+            "status": "shown" if enough else "insufficient",
+        }
+
+    indicators = [
+        ratio("Referrals answered", c["replied"], c["sent"], "referrals got a reply"),
+        ratio("Interviews", c["interview"], c["sent"], "referrals reached an interview"),
+        ratio("Placements", c["placed"], c["sent"], "referrals ended in a placement"),
+        {
+            "label": "Typical time to reply",
+            "source": source,
+            "count": c["replied"],
+            "of": c["sent"],
+            "text": (
+                f"{c['reply_days_median']} days (middle value, {c['replied']} replies)"
+                if c["reply_days_median"] is not None
+                else "No replies yet"
+            ),
+            "percent": None,
+            "status": "shown" if enough and c["replied"] else "insufficient",
+        },
+        {
+            "label": "Retention after placement",
+            "source": "Not recorded yet",
+            "count": 0,
+            "of": 0,
+            "text": "No follow-up data yet",
+            "percent": None,
+            "status": "no_data",
+        },
+        {
+            "label": "Employer feedback",
+            "source": "Not recorded yet",
+            "count": 0,
+            "of": 0,
+            "text": "No feedback data yet",
+            "percent": None,
+            "status": "no_data",
+        },
+    ]
+    return {
+        "period": {"from": since.date().isoformat(), "to": today.isoformat(), "days": days},
+        "minimum_referrals": minimum,
+        "referrals_in_period": c["sent"],
+        "enough": enough,
+        "summary": (
+            "Counts from referrals recorded in PI 360 in this period."
+            if enough
+            else f"Insufficient evidence: {c['sent']} referral{'s' if c['sent'] != 1 else ''}"
+            f" in the last {days} days; at least {minimum} are needed before a result is shown."
+        ),
+        "indicators": indicators,
+    }
+
+
+# ---- Module A: support flags and the review queue ----
+
+REVIEW_OUTCOMES = {
+    "contacted": "Contacted the youth",
+    "plan": "Support plan agreed",
+    "no_action": "No action needed",
+}
+FLAGS = {
+    "unsuccessful": "Several unsuccessful referrals",
+    "stalled": "Referral not moving",
+    "unreferred": "Ready for work, not referred",
+}
+# Flags that need data PI 360 does not hold yet. Listed so nobody thinks they were checked.
+NOT_CAPTURED = [
+    "Missing documents (no documentation barrier is recorded yet)",
+    "Employer feedback and retention follow-ups",
+]
+
+
+def support_queue(visible_ids, today: date, limit: int = 100) -> dict:
+    """Youth the caller may see who need a look, with the reason for each flag. Nothing here is
+    a score: a flag is a plain fact (a count or a number of days) against a number an
+    administrator sets. Youth reviewed recently are left out until the pause ends."""
+    from datetime import timedelta
+
+    from apps.participants import services as participants
+    from apps.referrals import services as referrals
+
+    from .models import SupportReview
+
+    n = {k: setting(k) for k in setting_values() if k.startswith("support.")}
+    now = timezone.now()
+    ids = list(visible_ids)
+    facts = referrals.support_facts(
+        ids,
+        since=now - timedelta(days=n["support.window_days"]),
+        stalled_before=now - timedelta(days=n["support.stalled_days"]),
+    )
+    ready = participants.ready_since(ids, today)
+    flags: dict = {}
+
+    def add(pid, code, detail, days=0):
+        flags.setdefault(pid, []).append(
+            {"code": code, "label": FLAGS[code], "detail": detail, "days": days}
+        )
+
+    for pid, count in facts["unsuccessful"].items():
+        if count >= n["support.unsuccessful"]:
+            add(pid, "unsuccessful", f"{count} unsuccessful referrals in the last "
+                f"{n['support.window_days']} days")  # fmt: skip
+    for pid, (title, at) in facts["stalled"].items():
+        d = (now - at).days
+        add(pid, "stalled", f"Referral for {title} has not moved in {d} days", d)
+    for pid, since in ready.items():
+        d = (today - since).days
+        if pid not in facts["referred"] and d >= n["support.unreferred_days"]:
+            add(
+                pid,
+                "unreferred",
+                f"Available since {since.isoformat()} ({d} days), never referred",
+                d,
+            )
+
+    paused = set(
+        SupportReview.objects.filter(
+            participant_id__in=list(flags),
+            created_at__gte=now - timedelta(days=n["support.review_days"]),
+        ).values_list("participant_id", flat=True)
+    )
+    live = {pid: f for pid, f in flags.items() if pid not in paused}
+    names = participants.names(live)
+    rows = [
+        {
+            "participant_id": str(pid),
+            "name": names.get(pid, ""),
+            "flags": f,
+            "longest_days": max(x["days"] for x in f),
+        }
+        for pid, f in live.items()
+    ]
+    rows.sort(key=lambda r: (-len(r["flags"]), -r["longest_days"], r["name"]))
+    return {
+        "numbers": {k.removeprefix("support."): v for k, v in n.items()},
+        "counts": {"visible": len(ids), "flagged": len(live), "paused": len(paused)},
+        "items": rows[:limit],
+        "truncated": len(rows) > limit,
+        "not_captured": NOT_CAPTURED,
+        "outcomes": REVIEW_OUTCOMES,
+    }
+
+
+def review_support(*, actor, participant, outcome: str, note: str = "", flags=()) -> None:
+    from .models import SupportReview
+
+    if outcome not in REVIEW_OUTCOMES:
+        raise RuleViolation("outcome", "Choose what you did.", "invalid")
+    note = (note or "").strip()
+    if outcome == "no_action" and not note:
+        raise RuleViolation("note", "Say why no action is needed.", "required")
+    if len(note) > 500:
+        raise RuleViolation("note", "Keep the note under 500 characters.", "invalid")
+    flags = [f for f in flags if f in FLAGS]
+    with transaction.atomic():
+        r = SupportReview.objects.create(
+            participant=participant,
+            reviewed_by=actor,
+            outcome=outcome,
+            note=note,
+            flags=list(flags),
+        )
+        audit.record(
+            actor=actor,
+            action="support_review.create",
+            object_type="participant",
+            object_id=participant.pk,
+            after={"outcome": outcome, "note": note, "review": str(r.pk)},
+        )

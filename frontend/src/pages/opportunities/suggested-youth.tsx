@@ -28,6 +28,8 @@ interface Suggestion {
   score: number | null;
   met: number;
   checked: number;
+  preferred_met: number;
+  preferred_total: number;
   coverage: number | null;
   checks: Check[];
   missing: string[];
@@ -154,7 +156,7 @@ export function SuggestedYouth({
             first: eligible before eligible with gaps before not eligible, then
             by{' '}
             {q.data.weights_pending
-              ? 'how many requirements they meet'
+              ? 'how many preferred requirements they meet'
               : 'fit score'}
             . This is a suggestion only: you decide who to refer.{' '}
             {q.data.counts?.no_data
@@ -172,7 +174,7 @@ export function SuggestedYouth({
             <p className="rounded-md border p-2 text-xs text-muted-foreground">
               A percentage fit is not shown because the scoring weights have not
               been approved yet (Administration, Rules). Until then, ranking
-              uses the number of requirements each youth meets.
+              uses the number of preferred requirements each youth meets.
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2">
@@ -257,6 +259,11 @@ export function SuggestedYouth({
                     {s.checked > 0 && (
                       <span className="text-sm">
                         Meets {s.met} of {s.checked}
+                      </span>
+                    )}
+                    {s.preferred_total > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        Preferred: {s.preferred_met} of {s.preferred_total}
                       </span>
                     )}
                     {s.score !== null && (
