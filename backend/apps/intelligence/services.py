@@ -376,3 +376,48 @@ def evaluate(code: str, snapshot: dict, today: date) -> dict | None:
         version.definition, snapshot, today, module=version.rule_set.module
     )
     return {"version_id": str(version.pk), "version": version.number, **result}
+
+
+# ---- suggested youth -------------------------------------------------------------------------
+
+COMPATIBILITY = "compatibility-default"
+
+
+def suggest_youth(opportunity_id, visible_ids, today: date, limit: int = 50) -> dict | None:
+    """Rank the youth the caller may see against one opportunity. None when the opportunity
+    does not exist. Youth with no recorded capability facts are counted, not ranked. Nothing is
+    stored or changed: the officer decides the referral."""
+    from apps.employers import services as employers
+    from apps.participants import services as participants
+
+    from . import compatibility
+
+    opp = employers.compatibility_inputs(opportunity_id)
+    if opp is None:
+        return None
+    version = active_version(COMPATIBILITY)
+    base = {"opportunity": {"id": opp["id"], "title": opp["title"], "status": opp["status"]}}
+    if version is None:
+        return {**base, "available": False, "reason": "No compatibility rule is active yet."}
+    ids = list(visible_ids)
+    youth = participants.capability_snapshots(ids)
+    rows = []
+    for pid, y in youth.items():
+        a = compatibility.assess(version.definition, opp, y["snapshot"], today)
+        rows.append({"participant_id": pid, "name": y["name"], **a})
+    rows.sort(
+        key=lambda r: (
+            compatibility.GROUP_ORDER[r["group"]],
+            -(r["score"] if r["score"] is not None else -1),
+            r["name"],
+        )
+    )
+    counts = {g: sum(1 for r in rows if r["group"] == g) for g in compatibility.GROUP_ORDER}
+    return {
+        **base,
+        "available": True,
+        "rule": {"id": str(version.pk), "version": version.number},
+        "counts": {**counts, "no_data": len(ids) - len(youth), "visible": len(ids)},
+        "suggestions": rows[:limit],
+        "truncated": len(rows) > limit,
+    }

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import duplicate_views as d
+from . import profile_views as pv
 from . import views as v
 
 urlpatterns = [
@@ -14,6 +15,10 @@ urlpatterns = [
     path("participants/merges", d.MergeListView.as_view()),
     path("participants/merges/<uuid:pk>/undo", d.MergeUndoView.as_view()),
     path("participants/<uuid:pk>/contacts", v.ContactsView.as_view()),
+    path("participants/profile-import", pv.ProfileImportView.as_view()),
+    path("participants/profile-import-template", pv.ProfileImportTemplateView.as_view()),
+    path("participants/<uuid:pk>/profile", pv.ProfileView.as_view()),
+    path("participants/<uuid:pk>/profile/verify", pv.ProfileVerifyView.as_view()),
     path("participants/<uuid:pk>/residence", v.ResidenceView.as_view()),
     path("participants/archive", v.ParticipantArchiveView.as_view()),
     path("participants/restore", v.ParticipantRestoreView.as_view()),

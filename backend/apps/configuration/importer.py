@@ -20,7 +20,9 @@ from .models import (
     County,
     Course,
     Programme,
+    QualificationLevel,
     Sector,
+    Skill,
     TrainingInstitution,
     norm,
 )
@@ -33,6 +35,12 @@ ERROR_CAP = 200
 # kind -> list of (field, required, accepted header spellings). Parents are named by code or name.
 COLUMNS = {
     "sectors": [("code", True, ()), ("name", True, ())],
+    "qualification-levels": [
+        ("code", True, ()),
+        ("name", True, ()),
+        ("rank", True, ("level", "order")),
+    ],
+    "skills": [("code", True, ()), ("name", True, ()), ("category", False, ("group",))],
     "institutions": [
         ("code", True, ()),
         ("name", True, ()),
@@ -74,10 +82,12 @@ COLUMNS = {
         ("capacity", False, ()),
     ],
 }
-INTS = {"intake_year", "batch_no", "phase", "year_of_study", "capacity"}
+INTS = {"rank", "intake_year", "batch_no", "phase", "year_of_study", "capacity"}
 DATES = {"start", "end"}
 EXAMPLE = {
     "sectors": ["SEC01", "Hospitality"],
+    "qualification-levels": ["Q05", "Diploma", "5"],
+    "skills": ["SK01", "Customer service", "Service"],
     "institutions": ["I01", "Example VTC", "vtc", "Nairobi"],
     "programmes": [
         "P01",
@@ -227,6 +237,11 @@ def _load_row(key, actor, row):
     d = _row_values(key, row)
     if key == "sectors":
         if Sector.objects.filter(code__iexact=d["code"]).exists():
+            return "skipped"
+        create_reference(actor=actor, key=key, data=d)
+    elif key in ("qualification-levels", "skills"):
+        model = QualificationLevel if key == "qualification-levels" else Skill
+        if model.objects.filter(code__iexact=d["code"]).exists():
             return "skipped"
         create_reference(actor=actor, key=key, data=d)
     elif key == "programmes":

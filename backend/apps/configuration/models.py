@@ -230,6 +230,36 @@ class ReferralReason(Reference):
         ]
 
 
+class QualificationLevel(Reference):
+    """A level on the qualification ladder. ``rank`` orders the levels so a rule can ask for "at
+    least a diploma". The list is a proposed default until CAP-YEI confirms it; administrators
+    manage it as reference data."""
+
+    rank = models.PositiveSmallIntegerField()
+
+    class Meta(Reference.Meta):
+        ordering = ["rank"]
+        constraints = [
+            models.UniqueConstraint(fields=["code"], name="uniq_qualification_level_code"),
+            models.UniqueConstraint(
+                fields=["name_normalised"], name="uniq_qualification_level_name"
+            ),
+            models.UniqueConstraint(fields=["rank"], name="uniq_qualification_level_rank"),
+        ]
+
+
+class Skill(Reference):
+    """A skill or competency a youth may have and an opportunity may ask for."""
+
+    category = models.CharField(max_length=80, blank=True)
+
+    class Meta(Reference.Meta):
+        constraints = [
+            models.UniqueConstraint(fields=["code"], name="uniq_skill_code"),
+            models.UniqueConstraint(fields=["name_normalised"], name="uniq_skill_name"),
+        ]
+
+
 class FeatureFlag(models.Model):
     """A switch with an optional audience. ``environments`` and ``roles`` empty = everyone."""
 

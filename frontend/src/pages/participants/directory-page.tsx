@@ -31,6 +31,7 @@ import {
 } from '@/components/shared/bulk';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { ReferenceImport } from '@/pages/admin/reference-import';
 import { AddYouth } from './add-youth';
 import { EditParticipant } from './participant-edit';
 
@@ -135,6 +136,16 @@ export function DirectoryPage() {
               <Button asChild>
                 <Link to="/imports/new">Import participants</Link>
               </Button>
+            )}
+            {can('participants.edit') && (
+              <ReferenceImport
+                kind="youth-capability"
+                title="Youth skills and qualifications"
+                columns="enrollment_no*, programme, type* (qualification, skill, experience, availability), value*, detail, months, year"
+                endpoint="/participants/profile-import"
+                templateEndpoint="/participants/profile-import-template"
+                onDone={() => void 0}
+              />
             )}
           </>
         }

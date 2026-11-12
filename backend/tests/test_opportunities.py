@@ -135,3 +135,55 @@ def test_expiry_only_touches_open_opportunities_past_their_date(employer):
     assert services.expire_due(today=today + timedelta(days=1)) == 1  # closing day has passed
     for o, want in ((due, "expired"), (last_day, "expired"), (draft, "draft"), (closed, "closed")):
         assert Opportunity.objects.get(pk=o.pk).status == want
+
+
+def test_typed_requirements_are_validated_described_and_flagged(c, employer):
+    from apps.configuration.models import QualificationLevel, Skill
+
+    oid = new(c, employer).json()["id"]
+    base = f"{URL}/{oid}/requirements"
+    diploma = QualificationLevel.objects.get(code="QL05")
+    cook = Skill.objects.get(code="SK-FOOD")
+    a = c.post(
+        base,
+        {
+            "factor": "qualification",
+            "qualification_level_id": str(diploma.pk),
+            "is_mandatory": True,
+        },
+        content_type=JSON,
+    ).json()
+    assert a["description"] == f"{diploma.name} or higher" and not a["needs_structuring"]
+    s = c.post(base, {"factor": "skill", "skill_id": str(cook.pk)}, content_type=JSON).json()
+    assert s["description"] == cook.name and s["skill_id"] == str(cook.pk)
+    e = c.post(base, {"factor": "experience", "min_months": 12}, content_type=JSON).json()
+    assert e["description"] == "At least 12 months of experience"
+    v = c.post(
+        base,
+        {"factor": "availability", "needed_by": "2027-01-10", "work_pattern": "shift"},
+        content_type=JSON,
+    ).json()
+    assert "shift work" in v["description"] and v["needed_by"] == "2027-01-10"
+    # Old free text still saves, but is flagged because nothing can be compared yet.
+    old = c.post(base, {"factor": "skill", "description": "Good with people"}, content_type=JSON)
+    assert old.status_code == 201 and old.json()["needs_structuring"] is True
+    # Location and "other" are descriptive, never "needs structuring".
+    loc = c.post(base, {"factor": "location", "description": "Near Westlands"}, content_type=JSON)
+    assert loc.json()["needs_structuring"] is False
+    # Bad input.
+    bad = c.post(
+        base,
+        {"factor": "skill", "skill_id": "00000000-0000-0000-0000-000000000000"},
+        content_type=JSON,
+    )
+    assert bad.status_code == 409
+    assert c.post(base, {"factor": "experience"}, content_type=JSON).status_code == 409
+    bp = c.post(base, {"factor": "availability", "work_pattern": "moon"}, content_type=JSON)
+    assert bp.status_code == 409
+    # Changing the factor clears values that no longer apply.
+    r = c.patch(
+        f"{base}/{e['id']}",
+        {"factor": "skill", "skill_id": str(cook.pk), "description": ""},
+        content_type=JSON,
+    ).json()
+    assert r["min_months"] is None and r["skill_id"] == str(cook.pk)

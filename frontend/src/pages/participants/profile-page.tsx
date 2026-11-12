@@ -24,6 +24,7 @@ import { useArchiveFlow } from '@/components/shared/bulk';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { CapabilityProfile } from './capability-profile';
 import { EditParticipant } from './participant-edit';
 
 interface Enrollment {
@@ -189,6 +190,8 @@ export function ProfilePage() {
           </TableBody>
         </Table>
       </DataCard>
+
+      {can('participants.view_profile') && <CapabilityProfile id={p.id} />}
 
       {referrals.data && referrals.data.results.length > 0 && (
         <DataCard title="Referrals">

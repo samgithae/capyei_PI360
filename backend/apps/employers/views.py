@@ -323,6 +323,14 @@ def _req(r):
     return {
         "id": str(r.pk), "factor": r.factor, "description": r.description,
         "is_mandatory": r.is_mandatory,
+        "qualification_level_id": (
+            str(r.qualification_level_id) if r.qualification_level_id else None
+        ),
+        "skill_id": str(r.skill_id) if r.skill_id else None,
+        "min_months": r.min_months,
+        "needed_by": r.needed_by.isoformat() if r.needed_by else None,
+        "work_pattern": r.work_pattern,
+        "needs_structuring": r.needs_structuring,
     }  # fmt: skip
 
 
@@ -351,6 +359,12 @@ def _opp_detail(o):
         "description": o.description,
         "start_date": o.start_date.isoformat() if o.start_date else None,
         "requirements": [_req(r) for r in o.requirements.all()],
+        "requirement_options": {
+            **{k: v for k, v in configuration.profile_options().items() if k != "sectors"},
+            "work_patterns": [
+                {"id": k, "name": n.capitalize()} for k, n in services.PATTERN_NAMES.items()
+            ],
+        },
     }
 
 
@@ -384,8 +398,15 @@ class TransitionSerializer(serializers.Serializer):
 
 class RequirementSerializer(serializers.Serializer):
     factor = serializers.ChoiceField(choices=OpportunityRequirement.FACTORS)
-    description = serializers.CharField(max_length=300)
+    description = serializers.CharField(max_length=300, required=False, allow_blank=True)
     is_mandatory = serializers.BooleanField(required=False, default=False)
+    qualification_level_id = serializers.UUIDField(required=False, allow_null=True)
+    skill_id = serializers.UUIDField(required=False, allow_null=True)
+    min_months = serializers.IntegerField(
+        required=False, allow_null=True, min_value=0, max_value=600
+    )
+    needed_by = serializers.DateField(required=False, allow_null=True)
+    work_pattern = serializers.CharField(required=False, allow_blank=True, max_length=20)
 
 
 class OpportunityListView(APIView):

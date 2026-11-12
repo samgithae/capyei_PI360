@@ -30,14 +30,26 @@ import { ActivityTimeline } from '@/components/shared/activity-timeline';
 import { DetailList, Section } from '@/components/shared/info-card';
 import { ConfirmDialog, FormModal } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
+import { SelectField } from '@/components/shared/select-field';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { SuggestedYouth } from './suggested-youth';
 
 interface Requirement {
   id: string;
   factor: string;
   description: string;
   is_mandatory: boolean;
+  qualification_level_id: string | null;
+  skill_id: string | null;
+  min_months: number | null;
+  needed_by: string | null;
+  work_pattern: string;
+  needs_structuring: boolean;
+}
+interface Opt {
+  id: string;
+  name: string;
 }
 interface Detail {
   id: string;
@@ -54,6 +66,11 @@ interface Detail {
   start_date: string | null;
   closing_date: string | null;
   requirements: Requirement[];
+  requirement_options: {
+    levels: Opt[];
+    skills: Opt[];
+    work_patterns: Opt[];
+  };
 }
 interface Event {
   at: string;
@@ -63,14 +80,48 @@ interface Event {
   after?: Record<string, unknown> | null;
 }
 
-const FACTORS = ['skill', 'qualification', 'location', 'availability', 'other'];
+const FACTORS = [
+  'skill',
+  'qualification',
+  'experience',
+  'availability',
+  'location',
+  'other',
+];
 const NEXT: Record<string, { to: string; label: string }[]> = {
   draft: [{ to: 'open', label: 'Open' }],
   open: [{ to: 'closed', label: 'Close' }],
   closed: [{ to: 'open', label: 'Reopen' }],
   expired: [{ to: 'open', label: 'Reopen' }],
 };
-const BLANK = { factor: 'skill', description: '', is_mandatory: false };
+const BLANK = {
+  factor: 'skill',
+  description: '',
+  is_mandatory: false,
+  qualification_level_id: '',
+  skill_id: '',
+  min_months: '',
+  needed_by: '',
+  work_pattern: '',
+};
+
+/** Send only the typed value that belongs to the chosen category; empty means "not set". */
+function payload(r: typeof BLANK) {
+  return {
+    factor: r.factor,
+    description: r.description,
+    is_mandatory: r.is_mandatory,
+    qualification_level_id:
+      r.factor === 'qualification' ? r.qualification_level_id || null : null,
+    skill_id: r.factor === 'skill' ? r.skill_id || null : null,
+    min_months:
+      r.factor === 'experience' && r.min_months !== ''
+        ? Number(r.min_months)
+        : null,
+    needed_by: r.factor === 'availability' ? r.needed_by || null : null,
+    work_pattern: r.factor === 'availability' ? r.work_pattern : '',
+  };
+}
 
 export function OpportunityPage() {
   const { id } = useParams();
@@ -137,9 +188,9 @@ export function OpportunityPage() {
       editingId
         ? api(`/opportunities/${id}/requirements/${editingId}`, {
             method: 'PATCH',
-            body: JSON.stringify(req),
+            body: JSON.stringify(payload(req)),
           })
-        : post(`/opportunities/${id}/requirements`, req),
+        : post(`/opportunities/${id}/requirements`, payload(req)),
     onSuccess: () => {
       toast.success(editingId ? 'Requirement updated.' : 'Requirement added.');
       setReqOpen(false);
@@ -193,6 +244,11 @@ export function OpportunityPage() {
       factor: r.factor,
       description: r.description,
       is_mandatory: r.is_mandatory,
+      qualification_level_id: r.qualification_level_id ?? '',
+      skill_id: r.skill_id ?? '',
+      min_months: r.min_months?.toString() ?? '',
+      needed_by: r.needed_by ?? '',
+      work_pattern: r.work_pattern,
     });
     setReqOpen(true);
   };
@@ -339,7 +395,19 @@ export function OpportunityPage() {
                     {o.requirements.map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="capitalize">{r.factor}</TableCell>
-                        <TableCell>{r.description}</TableCell>
+                        <TableCell>
+                          {r.description}
+                          {r.needs_structuring && (
+                            <Badge
+                              className="ms-2"
+                              variant="warning"
+                              appearance="light"
+                              size="sm"
+                            >
+                              Needs structuring
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Badge
                             variant={r.is_mandatory ? 'primary' : 'secondary'}
@@ -378,6 +446,8 @@ export function OpportunityPage() {
             )}
           </Section>
         </div>
+
+        {can('participants.view_profile') && <SuggestedYouth id={o.id} />}
 
         <Section title="Activity">
           {history.isPending ? (
@@ -437,13 +507,80 @@ export function OpportunityPage() {
             </SelectContent>
           </Select>
         </div>
+        {req.factor === 'qualification' && (
+          <div className="space-y-1.5">
+            <Label>Minimum qualification</Label>
+            <SelectField
+              label="Minimum qualification"
+              className="w-full"
+              value={req.qualification_level_id}
+              options={o.requirement_options.levels}
+              onChange={(v) => setReq({ ...req, qualification_level_id: v })}
+            />
+          </div>
+        )}
+        {req.factor === 'skill' && (
+          <div className="space-y-1.5">
+            <Label>Skill</Label>
+            <SelectField
+              label="Skill"
+              className="w-full"
+              value={req.skill_id}
+              options={o.requirement_options.skills}
+              onChange={(v) => setReq({ ...req, skill_id: v })}
+            />
+          </div>
+        )}
+        {req.factor === 'experience' && (
+          <div className="space-y-1.5">
+            <Label htmlFor="req-months">Minimum months of experience</Label>
+            <Input
+              id="req-months"
+              inputMode="numeric"
+              value={req.min_months}
+              onChange={(e) => setReq({ ...req, min_months: e.target.value })}
+            />
+          </div>
+        )}
+        {req.factor === 'availability' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="req-needed-by">Must be able to start by</Label>
+              <Input
+                id="req-needed-by"
+                type="date"
+                value={req.needed_by}
+                onChange={(e) => setReq({ ...req, needed_by: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Work pattern</Label>
+              <SelectField
+                label="Work pattern"
+                className="w-full"
+                emptyLabel="Any"
+                value={req.work_pattern}
+                options={o.requirement_options.work_patterns}
+                onChange={(v) => setReq({ ...req, work_pattern: v })}
+              />
+            </div>
+          </div>
+        )}
         <div className="space-y-1.5">
           <Label htmlFor="req-description">
-            Requirement <span className="text-destructive">*</span>
+            Requirement
+            {['location', 'other'].includes(req.factor) && (
+              <span className="text-destructive"> *</span>
+            )}
           </Label>
           <Input
             id="req-description"
-            required
+            required={['location', 'other'].includes(req.factor)}
+            placeholder={
+              ['location', 'other'].includes(req.factor)
+                ? ''
+                : 'Optional: written from your choice above if left empty'
+            }
             maxLength={300}
             value={req.description}
             onChange={(e) => setReq({ ...req, description: e.target.value })}

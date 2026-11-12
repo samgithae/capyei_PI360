@@ -247,3 +247,109 @@ class ParticipantMerge(models.Model):
 
     def __str__(self):
         return f"{self.absorbed_id} -> {self.survivor_id}"
+
+
+# --- capability profile: what a youth can do, used by the compatibility rules ----------------
+# Everything here is optional. Missing information is never a failure: the rules decide what to
+# do with a gap (flag it or leave the check out).
+
+WORK_PATTERNS = [
+    ("full_time", "Full time"),
+    ("part_time", "Part time"),
+    ("shift", "Shift work"),
+    ("casual", "Casual or short contract"),
+    ("remote", "Remote or home based"),
+]
+
+
+class ProfileFact(models.Model):
+    """Who recorded a fact and whether staff have checked it. A youth's own entries are marked
+    ``youth`` (self-reported) until a staff member verifies them; any change clears the check."""
+
+    STAFF, YOUTH, IMPORT = "staff", "youth", "import"
+    SOURCES = [(STAFF, "Staff"), (YOUTH, "Youth (self-reported)"), (IMPORT, "Import")]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    source = models.CharField(max_length=6, choices=SOURCES, default=STAFF)
+    entered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+    @property
+    def verified(self) -> bool:
+        return self.verified_at is not None
+
+
+class ParticipantQualification(ProfileFact):
+    participant = models.ForeignKey(
+        Participant, on_delete=models.CASCADE, related_name="qualifications"
+    )
+    level = models.ForeignKey("configuration.QualificationLevel", on_delete=models.PROTECT)
+    title = models.CharField(max_length=200, blank=True)  # e.g. "Diploma in Food Production"
+    institution = models.CharField(max_length=200, blank=True)
+    year_awarded = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-level__rank", "title"]
+
+    def __str__(self):
+        return f"{self.level_id} {self.title}".strip()
+
+
+class ParticipantSkill(ProfileFact):
+    BASIC, WORKING, ADVANCED = 1, 2, 3
+    PROFICIENCY = [(BASIC, "Basic"), (WORKING, "Working"), (ADVANCED, "Advanced")]
+
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="skills")
+    skill = models.ForeignKey("configuration.Skill", on_delete=models.PROTECT)
+    proficiency = models.PositiveSmallIntegerField(choices=PROFICIENCY, default=WORKING)
+
+    class Meta:
+        ordering = ["skill__name"]
+        constraints = [
+            models.UniqueConstraint(fields=["participant", "skill"], name="one_skill_per_youth")
+        ]
+
+    def __str__(self):
+        return str(self.skill_id)
+
+
+class ParticipantExperience(ProfileFact):
+    participant = models.ForeignKey(
+        Participant, on_delete=models.CASCADE, related_name="experience"
+    )
+    role_title = models.CharField(max_length=200)
+    employer_name = models.CharField(max_length=200, blank=True)
+    sector = models.ForeignKey(
+        "configuration.Sector", null=True, blank=True, on_delete=models.PROTECT
+    )
+    months = models.PositiveSmallIntegerField()
+
+    class Meta:
+        ordering = ["-months", "role_title"]
+
+    def __str__(self):
+        return f"{self.role_title} ({self.months} months)"
+
+
+class ParticipantReadiness(ProfileFact):
+    """When and how a youth can start work, and what they would like to do. One row per youth."""
+
+    participant = models.OneToOneField(
+        Participant, on_delete=models.CASCADE, related_name="readiness"
+    )
+    available_from = models.DateField(null=True, blank=True)
+    work_patterns = models.JSONField(default=list, blank=True)  # codes from WORK_PATTERNS
+    interest_sectors = models.ManyToManyField("configuration.Sector", blank=True, related_name="+")
+
+    def __str__(self):
+        return f"readiness:{self.participant_id}"

@@ -18,6 +18,7 @@ from .models import (
     ParticipantResidence,
     SourceIdentifier,
 )
+from .profile import capability_snapshots  # noqa: F401  (read by the compatibility rules)
 
 # Field -> required? The mapping templates target exactly these names.
 FIELDS = {

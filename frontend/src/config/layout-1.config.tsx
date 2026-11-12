@@ -118,6 +118,16 @@ export const MENU_SIDEBAR: MenuConfig = [
         permission: 'config.view',
       },
       {
+        title: 'Qualification levels',
+        path: '/administration/qualification-levels',
+        permission: 'config.view',
+      },
+      {
+        title: 'Skills',
+        path: '/administration/skills',
+        permission: 'config.view',
+      },
+      {
         title: 'Counties',
         path: '/administration/counties',
         permission: 'config.view',

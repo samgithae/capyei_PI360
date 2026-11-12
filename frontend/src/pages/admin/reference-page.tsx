@@ -230,6 +230,30 @@ export const REFERENCE_KINDS: Record<string, KindDef> = {
       },
     ],
   },
+  'qualification-levels': {
+    title: 'Qualification levels',
+    singular: 'qualification level',
+    description:
+      'The ladder of qualifications, lowest to highest. The rank orders them, so a rule can ask for "at least a diploma". Retiring one hides it from new records; existing records keep it.',
+    fields: [
+      {
+        key: 'rank',
+        label: 'Rank',
+        type: 'number',
+        required: true,
+        column: true,
+      },
+    ],
+  },
+  skills: {
+    title: 'Skills',
+    singular: 'skill',
+    description:
+      'Skills and competencies a youth may have and an opportunity may ask for. Retiring one hides it from new records; existing records keep it.',
+    fields: [
+      { key: 'category', label: 'Category', type: 'text', column: true },
+    ],
+  },
   sectors: {
     title: 'Sectors',
     singular: 'sector',
@@ -251,6 +275,9 @@ const codeFor = (name: string) =>
 // Kinds that can be bulk-imported, with the columns the file needs (* = required).
 const IMPORT_COLUMNS: Record<string, string> = {
   sectors: 'code*, name*',
+  'qualification-levels':
+    'code*, name*, rank* (a whole number; higher = more advanced)',
+  skills: 'code*, name*, category',
   institutions: 'code*, name*, kind, county* (code or name)',
   programmes: 'code*, name*, funder, start, end, status',
   courses: 'code*, name*, programme*, level, sector',

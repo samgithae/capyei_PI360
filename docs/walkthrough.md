@@ -2,7 +2,7 @@
 
 A hands-on guide to try the whole flow on your local copy. It follows the order work happens in real life, and says what the system does at each step and why.
 
-> **Honest status:** the rules screens (write, review, approve, activate) are built. The rules *engine* exists, but no screen applies the active rules to a youth or opportunity yet. That wiring is Month 3 work. So in step 5 you will *see and approve* the rules, and in step 6 *you* decide the referral. The system records what you decide.
+> **Honest status:** the rules screens (write, review, approve, activate) are built, and the active Compatibility rule is now applied on screen: an opportunity shows **Suggested youth** (see step 6). Suggestions only help; *you* decide the referral and the system records what you decide. Support priority (Module A) and employer reliability (Module C) are not applied on screen yet.
 
 ## 0. Before you start
 
@@ -61,14 +61,14 @@ Fields: name, sector, county, sub-county, address, website, status (active / ina
 **Where:** Opportunities → **Add opportunity**, then open it.
 
 1. **Create:** choose the employer, title, type (job, training, attachment), number of positions, closing date. It saves as a **Draft**.
-2. **Add requirements** (on the opportunity page). Each is typed (skill, qualification, location, availability, other) and marked **mandatory** or **preferred**.
+2. **Add requirements** (on the opportunity page). Each has a category (skill, qualification, experience, availability, location, other) and marked **mandatory** or **preferred**.
    - *Mandatory* = if the youth lacks it they may be "not eligible".
    - *Preferred* = only adds to a fit score.
    - These are what the compatibility rule (Module B) will read later.
 3. **Open it.** Needs a closing date and an active employer. Only an **open** opportunity, on or before its closing date, can receive referrals.
 4. **Lifecycle:** Draft → Open → Closed / Expired. The day after the closing date a daily job marks it Expired (and referrals are blocked even before the job runs). Closed and Expired are *locked*: no edits until you **Reopen**. *Why:* so the record of what was offered cannot be rewritten after referrals were made against it.
 
-Pilot caveat: requirements are free text today. Matching will need structured values (for example "24 months", "skill X level 2"). That is Month 3.
+Skill, qualification, experience and availability requirements take a **structured value** (pick the skill or minimum qualification from the lists, enter months, or a start-by date and work pattern). The wording is written for you if you leave it empty. Older free-text requirements show a **Needs structuring** badge until someone edits them; the rules cannot check those. Location and other stay as plain text.
 
 ## 5. Rules: write, review, approve, activate
 
@@ -110,7 +110,9 @@ Why so strict: the rules decide who gets support and who is called a good fit. P
 An officer sees only youth in their **caseload**; anyone else looks like they do not exist. That is by design.
 
 1. Search for the youth, choose them, then **Send referral** (or **Save draft** to hold it back).
-2. Use the opportunity's requirements and the active rules as your guide; today the *decision is yours*. The system suggests nothing automatically yet.
+2. Use the **Suggested youth** panel on the opportunity page as a guide. It groups the youth you can see as *eligible*, *eligible with unknowns* or *not eligible*, with a fit score and what is missing from each record. Youth with no capability details are counted but not ranked, and missing information never counts against anyone. The *decision is yours*; nothing is referred automatically.
+   - The panel reads each youth's qualification, skills, experience and availability. Add them on the youth's profile, or in bulk with **Youth → Import** (one row per fact, matched by enrollment number; imported facts are marked *import* and unverified until staff verify them).
+   - Location is not checked yet.
 3. The referral then moves through stages. Every move adds a row to its history and nothing is overwritten:
 
 ```
@@ -135,7 +137,7 @@ Draft → Submitted → Under review → Interview (optional) → Selected → P
 
 ## 8. What is not built yet
 
-- Applying the active rules to produce a compatibility result, support-priority flag or employer reliability profile on screen (Month 3).
-- Structured requirement values (needed for matching).
+- Support-priority flags and employer reliability profiles on screen (Month 3). Compatibility is applied (Suggested youth).
+- Youth sign-in and self-service (Phase 2).
 - Support cases / work queues (Month 3).
 - Placement follow-up at 30 and 90 days: shown in the pilot guide diagram, not checked by me whether it is wired up.

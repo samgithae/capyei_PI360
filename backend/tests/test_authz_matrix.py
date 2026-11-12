@@ -59,6 +59,13 @@ MATRIX = {
     "participants/<uuid:pk>/enrollments/<uuid:enrollment_id>": {"PATCH": "participants.edit"},
     "participants/<uuid:pk>/contacts": {"PUT": "participants.edit"},
     "participants/<uuid:pk>/residence": {"PUT": "participants.edit"},
+    "participants/<uuid:pk>/profile": {
+        "GET": "participants.view_profile",
+        "PUT": "participants.edit",
+    },
+    "participants/<uuid:pk>/profile/verify": {"POST": "participants.edit"},
+    "participants/profile-import": {"POST": "participants.edit"},
+    "participants/profile-import-template": {"GET": "participants.edit"},
     "participants/archive": {"POST": "records.archive"},
     "participants/restore": {"POST": "records.archive"},
     "participants/duplicates": {"GET": "duplicates.review"},
@@ -92,6 +99,7 @@ MATRIX = {
     "referrals/<uuid:pk>/correct": {"POST": "referrals.view"},  # + stage check in view
     "referrals/<uuid:pk>/assign": {"POST": "caseload.reassign"},
     "referrals/<uuid:pk>/history": {"GET": "referrals.view"},
+    "opportunities/<uuid:pk>/suggestions": {"GET": "participants.view_profile"},
     "rules": {"GET": "intelligence.view", "POST": "intelligence.manage_rules"},
     "rules/operators": {"GET": "intelligence.view"},
     "rules/<uuid:pk>": {"GET": "intelligence.view"},

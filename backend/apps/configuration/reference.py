@@ -46,6 +46,8 @@ KINDS = {
         fks={"cohort": "cohorts", "course": "courses"},
         named=False,
     ),
+    "qualification-levels": Kind(m.QualificationLevel, "Qualification level", fields=("rank",)),
+    "skills": Kind(m.Skill, "Skill", fields=("category",)),
     "referral-reasons": Kind(
         m.ReferralReason, "Referral reason", fields=("applies_to", "needs_note")
     ),

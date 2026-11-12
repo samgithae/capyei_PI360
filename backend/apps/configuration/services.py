@@ -734,3 +734,56 @@ def referral_reason(pk):
         return _reason_row(ReferralReason.objects.get(pk=pk))
     except (ReferralReason.DoesNotExist, ValueError, DjangoValidationError):
         return None
+
+
+def active_reference(key, pk):
+    """Active reference row of this kind and id, or None (unknown, retired or malformed)."""
+    try:
+        return kind_of(key).model.objects.filter(pk=pk, active=True).first()
+    except (ValueError, DjangoValidationError):
+        return None
+
+
+def profile_options():
+    """Active qualification levels, skills and sectors for the youth profile form."""
+    from .models import QualificationLevel, Sector, Skill
+
+    def rows(qs, *extra):
+        return [
+            {"id": str(o.pk), "code": o.code, "name": o.name, **{k: getattr(o, k) for k in extra}}
+            for o in qs.filter(active=True)
+        ]
+
+    return {
+        "levels": rows(QualificationLevel.objects.order_by("rank"), "rank"),
+        "skills": rows(Skill.objects.order_by("category", "name"), "category"),
+        "sectors": rows(Sector.objects.order_by("name")),
+    }
+
+
+def find_active_reference(key, text):
+    """Active reference row whose code, else name, matches ``text``. Returns ``(row, problem)``;
+    exactly one of them is None. Anything unclear is a problem, never a guess."""
+    from .models import norm
+
+    model = kind_of(key).model
+    qs = model.objects.filter(active=True)
+    hits = list(qs.filter(code__iexact=text.strip())[:2])
+    if not hits:
+        hits = list(qs.filter(name_normalised=norm(text))[:2])
+    if not hits:
+        return None, "no match"
+    if len(hits) > 1:
+        return None, "more than one match; use the code"
+    return hits[0], None
+
+
+def read_upload(name, data):
+    """Rows of a CSV/Excel upload as ``[(row_number, cells)]`` (row 1 is the header).
+    Raises ``ConfigError`` with field ``file`` when the file cannot be used."""
+    from . import importer
+
+    try:
+        return importer.read_table(name, data)
+    except importer.FileError as exc:
+        raise ConfigError("file", str(exc)) from exc

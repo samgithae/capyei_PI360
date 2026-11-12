@@ -2248,6 +2248,30 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/opportunities/{id}/suggestions:
+    get:
+      operationId: opportunity_suggestions
+      description: |-
+        Suggested youth for an opportunity, from the active Compatibility rule. Gated on
+        permission to see youth profiles; scope limits which youth are ranked.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - opportunities
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+          description: ''
   /api/v1/opportunities/{id}/transition:
     post:
       operationId: opportunities_transition_create
@@ -2570,6 +2594,94 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/{id}/profile:
+    get:
+      operationId: participants_profile_get
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    put:
+      operationId: participants_profile_put
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Profile'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Profile'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Profile'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/{id}/profile/verify:
+    post:
+      operationId: participants_profile_verify
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Verify'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Verify'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Verify'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/{id}/residence:
     put:
       operationId: participants_residence_set
@@ -2835,6 +2947,49 @@ paths:
               schema:
                 type: object
                 additionalProperties: {}
+          description: ''
+  /api/v1/participants/profile-import:
+    post:
+      operationId: participants_profile_import
+      description: Upload a CSV or Excel file of capability facts. ``dry_run=1`` previews
+        without saving.
+      tags:
+      - participants
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                dry_run:
+                  type: boolean
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/profile-import-template:
+    get:
+      operationId: participants_profile_import_template
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
           description: ''
   /api/v1/participants/restore:
     post:
@@ -3819,6 +3974,7 @@ components:
       enum:
       - skill
       - qualification
+      - experience
       - location
       - availability
       - other
@@ -3826,6 +3982,7 @@ components:
       description: |-
         * `skill` - Skill
         * `qualification` - Qualification
+        * `experience` - Experience
         * `location` - Location
         * `availability` - Availability
         * `other` - Other
@@ -4353,6 +4510,26 @@ components:
         is_mandatory:
           type: boolean
           default: false
+        qualification_level_id:
+          type: string
+          format: uuid
+          nullable: true
+        skill_id:
+          type: string
+          format: uuid
+          nullable: true
+        min_months:
+          type: integer
+          maximum: 600
+          minimum: 0
+          nullable: true
+        needed_by:
+          type: string
+          format: date
+          nullable: true
+        work_pattern:
+          type: string
+          maxLength: 20
     PatchedRole:
       type: object
       properties:
@@ -4414,6 +4591,33 @@ components:
       - grant_only
       - group
       - label
+    ProficiencyEnum:
+      enum:
+      - 1
+      - 2
+      - 3
+      type: integer
+      description: |-
+        * `1` - 1
+        * `2` - 2
+        * `3` - 3
+    Profile:
+      type: object
+      properties:
+        qualifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/_Qualification'
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/_Skill'
+        experience:
+          type: array
+          items:
+            $ref: '#/components/schemas/_Experience'
+        readiness:
+          $ref: '#/components/schemas/_Readiness'
     Promote:
       type: object
       properties:
@@ -4519,8 +4723,27 @@ components:
         is_mandatory:
           type: boolean
           default: false
+        qualification_level_id:
+          type: string
+          format: uuid
+          nullable: true
+        skill_id:
+          type: string
+          format: uuid
+          nullable: true
+        min_months:
+          type: integer
+          maximum: 600
+          minimum: 0
+          nullable: true
+        needed_by:
+          type: string
+          format: date
+          nullable: true
+        work_pattern:
+          type: string
+          maxLength: 20
       required:
-      - description
       - factor
     Residence:
       type: object
@@ -4899,6 +5122,55 @@ components:
             $ref: '#/components/schemas/ScopeItem'
       required:
       - scopes
+    Verify:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/VerifyKindEnum'
+        id:
+          type: string
+          format: uuid
+        verified:
+          type: boolean
+          default: true
+      required:
+      - id
+      - kind
+    VerifyKindEnum:
+      enum:
+      - experience
+      - qualification
+      - readiness
+      - skill
+      type: string
+      description: |-
+        * `experience` - experience
+        * `qualification` - qualification
+        * `readiness` - readiness
+        * `skill` - skill
+    _Experience:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role_title:
+          type: string
+          maxLength: 200
+        employer_name:
+          type: string
+          maxLength: 200
+        sector_id:
+          type: string
+          format: uuid
+          nullable: true
+        months:
+          type: integer
+          maximum: 720
+          minimum: 0
+      required:
+      - months
+      - role_title
     _NewContact:
       type: object
       properties:
@@ -4963,6 +5235,60 @@ components:
         ward:
           type: string
           maxLength: 100
+    _Qualification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        level_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        institution:
+          type: string
+          maxLength: 200
+        year_awarded:
+          type: integer
+          maximum: 2100
+          minimum: 1950
+          nullable: true
+      required:
+      - level_id
+    _Readiness:
+      type: object
+      properties:
+        available_from:
+          type: string
+          format: date
+          nullable: true
+        work_patterns:
+          type: array
+          items:
+            type: string
+            maxLength: 20
+          maxItems: 10
+        interest_sector_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 30
+    _Skill:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        skill_id:
+          type: string
+          format: uuid
+        proficiency:
+          $ref: '#/components/schemas/ProficiencyEnum'
+      required:
+      - skill_id
   securitySchemes:
     cookieAuth:
       type: apiKey

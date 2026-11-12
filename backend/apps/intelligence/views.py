@@ -302,3 +302,31 @@ class RuleVersionHistoryView(APIView):
     )
     def get(self, request, pk):
         return Response(audit.history("rule_version", _get(pk).pk))
+
+
+class OpportunitySuggestionsView(APIView):
+    """Suggested youth for an opportunity, from the active Compatibility rule. Gated on
+    permission to see youth profiles; scope limits which youth are ranked."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": "participants.view_profile"}
+
+    @extend_schema(operation_id="opportunity_suggestions", responses={200: dict(type="object")})
+    def get(self, request, pk):
+        from datetime import date
+
+        from apps.participants import services as participants
+
+        try:
+            limit = max(1, min(int(request.query_params.get("limit", 50)), 200))
+        except ValueError:
+            limit = 50
+        out = services.suggest_youth(
+            pk,
+            participants.visible_ids(request.user).values_list("pk", flat=True),
+            date.today(),
+            limit,
+        )
+        if out is None:
+            raise NotFound()
+        return Response(out)

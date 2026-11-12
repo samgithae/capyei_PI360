@@ -304,3 +304,25 @@ def test_import_needs_manage_permission_and_template_downloads(admin, make_user)
     r = api(admin).get("/api/v1/config/reference/cohorts/import-template")
     assert r.status_code == 200 and r.content.decode().startswith("code,name,programme")
     assert api(admin).get("/api/v1/config/reference/counties/import-template").status_code == 404
+
+
+@pytest.mark.django_db
+def test_qualification_levels_and_skills_are_seeded_and_importable(admin):
+    from apps.configuration.models import QualificationLevel, Skill
+
+    assert QualificationLevel.objects.count() >= 10 and Skill.objects.exists()
+    ranks = list(QualificationLevel.objects.values_list("rank", flat=True))
+    assert ranks == sorted(ranks) and len(set(ranks)) == len(ranks)
+    c = api(admin)
+    body = upload(c, "qualification-levels", "code,name,rank\nQX,Test level,99\n").json()
+    assert (body["created"], body["failed"]) == (1, 0)
+    assert (
+        upload(c, "qualification-levels", "code,name,rank\nQX,Test level,99\n").json()["skipped"]
+        == 1
+    )
+    bad = upload(c, "qualification-levels", "code,name,rank\nQY,No rank,abc\n").json()
+    assert bad["failed"] == 1
+    body = upload(c, "skills", "code,name,category\nSX,Test skill,Trades\n").json()
+    assert body["created"] == 1 and Skill.objects.get(code="SX").category == "Trades"
+    listed = c.get("/api/v1/config/reference/qualification-levels").json()
+    assert any(r.get("rank") == 99 for r in listed)

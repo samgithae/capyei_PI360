@@ -116,8 +116,16 @@ class OpportunityRequirement(models.Model):
     """One condition of an opportunity: mandatory eligibility or preferred factor (FR-14)."""
 
     FACTORS = [
-        (f, f.capitalize()) for f in ("skill", "qualification", "location", "availability", "other")
+        (f, f.capitalize())
+        for f in ("skill", "qualification", "experience", "location", "availability", "other")
     ]
+    # Factors the rules can compare, and which typed value each one reads.
+    TYPED = {
+        "skill": ("skill",),
+        "qualification": ("qualification_level",),
+        "experience": ("min_months",),
+        "availability": ("needed_by", "work_pattern"),
+    }
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     opportunity = models.ForeignKey(
@@ -126,12 +134,29 @@ class OpportunityRequirement(models.Model):
     factor = models.CharField(max_length=14, choices=FACTORS)
     description = models.CharField(max_length=300)
     is_mandatory = models.BooleanField(default=False)
+    # Typed values, so the rules can compare them with a youth's recorded facts. Empty on older
+    # free-text requirements, which the screen marks "needs structuring".
+    qualification_level = models.ForeignKey(
+        "configuration.QualificationLevel", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="+",
+    )  # fmt: skip
+    skill = models.ForeignKey(
+        "configuration.Skill", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    min_months = models.PositiveIntegerField(null=True, blank=True)
+    needed_by = models.DateField(null=True, blank=True)
+    work_pattern = models.CharField(max_length=20, blank=True)
 
     class Meta:
         ordering = ["-is_mandatory", "factor", "description"]
 
     def __str__(self):
         return f"{self.factor}: {self.description}"
+
+    @property
+    def needs_structuring(self):
+        fields = self.TYPED.get(self.factor)
+        return bool(fields) and not any(getattr(self, f) not in (None, "") for f in fields)
 
 
 class ClusterDecision(models.Model):

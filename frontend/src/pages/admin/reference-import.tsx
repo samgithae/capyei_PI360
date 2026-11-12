@@ -16,7 +16,8 @@ import {
 interface Result {
   dry_run: boolean;
   rows: number;
-  created: number;
+  created?: number;
+  added_total?: number;
   skipped: number;
   failed: number;
   errors: { row: number; field: string; message: string }[];
@@ -30,8 +31,12 @@ export function ReferenceImport({
   title,
   columns,
   onDone,
+  endpoint = `/config/reference/${kind}/import`,
+  templateEndpoint = `/config/reference/${kind}/import-template`,
 }: {
   kind: string;
+  endpoint?: string;
+  templateEndpoint?: string;
   title: string;
   columns: string;
   onDone: () => void;
@@ -53,14 +58,14 @@ export function ReferenceImport({
     setBusy(true);
     setError('');
     try {
-      const r = await upload<Result>(`/config/reference/${kind}/import`, {
+      const r = await upload<Result>(endpoint, {
         file,
         dry_run: dry ? '1' : '',
       });
       setResult(r);
       if (!dry) {
         toast.success(
-          `Imported ${r.created} ${title.toLowerCase()}` +
+          `Imported ${r.created ?? r.added_total} ${title.toLowerCase()}` +
             (r.skipped ? `, ${r.skipped} already existed` : '') +
             (r.failed ? `, ${r.failed} rows had errors` : ''),
         );
@@ -74,12 +79,9 @@ export function ReferenceImport({
   };
 
   const template = async () => {
-    const res = await fetch(
-      `${API_BASE}/config/reference/${kind}/import-template`,
-      {
-        credentials: 'include',
-      },
-    );
+    const res = await fetch(`${API_BASE}${templateEndpoint}`, {
+      credentials: 'include',
+    });
     if (!res.ok) return toast.error('Could not download the template.');
     const url = URL.createObjectURL(await res.blob());
     const a = document.createElement('a');
@@ -90,6 +92,7 @@ export function ReferenceImport({
   };
 
   const previewed = result?.dry_run === true;
+  const count = result?.created ?? result?.added_total ?? 0;
   return (
     <>
       <Button
@@ -137,7 +140,7 @@ export function ReferenceImport({
               <div role="status" className="space-y-2 rounded-md border p-3">
                 <p className="font-medium">
                   {previewed ? 'Preview (nothing saved yet): ' : 'Done: '}
-                  {result.created} {previewed ? 'to add' : 'added'},{' '}
+                  {count} {previewed ? 'to add' : 'added'},{' '}
                   {result.skipped} already exist, {result.failed} with errors
                   (of {result.rows} rows).
                 </p>
@@ -166,9 +169,9 @@ export function ReferenceImport({
                 {busy && !previewed ? 'Checking...' : 'Preview'}
               </Button>
             )}
-            {previewed && result.created > 0 && (
+            {previewed && count > 0 && (
               <Button disabled={busy} onClick={() => void run(false)}>
-                {busy ? 'Importing...' : `Import ${result.created}`}
+                {busy ? 'Importing...' : `Import ${count}`}
               </Button>
             )}
           </DialogFooter>

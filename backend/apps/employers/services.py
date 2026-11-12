@@ -9,6 +9,7 @@ from django.db.models import ProtectedError
 from django.utils import timezone
 
 from apps.audit import services as audit
+from apps.configuration import services as configuration
 from apps.configuration.services import normalise as norm
 
 from .models import (
@@ -230,22 +231,85 @@ def accepts_referrals(opportunity_id) -> bool:
     ).exists()
 
 
+PATTERN_NAMES = {
+    "full_time": "full time",
+    "part_time": "part time",
+    "shift": "shift work",
+    "casual": "casual or short contract",
+    "remote": "remote or home based",
+}
+
+
+def _typed(requirement, data):
+    """Resolve typed ids to rows, drop values that do not belong to the factor, and write the
+    plain-English description when none was given."""
+    factor = data.get("factor", requirement.factor if requirement else "other")
+    keep = OpportunityRequirement.TYPED.get(factor, ())
+    out = dict(data)
+    for fk, key, kind, label in (
+        ("qualification_level", "qualification_level_id", "qualification-levels", "level"),
+        ("skill", "skill_id", "skills", "skill"),
+    ):
+        if key in out and out[key] is not None:
+            row = configuration.active_reference(kind, out[key])
+            if row is None:
+                raise RuleViolation(key, f"Unknown {label}.", "invalid")
+            out[fk] = row
+        elif key in out:
+            out[fk] = None
+        out.pop(key, None)
+    if out.get("work_pattern") and out["work_pattern"] not in PATTERN_NAMES:
+        raise RuleViolation("work_pattern", "Unknown work pattern.", "invalid")
+    for f in ("qualification_level", "skill", "min_months", "needed_by", "work_pattern"):
+        if f not in keep and (f in out or (requirement and data.get("factor"))):
+            out[f] = "" if f == "work_pattern" else None
+    if (requirement is None and not out.get("description")) or (
+        "description" in out and not out["description"]
+    ):
+        probe = {f: out.get(f, getattr(requirement, f, None)) for f in keep}
+        if factor == "qualification" and probe.get("qualification_level"):
+            out["description"] = f"{probe['qualification_level'].name} or higher"
+        elif factor == "skill" and probe.get("skill"):
+            out["description"] = probe["skill"].name
+        elif factor == "experience" and probe.get("min_months") is not None:
+            out["description"] = f"At least {probe['min_months']} months of experience"
+        elif factor == "availability" and (probe.get("needed_by") or probe.get("work_pattern")):
+            bits = []
+            if probe.get("needed_by"):
+                bits.append(f"can start by {probe['needed_by']}")
+            if probe.get("work_pattern"):
+                bits.append(PATTERN_NAMES[probe["work_pattern"]])
+            out["description"] = "Available: " + ", ".join(bits)
+        else:
+            raise RuleViolation("description", "Describe the requirement.", "required")
+    return out
+
+
+def _plain(d):
+    """Audit-friendly copy: rows and dates become text."""
+    return {
+        k: (str(v) if v is not None and not isinstance(v, (str, int, bool)) else v)
+        for k, v in d.items()
+    }
+
+
 @transaction.atomic
 def save_requirement(*, actor, opportunity, data, requirement=None):
     if opportunity.status in (Opportunity.CLOSED, Opportunity.EXPIRED):
         raise RuleViolation("status", "Reopen the opportunity before editing it.", "locked")
+    data = _typed(requirement, data)
     if requirement is None:
         requirement = OpportunityRequirement.objects.create(opportunity=opportunity, **data)
         action, before = "opportunity.requirement_added", None
     else:
-        before = {k: getattr(requirement, k) for k in data}
+        before = _plain({k: getattr(requirement, k) for k in data})
         for k, v in data.items():
             setattr(requirement, k, v)
         requirement.save()
         action = "opportunity.requirement_updated"
     audit.record(
         actor=actor, action=action, object_type="opportunity", object_id=opportunity.pk,
-        before=before, after={"requirement": str(requirement.pk), **data},
+        before=before, after={"requirement": str(requirement.pk), **_plain(data)},
     )  # fmt: skip
     return requirement
 
@@ -431,3 +495,35 @@ def reverse_source(*, actor, source):
         reverse_decision(actor=actor, decision=d)
         n += 1
     return n
+
+
+def compatibility_inputs(opportunity_id):
+    """What the compatibility rules read from an opportunity, or None when it does not exist.
+    Each requirement carries its typed value; a requirement the rules cannot compare (free text,
+    or a category they do not check) has ``structured`` false so the caller can say so."""
+    o = Opportunity.objects.filter(pk=opportunity_id).select_related("employer").first()
+    if o is None:
+        return None
+    rows = []
+    for r in o.requirements.select_related("qualification_level", "skill"):
+        rows.append(
+            {
+                "id": str(r.pk),
+                "factor": r.factor,
+                "description": r.description,
+                "mandatory": r.is_mandatory,
+                "structured": r.factor in r.TYPED and not r.needs_structuring,
+                "level_rank": r.qualification_level.rank if r.qualification_level_id else None,
+                "skill_id": str(r.skill_id) if r.skill_id else None,
+                "min_months": r.min_months,
+                "needed_by": r.needed_by.isoformat() if r.needed_by else None,
+                "work_pattern": r.work_pattern,
+            }
+        )
+    return {
+        "id": str(o.pk),
+        "title": o.title,
+        "status": o.status,
+        "sector_id": str(o.sector_id) if o.sector_id else None,
+        "requirements": rows,
+    }

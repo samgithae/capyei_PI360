@@ -182,6 +182,50 @@ def _parse(field, v):
 
 
 @transaction.atomic
+def _profile_models(ids_by_kind):
+    from .models import (
+        ParticipantExperience,
+        ParticipantQualification,
+        ParticipantReadiness,
+        ParticipantSkill,
+    )
+
+    names = {
+        "qualifications": ParticipantQualification,
+        "skills": ParticipantSkill,
+        "experience": ParticipantExperience,
+        "readiness": ParticipantReadiness,
+    }
+    return [(names[k], v) for k, v in ids_by_kind.items() if k in names]
+
+
+def _move_profile(absorbed, survivor):
+    """Move the absorbed record's capability facts to the survivor. A skill the survivor already
+    has stays behind, and so does the readiness row if the survivor has one (their own wins)."""
+    moved = {"qualifications": [], "skills": [], "experience": [], "readiness": []}
+    have = set(survivor.skills.values_list("skill_id", flat=True))
+    for q in absorbed.qualifications.all():
+        moved["qualifications"].append(str(q.pk))
+        q.participant = survivor
+        q.save(update_fields=["participant"])
+    for s in absorbed.skills.all():
+        if s.skill_id in have:
+            continue
+        moved["skills"].append(str(s.pk))
+        s.participant = survivor
+        s.save(update_fields=["participant"])
+    for e in absorbed.experience.all():
+        moved["experience"].append(str(e.pk))
+        e.participant = survivor
+        e.save(update_fields=["participant"])
+    ready = getattr(absorbed, "readiness", None)
+    if ready is not None and not hasattr(survivor, "readiness"):
+        moved["readiness"].append(str(ready.pk))
+        ready.participant = survivor
+        ready.save(update_fields=["participant"])
+    return moved
+
+
 def merge(*, actor, candidate, survivor_id, fields=None, reason):
     """Fold one record into the other. The steward picks the survivor and, per field, whose value
     to keep. Children are re-pointed; the absorbed row stays (hidden) so this can be undone."""
@@ -215,6 +259,7 @@ def merge(*, actor, candidate, survivor_id, fields=None, reason):
         "identifiers": [str(i) for i in absorbed.source_identifiers.values_list("id", flat=True)],
         "contacts": [],
         "residences": [],
+        "profile": _move_profile(absorbed, survivor),
     }
     for f, who in fields.items():
         if who == "merged":
@@ -289,6 +334,8 @@ def unmerge(*, actor, merge_record, reason):
             participant=absorbed
         )
         ParticipantContact.objects.filter(pk=c["id"]).update(is_primary=c["is_primary"])
+    for model, ids in _profile_models(snap.get("profile", {})):
+        model.objects.filter(pk__in=ids, participant=survivor).update(participant=absorbed)
     for r in snap["residences"]:
         ParticipantResidence.objects.filter(pk=r["id"], participant=survivor).update(
             participant=absorbed,
