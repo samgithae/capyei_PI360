@@ -116,15 +116,31 @@ def test_add_youth_creates_enrollment_contact_and_audit(world, make_user):
             "status": "active",
             "age_at_source": 21,
             "origin_county_id": str(county.pk),
-            "cohort_course_id": str(cc.pk),
-            "enrollment_no": "NEW-1",
-            "phone": "0711000000",
+            "given_name": "Amina",
+            "family_name": "Test",
+            "age_basis_date": "2025-01-01",
+            "residence": {"county_id": str(county.pk), "sub_county": "Mvita", "ward": "Tudor"},
+            "contacts": [{"kind": "phone", "value": "0711000000", "primary": True}],
+            "source_name": "kcb",
+            "source_id": "K-9",
+            "enrollment": {
+                "cohort_course_id": str(cc.pk),
+                "enrollment_no": "NEW-1",
+                "status": "enrolled",
+                "enrolled_on": "2025-02-01",
+                "qualification_code": "Q1",
+                "extra": {"Guardian": "Mum", "Blank": " "},
+            },
         },
         content_type="application/json",
     )
     assert r.status_code == 201, r.content
     p = Participant.objects.get(full_name_source="Amina Test")
-    assert p.enrollments.get().programme_id == cc.cohort.programme_id
+    e = p.enrollments.get()
+    assert e.programme_id == cc.cohort.programme_id
+    assert e.extra == {"Guardian": "Mum"} and e.source_qualification_code == "Q1"
+    assert p.residences.get().ward_source == "Tudor" and p.given_name == "Amina"
+    assert p.source_identifiers.get().identifier == "K-9"
     assert p.contacts.get().value == "0711000000"
     event = AuditEvent.objects.filter(action="participant.created", object_id=str(p.pk)).get()
     assert "0711000000" not in str(event.after)
@@ -132,7 +148,10 @@ def test_add_youth_creates_enrollment_contact_and_audit(world, make_user):
     # same enrollment number in the same programme is refused
     r = c.post(
         URL,
-        {"full_name_source": "Other", "cohort_course_id": str(cc.pk), "enrollment_no": "NEW-1"},
+        {
+            "full_name_source": "Other",
+            "enrollment": {"cohort_course_id": str(cc.pk), "enrollment_no": "NEW-1"},
+        },
         content_type="application/json",
     )
     assert r.status_code == 400

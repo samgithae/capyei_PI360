@@ -103,8 +103,52 @@ class FilterOptionsView(APIView):
         return Response(configuration.filter_options())
 
 
+class _NewContactSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=[ParticipantContact.PHONE, ParticipantContact.EMAIL])
+    value = serializers.CharField(max_length=200)
+    primary = serializers.BooleanField(default=False)
+
+
+class _NewResidenceSerializer(serializers.Serializer):
+    county_id = serializers.UUIDField(allow_null=True, required=False)
+    sub_county = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    ward = serializers.CharField(max_length=100, allow_blank=True, required=False)
+
+    def validate_county_id(self, value):
+        if value is not None and not configuration.county_exists(value):
+            raise serializers.ValidationError("Unknown county.")
+        return value
+
+
+class _NewEnrollmentSerializer(serializers.Serializer):
+    cohort_course_id = serializers.UUIDField()
+    enrollment_no = serializers.CharField(max_length=60, allow_blank=True, required=False)
+    status = serializers.ChoiceField(
+        choices=[s for s, _ in ParticipantEnrollment.STATUSES],
+        default=ParticipantEnrollment.ENROLLED,
+    )
+    enrolled_on = serializers.DateField(allow_null=True, required=False)
+    completed_on = serializers.DateField(allow_null=True, required=False)
+    exit_reason = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    qualification_code = serializers.CharField(max_length=60, allow_blank=True, required=False)
+    referral_source_code = serializers.CharField(max_length=60, allow_blank=True, required=False)
+    extra = serializers.DictField(
+        child=serializers.CharField(max_length=services.MAX_EXTRA_VALUE, allow_blank=True),
+        required=False,
+    )
+
+    def validate_extra(self, value):
+        for k in value:
+            if not 0 < len(k.strip()) <= services.MAX_EXTRA_LABEL:
+                raise serializers.ValidationError("Each extra detail needs a short label.")
+        return {k.strip(): v for k, v in value.items() if v.strip()}
+
+
 class ParticipantCreateSerializer(serializers.Serializer):
     full_name_source = serializers.CharField(max_length=200)
+    given_name = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    family_name = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    other_names = serializers.CharField(max_length=100, allow_blank=True, required=False)
     gender = serializers.ChoiceField(
         choices=[g for g, _ in Participant.GENDERS], default=Participant.GENDER_UNKNOWN
     )
@@ -115,22 +159,30 @@ class ParticipantCreateSerializer(serializers.Serializer):
     age_at_source = serializers.IntegerField(
         min_value=0, max_value=120, allow_null=True, required=False
     )
+    age_basis_date = serializers.DateField(allow_null=True, required=False)
     origin_county_id = serializers.UUIDField(allow_null=True, required=False)
-    cohort_course_id = serializers.UUIDField(allow_null=True, required=False)
-    enrollment_no = serializers.CharField(max_length=60, allow_blank=True, required=False)
-    phone = serializers.CharField(max_length=200, allow_blank=True, required=False)
-    email = serializers.EmailField(max_length=200, allow_blank=True, required=False)
+    residence = _NewResidenceSerializer(required=False)
+    contacts = _NewContactSerializer(many=True, max_length=20, required=False)
+    source_id = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    source_name = serializers.CharField(max_length=60, allow_blank=True, required=False)
+    enrollment = _NewEnrollmentSerializer(required=False)
 
     def validate_origin_county_id(self, value):
         if value is not None and not configuration.county_exists(value):
             raise serializers.ValidationError("Unknown county.")
         return value
 
+    def validate_contacts(self, rows):
+        if rows and not has_permission(self.context["request"].user, CONTACT):
+            raise serializers.ValidationError("You may not add contact details.")
+        for kind in (ParticipantContact.PHONE, ParticipantContact.EMAIL):
+            if sum(1 for r in rows if r["kind"] == kind and r["primary"]) > 1:
+                raise serializers.ValidationError(f"Only one primary {kind} is allowed.")
+        return rows
+
     def validate(self, attrs):
-        if (attrs.get("phone") or attrs.get("email")) and not has_permission(
-            self.context["request"].user, CONTACT
-        ):
-            raise serializers.ValidationError({"phone": "You may not add contact details."})
+        if attrs.get("source_id") and not attrs.get("source_name", "").strip():
+            raise serializers.ValidationError({"source_name": "Say which system the ID is from."})
         return attrs
 
 

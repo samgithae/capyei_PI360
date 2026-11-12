@@ -11,7 +11,13 @@ from django.db import transaction
 
 from apps.configuration import services as configuration
 
-from .models import Participant, ParticipantContact, ParticipantEnrollment, SourceIdentifier
+from .models import (
+    Participant,
+    ParticipantContact,
+    ParticipantEnrollment,
+    ParticipantResidence,
+    SourceIdentifier,
+)
 
 # Field -> required? The mapping templates target exactly these names.
 FIELDS = {
@@ -388,51 +394,78 @@ class CreateError(ValueError):
 
 @transaction.atomic
 def create_participant(*, actor, data: dict) -> Participant:
-    """Add one youth by hand (the import is the bulk route). Optional enrollment is by cohort
-    offering; the programme and institution come from the cohort. The creator becomes the
-    assigned officer so an officer-scoped user can still see the record they just added."""
+    """Add one youth by hand (the import is the bulk route), with every optional detail.
+    The creator becomes the assigned officer so an officer-scoped user can still see the
+    record they just added. The enrollment, when given, is by cohort offering; the programme and
+    institution come from the cohort."""
+    from django.utils import timezone
+
     from apps.audit import services as audit
 
-    enrollment = None
-    if data.get("cohort_course_id"):
-        enrollment = configuration.offering_ids(data["cohort_course_id"])
-        if enrollment is None:
-            raise CreateError("cohort_course_id", "Unknown course offering.")
-        no = data.get("enrollment_no", "")
+    enr = data.get("enrollment")
+    ids = None
+    if enr:
+        ids = configuration.offering_ids(enr["cohort_course_id"])
+        if ids is None:
+            raise CreateError("enrollment", "Unknown course offering.")
+        no = enr.get("enrollment_no", "").strip()
         if (
             no
             and ParticipantEnrollment.objects.filter(
-                programme_id=enrollment[0], source_enrollment_no=no
+                programme_id=ids[0], source_enrollment_no=no
             ).exists()
         ):
-            raise CreateError(
-                "enrollment_no", "Another enrollment in this programme has that number."
-            )
+            raise CreateError("enrollment", "Another enrollment in this programme has that number.")
+    if (sid := data.get("source_id")) and SourceIdentifier.objects.filter(
+        source=data["source_name"].strip(), identifier=sid.strip()
+    ).exists():
+        raise CreateError("source_id", "Someone already has that ID from that system.")
     p = Participant.objects.create(
         full_name_source=data["full_name_source"].strip(),
+        given_name=data.get("given_name", ""),
+        family_name=data.get("family_name", ""),
+        other_names=data.get("other_names", ""),
         gender=data.get("gender", Participant.GENDER_UNKNOWN),
         status=data.get("status", Participant.UNKNOWN),
         age_at_source=data.get("age_at_source"),
+        age_basis_date=data.get("age_basis_date"),
         date_of_birth=data.get("date_of_birth"),
         origin_county_id=data.get("origin_county_id"),
-        assigned_officer=getattr(actor, "pk", None) and actor,
+        assigned_officer=actor if getattr(actor, "pk", None) else None,
     )
-    if enrollment:
+    if enr:
         ParticipantEnrollment.objects.create(
             participant=p,
-            cohort_course_id=data["cohort_course_id"],
-            programme_id=enrollment[0],
-            institution_id=enrollment[1],
-            source_enrollment_no=data.get("enrollment_no", ""),
-            status=ParticipantEnrollment.ENROLLED,
+            cohort_course_id=enr["cohort_course_id"],
+            programme_id=ids[0],
+            institution_id=ids[1],
+            source_enrollment_no=enr.get("enrollment_no", "").strip(),
+            status=enr.get("status", ParticipantEnrollment.ENROLLED),
+            enrolled_on=enr.get("enrolled_on"),
+            completed_on=enr.get("completed_on"),
+            exit_reason=enr.get("exit_reason", ""),
+            source_qualification_code=enr.get("qualification_code", ""),
+            referral_source_code=enr.get("referral_source_code", ""),
+            extra=enr.get("extra") or {},
         )
-    kinds = []
-    for kind, key in (("phone", "phone"), ("email", "email")):
-        if data.get(key):
-            ParticipantContact.objects.create(
-                participant=p, kind=kind, value=data[key], is_primary=True
-            )
-            kinds.append(kind)
+    res = data.get("residence") or {}
+    if res.get("county_id") or res.get("sub_county") or res.get("ward"):
+        ParticipantResidence.objects.create(
+            participant=p,
+            county_id=res.get("county_id"),
+            sub_county_source=res.get("sub_county", ""),
+            ward_source=res.get("ward", ""),
+            valid_from=timezone.localdate(),
+        )
+    contacts = data.get("contacts") or []
+    for c in contacts:
+        ParticipantContact.objects.create(
+            participant=p, kind=c["kind"], value=c["value"].strip(), is_primary=c["primary"]
+        )
+    if sid:
+        SourceIdentifier.objects.create(
+            participant=p, source=data["source_name"].strip(), identifier=sid.strip()
+        )
     audit.record(
         actor=actor,
         action="participant.created",
@@ -442,8 +475,9 @@ def create_participant(*, actor, data: dict) -> Participant:
             "gender": p.gender,
             "status": p.status,
             "county_id": str(p.origin_county_id) if p.origin_county_id else None,
-            "enrolled": enrollment is not None,
-            "contact_kinds": kinds,  # kinds only, never the values
+            "enrolled": enr is not None,
+            "residence": bool(res),
+            "contact_kinds": [c["kind"] for c in contacts],  # kinds only, never the values
         },
     )
     return p

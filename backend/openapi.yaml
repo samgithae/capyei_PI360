@@ -3744,18 +3744,6 @@ components:
         * `active` - Active
         * `inactive` - Inactive
         * `prospect` - Prospect
-    EnrollmentEditStatusEnum:
-      enum:
-      - enrolled
-      - completed
-      - withdrawn
-      - unknown
-      type: string
-      description: |-
-        * `enrolled` - enrolled
-        * `completed` - completed
-        * `withdrawn` - withdrawn
-        * `unknown` - unknown
     FactorEnum:
       enum:
       - skill
@@ -3838,6 +3826,14 @@ components:
           default: participants
       required:
       - file
+    Kind204Enum:
+      enum:
+      - phone
+      - email
+      type: string
+      description: |-
+        * `phone` - phone
+        * `email` - email
     Login:
       type: object
       properties:
@@ -4009,7 +4005,7 @@ components:
       type: object
       properties:
         kind:
-          $ref: '#/components/schemas/ParticipantContactKindEnum'
+          $ref: '#/components/schemas/Kind204Enum'
         value:
           type: string
           maxLength: 200
@@ -4019,14 +4015,6 @@ components:
       required:
       - kind
       - value
-    ParticipantContactKindEnum:
-      enum:
-      - phone
-      - email
-      type: string
-      description: |-
-        * `phone` - phone
-        * `email` - email
     ParticipantContacts:
       type: object
       properties:
@@ -4042,6 +4030,15 @@ components:
         full_name_source:
           type: string
           maxLength: 200
+        given_name:
+          type: string
+          maxLength: 100
+        family_name:
+          type: string
+          maxLength: 100
+        other_names:
+          type: string
+          maxLength: 100
         gender:
           allOf:
           - $ref: '#/components/schemas/GenderEnum'
@@ -4059,27 +4056,28 @@ components:
           maximum: 120
           minimum: 0
           nullable: true
+        age_basis_date:
+          type: string
+          format: date
+          nullable: true
         origin_county_id:
           type: string
           format: uuid
           nullable: true
-        cohort_course_id:
+        residence:
+          $ref: '#/components/schemas/_NewResidence'
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/_NewContact'
+        source_id:
           type: string
-          format: uuid
-          nullable: true
-        enrollment_no:
+          maxLength: 100
+        source_name:
           type: string
           maxLength: 60
-        phone:
-          type: string
-          maxLength: 200
-        email:
-          oneOf:
-          - type: string
-            format: email
-            maxLength: 200
-          - type: string
-            maxLength: 0
+        enrollment:
+          $ref: '#/components/schemas/_NewEnrollment'
       required:
       - full_name_source
     PasswordChange:
@@ -4172,7 +4170,7 @@ components:
       type: object
       properties:
         status:
-          $ref: '#/components/schemas/EnrollmentEditStatusEnum'
+          $ref: '#/components/schemas/Status812Enum'
         source_enrollment_no:
           type: string
           maxLength: 60
@@ -4618,6 +4616,18 @@ components:
       - signed_on
       - signer_name
       - signer_role
+    Status812Enum:
+      enum:
+      - enrolled
+      - completed
+      - withdrawn
+      - unknown
+      type: string
+      description: |-
+        * `enrolled` - enrolled
+        * `completed` - completed
+        * `withdrawn` - withdrawn
+        * `unknown` - unknown
     StatusE26Enum:
       enum:
       - active
@@ -4818,6 +4828,70 @@ components:
             $ref: '#/components/schemas/ScopeItem'
       required:
       - scopes
+    _NewContact:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/Kind204Enum'
+        value:
+          type: string
+          maxLength: 200
+        primary:
+          type: boolean
+          default: false
+      required:
+      - kind
+      - value
+    _NewEnrollment:
+      type: object
+      properties:
+        cohort_course_id:
+          type: string
+          format: uuid
+        enrollment_no:
+          type: string
+          maxLength: 60
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status812Enum'
+          default: enrolled
+        enrolled_on:
+          type: string
+          format: date
+          nullable: true
+        completed_on:
+          type: string
+          format: date
+          nullable: true
+        exit_reason:
+          type: string
+          maxLength: 200
+        qualification_code:
+          type: string
+          maxLength: 60
+        referral_source_code:
+          type: string
+          maxLength: 60
+        extra:
+          type: object
+          additionalProperties:
+            type: string
+            maxLength: 500
+      required:
+      - cohort_course_id
+    _NewResidence:
+      type: object
+      properties:
+        county_id:
+          type: string
+          format: uuid
+          nullable: true
+        sub_county:
+          type: string
+          maxLength: 100
+        ward:
+          type: string
+          maxLength: 100
   securitySchemes:
     cookieAuth:
       type: apiKey
