@@ -87,7 +87,13 @@ A rule set has numbered **versions**. A version is a list of **factors** (the ch
 Walk one version through its life:
 
 1. Open a rule set, then a version. Only a **Draft** can be edited.
-2. In a draft, edit factors and parameters. For each parameter record the value, and tick **decided** only when the product owner has actually confirmed it.
+2. In a draft, click **Edit draft** to open a four-step wizard (no JSON needed):
+   - **Checks:** switch each check on or off and rename it. Whether a requirement is mandatory or preferred is set on each opportunity, not here.
+   - **Numbers:** give each check points (the share of the total is shown) and set the limits. Tick **Confirmed by the product owner** only when they have actually confirmed it.
+   - **Missing information:** choose, per check, whether a missing value flags the youth for staff review or leaves that check out. It is never counted as a failure.
+   - **Review:** read the summary, add notes, and **Save draft**. Nothing is saved until this step.
+
+   Developers can still use **Advanced: edit as JSON** from the wizard.
 3. **Send for review.** (Rule author action.)
 4. **Approve.** Refused while any parameter is still undecided. *Why:* an unconfirmed threshold must never reach production.
 5. **Activate.** The new version goes into force and the one it replaces is **Retired**.

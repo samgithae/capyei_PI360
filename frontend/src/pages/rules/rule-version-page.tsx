@@ -33,8 +33,10 @@ import {
   LoadingState,
   Notice,
 } from '@/components/states';
+import { RuleEditor } from './rule-editor';
 import {
   expected,
+  parseValue,
   show,
   useRefreshRules,
   weightText,
@@ -119,17 +121,6 @@ const STEP_ORDER: StepName[] = [
 const patch = <T,>(path: string, body: unknown) =>
   api<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
 
-/** Text typed for a parameter value: a number, a list or object as JSON, or plain text. */
-function parseValue(text: string): unknown {
-  const t = text.trim();
-  if (!t) return null;
-  try {
-    return JSON.parse(t);
-  } catch {
-    return t;
-  }
-}
-
 /** One rule version (T-047): its factors and parameters, where it is in the lifecycle, and
  * the audit trail of who drafted, approved and activated it. */
 export function RuleVersionPage() {
@@ -139,7 +130,7 @@ export function RuleVersionPage() {
   const [step, setStep] = useState<StepName | null>(null);
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<'wizard' | 'json' | null>(null);
   const [draft, setDraft] = useState({ json: '', notes: '' });
   const [param, setParam] = useState<string | null>(null);
   const [paramForm, setParamForm] = useState({ value: '', approved: false });
@@ -164,7 +155,7 @@ export function RuleVersionPage() {
     setError(e instanceof ApiError ? e.message : 'Something went wrong.');
   const close = () => {
     setStep(null);
-    setEditing(false);
+    setEditing(null);
     setParam(null);
     setNote('');
     setError('');
@@ -235,7 +226,7 @@ export function RuleVersionPage() {
   const openEdit = () => {
     setDraft({ json: JSON.stringify(d, null, 2), notes: v.change_notes });
     setError('');
-    setEditing(true);
+    setEditing('wizard');
   };
   const openParam = (name: string) => {
     const p = d.parameters?.[name];
@@ -597,10 +588,24 @@ export function RuleVersionPage() {
         )}
       </FormModal>
 
+      {editing === 'wizard' && (
+        <RuleEditor
+          definition={d}
+          notes={v.change_notes}
+          pending={save.isPending}
+          error={error}
+          onClose={close}
+          onSave={(definition, change_notes) =>
+            save.mutate({ definition, change_notes })
+          }
+          onAdvanced={() => setEditing('json')}
+        />
+      )}
+
       <FormModal
-        open={editing}
+        open={editing === 'json'}
         onOpenChange={(o) => !o && close()}
-        title="Edit draft"
+        title="Edit draft (JSON)"
         description="The rules as JSON: factors, parameters and notes. Saving checks the shape and lists anything to fix."
         pending={save.isPending}
         error={error}

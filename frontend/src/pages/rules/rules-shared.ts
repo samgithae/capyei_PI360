@@ -155,3 +155,38 @@ export function useRefreshRules() {
       ),
     );
 }
+
+/** Text typed for a parameter value: a number, a list or object as JSON, or plain text. */
+export function parseValue(text: string): unknown {
+  const t = text.trim();
+  if (!t) return null;
+  try {
+    return JSON.parse(t);
+  } catch {
+    return t;
+  }
+}
+
+/** The text shown in a box for a parameter value (empty while undecided). */
+export function valueText(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+/** Name of the parameter that holds a factor's weight, if it uses one. */
+export const weightParam = (f: Factor): string | null =>
+  f.weight && typeof f.weight === 'object' ? f.weight.param : null;
+
+/** Plain-language choices for what to do when a youth's data is missing. */
+export const MISSING_CHOICES = [
+  {
+    id: 'flag',
+    name: 'Flag for staff review',
+    hint: 'Mark the check as unknown and ask an officer to confirm the information. Never counts as a fail.',
+  },
+  {
+    id: 'exclude',
+    name: 'Leave this check out',
+    hint: 'Work out the result without this check and show how much information was available.',
+  },
+];
