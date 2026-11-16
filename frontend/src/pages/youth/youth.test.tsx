@@ -13,8 +13,8 @@ vi.mock('@/lib/api', () => ({
   post: (...a: unknown[]) => post(...a),
   ApiError: class extends Error {},
 }));
-vi.mock('@/pages/participants/capability-profile', () => ({
-  CapabilityProfile: () => <div>profile editor</div>,
+vi.mock('@/pages/participants/cv/cv-profile', () => ({
+  CvProfile: () => <div>profile editor</div>,
 }));
 
 const wrap = (ui: React.ReactNode) =>

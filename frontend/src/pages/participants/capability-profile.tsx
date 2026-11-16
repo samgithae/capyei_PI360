@@ -1,27 +1,12 @@
-import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BadgeCheck, Pencil } from 'lucide-react';
-import { api, ApiError, post } from '@/lib/api';
+import { BadgeCheck } from 'lucide-react';
+import { api, post } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { DataCard } from '@/components/data-card';
 import { ErrorState, LoadingState } from '@/components/states';
-import {
-  CapabilityFields,
-  draftToPayload,
-  LEVELS,
-  type CapabilityDraft,
-} from './capability-fields';
+import { LEVELS } from './capability-fields';
 
 interface Fact {
   id: string | null;
@@ -119,7 +104,6 @@ export function CapabilityProfile({
 }) {
   const { can } = useAuth();
   const qc = useQueryClient();
-  const [editing, setEditing] = useState(false);
   const key = ['participant-profile', self ? 'self' : id];
   const q = useQuery({
     queryKey: key,
@@ -170,22 +154,13 @@ export function CapabilityProfile({
     !r.id;
 
   return (
-    <DataCard
-      title="Skills and readiness"
-      toolbar={
-        canEdit && (
-          <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-            <Pencil /> {empty ? 'Add details' : 'Edit'}
-          </Button>
-        )
-      }
-    >
+    <DataCard title="Skills and readiness (verification)">
       <div className="space-y-4 p-5 text-sm">
         {empty ? (
           <p className="text-muted-foreground">
-            Nothing recorded yet. Without these details the system cannot say
-            whether this youth fits an opportunity; it will show them as
-            &quot;not enough information&quot;.
+            Nothing recorded yet. Add details in the CV above; without them the
+            system cannot say whether this youth fits an opportunity, and will
+            show them as &quot;not enough information&quot;.
           </p>
         ) : (
           <>
@@ -272,111 +247,6 @@ export function CapabilityProfile({
           </>
         )}
       </div>
-      {editing && (
-        <ProfileEditor
-          id={id}
-          self={self}
-          profile={p}
-          onClose={() => setEditing(false)}
-          onSaved={(next) => {
-            qc.setQueryData(key, next);
-            setEditing(false);
-          }}
-        />
-      )}
     </DataCard>
-  );
-}
-
-function ProfileEditor({
-  id,
-  self,
-  profile,
-  onClose,
-  onSaved,
-}: {
-  id: string;
-  self: boolean;
-  profile: Profile;
-  onClose: () => void;
-  onSaved: (p: Profile) => void;
-}) {
-  const [draft, setDraft] = useState<CapabilityDraft>({
-    quals: profile.qualifications.map((x) => ({
-      id: x.id,
-      level_id: x.level_id,
-      title: x.title,
-      institution: x.institution,
-      grade_id: x.grade_id ?? '',
-      year_awarded: x.year_awarded?.toString() ?? '',
-    })),
-    skills: profile.skills.map((x) => ({
-      id: x.id,
-      skill_id: x.skill_id,
-      proficiency: String(x.proficiency),
-    })),
-    exp: profile.experience.map((x) => ({
-      id: x.id,
-      role_title: x.role_title,
-      employer_name: x.employer_name,
-      sector_id: x.sector_id ?? '',
-      months: String(x.months),
-    })),
-    from: profile.readiness.available_from ?? '',
-    patterns: profile.readiness.work_patterns,
-    interests: profile.readiness.interest_sector_ids,
-  });
-  const [error, setError] = useState('');
-
-  const save = useMutation({
-    mutationFn: () =>
-      api<Profile | { profile: Profile }>(
-        self ? '/youth/profile' : `/participants/${id}/profile`,
-        { method: 'PUT', body: JSON.stringify(draftToPayload(draft)) },
-      ).then((r) => ('profile' in r ? r.profile : r)),
-    onSuccess: onSaved,
-    onError: (e) =>
-      setError(e instanceof ApiError ? e.message : 'Could not save.'),
-  });
-
-  return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Skills and readiness</DialogTitle>
-          <DialogDescription>
-            Only fill what you know. Anything left empty is shown as missing,
-            never as a failure. Changing an entry removes its verification.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody className="max-h-[60vh] space-y-5 overflow-auto">
-          <CapabilityFields
-            value={draft}
-            onChange={setDraft}
-            options={profile.options}
-          />
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-        </DialogBody>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            disabled={save.isPending}
-            onClick={() => {
-              setError('');
-              save.mutate();
-            }}
-          >
-            {save.isPending ? 'Saving...' : 'Save'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

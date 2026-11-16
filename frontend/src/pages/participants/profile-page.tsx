@@ -25,6 +25,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { CapabilityProfile } from './capability-profile';
+import { CvProfile } from './cv/cv-profile';
 import { InviteCard } from './invite-card';
 
 interface Enrollment {
@@ -276,7 +277,10 @@ export function ProfilePage() {
       </DataCard>
 
       {can('participants.view_profile') ? (
-        <CapabilityProfile id={p.id} />
+        <>
+          <CvProfile id={p.id} />
+          <CapabilityProfile id={p.id} />
+        </>
       ) : (
         <DataCard title="Skills and readiness">
           <p className="p-5 text-sm text-muted-foreground">

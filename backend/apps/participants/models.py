@@ -301,6 +301,10 @@ class ParticipantQualification(ProfileFact):
     grade = models.ForeignKey(
         "configuration.QualificationGrade", null=True, blank=True, on_delete=models.PROTECT
     )
+    # CV details. ``year_awarded`` is the completion year; it stays empty while studying.
+    field_of_study = models.CharField(max_length=200, blank=True)
+    start_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    currently_studying = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-level__rank", "title"]
@@ -327,6 +331,15 @@ class ParticipantSkill(ProfileFact):
         return str(self.skill_id)
 
 
+EMPLOYMENT_TYPES = [
+    ("full_time", "Full time"),
+    ("part_time", "Part time"),
+    ("contract", "Contract"),
+    ("casual", "Casual or temporary"),
+    ("self_employed", "Self-employed"),
+]
+
+
 class ParticipantExperience(ProfileFact):
     participant = models.ForeignKey(
         Participant, on_delete=models.CASCADE, related_name="experience"
@@ -336,7 +349,15 @@ class ParticipantExperience(ProfileFact):
     sector = models.ForeignKey(
         "configuration.Sector", null=True, blank=True, on_delete=models.PROTECT
     )
+    # Total months worked. The rules read it. When dates are given it is worked out from them,
+    # so it is never asked for twice.
     months = models.PositiveSmallIntegerField()
+    employment_type = models.CharField(max_length=14, choices=EMPLOYMENT_TYPES, blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    is_current = models.BooleanField(default=False)
+    responsibilities = models.TextField(blank=True)
+    achievements = models.TextField(blank=True)
 
     class Meta:
         ordering = ["-months", "role_title"]
@@ -354,6 +375,93 @@ class ParticipantReadiness(ProfileFact):
     available_from = models.DateField(null=True, blank=True)
     work_patterns = models.JSONField(default=list, blank=True)  # codes from WORK_PATTERNS
     interest_sectors = models.ManyToManyField("configuration.Sector", blank=True, related_name="+")
+    # CV: the short introduction, what they are looking for, and whether they have worked before.
+    summary = models.TextField(blank=True)
+    preferred_roles = models.JSONField(default=list, blank=True)  # short free-text job titles
+    preferred_counties = models.ManyToManyField(
+        "configuration.County", blank=True, related_name="+"
+    )
+    willing_to_relocate = models.BooleanField(null=True, blank=True)  # empty = not said
+    no_work_experience = models.BooleanField(default=False)  # said they have never worked
 
     def __str__(self):
         return f"readiness:{self.participant_id}"
+
+
+class ParticipantCertification(ProfileFact):
+    """A certificate, short course or vocational training."""
+
+    participant = models.ForeignKey(
+        Participant, on_delete=models.CASCADE, related_name="certifications"
+    )
+    name = models.CharField(max_length=200)
+    issuer = models.CharField(max_length=200, blank=True)
+    year_obtained = models.PositiveSmallIntegerField(null=True, blank=True)
+    expiry_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-year_obtained", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+PRACTICAL_KINDS = [
+    ("internship", "Internship"),
+    ("attachment", "Attachment"),
+    ("apprenticeship", "Apprenticeship"),
+    ("volunteering", "Volunteering"),
+]
+
+
+class ParticipantPractical(ProfileFact):
+    """Internship, attachment, apprenticeship or volunteering: practical experience that is not
+    a job, which matters for youth with little formal employment."""
+
+    participant = models.ForeignKey(
+        Participant, on_delete=models.CASCADE, related_name="practical_experience"
+    )
+    organisation = models.CharField(max_length=200)
+    role = models.CharField(max_length=200, blank=True)
+    kind = models.CharField(max_length=14, choices=PRACTICAL_KINDS)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    description = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-start_date", "organisation"]
+
+    def __str__(self):
+        return f"{self.kind} at {self.organisation}"
+
+
+LANGUAGE_LEVELS = [
+    ("basic", "Basic"),
+    ("conversational", "Conversational"),
+    ("fluent", "Fluent"),
+    ("native", "Native or bilingual"),
+]
+
+
+class ParticipantLanguage(ProfileFact):
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="languages")
+    language = models.CharField(max_length=60)
+    proficiency = models.CharField(max_length=14, choices=LANGUAGE_LEVELS, default="fluent")
+
+    class Meta:
+        ordering = ["language"]
+
+    def __str__(self):
+        return self.language
+
+
+class ParticipantPhoto(models.Model):
+    """The optional CV photo: one small square JPEG per youth, kept in the database so it is
+    served only to people allowed to see the profile (never as a public file)."""
+
+    participant = models.OneToOneField(Participant, on_delete=models.CASCADE, related_name="photo")
+    content = models.BinaryField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"photo:{self.participant_id}"

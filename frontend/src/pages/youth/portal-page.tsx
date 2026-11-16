@@ -1,4 +1,4 @@
-import { CapabilityProfile } from '@/pages/participants/capability-profile';
+import { CvProfile } from '@/pages/participants/cv/cv-profile';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { api, ApiError, post } from '@/lib/api';
@@ -71,7 +71,7 @@ export function PortalPage() {
               details={me.details}
             />
           )}
-          <CapabilityProfile id="me" self />
+          <CvProfile id="me" self />
         </>
       )}
     </div>

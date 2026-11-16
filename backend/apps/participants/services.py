@@ -9,8 +9,12 @@ from dataclasses import dataclass, field
 
 from django.db import transaction
 
+from apps.audit import services as audit
 from apps.configuration import services as configuration
 
+from . import cv as _cv
+from . import cv_pdf as _cv_pdf
+from . import photo as _photo
 from .models import (
     Participant,
     ParticipantContact,
@@ -18,6 +22,7 @@ from .models import (
     ParticipantResidence,
     SourceIdentifier,
 )
+from .photo import PhotoError  # noqa: F401
 from .profile import (  # noqa: F401
     ProfileError,
     capability_snapshots,  # read by the compatibility rules
@@ -300,8 +305,14 @@ from .duplicates import (  # noqa: E402
 
 __all__ = [
     "DuplicateFailure",
+    "PhotoError",
     "ProfileError",
+    "build_cv",
     "cohort_counts",
+    "cv_pdf",
+    "get_photo",
+    "remove_photo",
+    "save_photo",
     "dismiss",
     "display_name",
     "email_addresses",
@@ -414,8 +425,6 @@ def create_participant(*, actor, data: dict) -> Participant:
     record they just added. The enrollment, when given, is by cohort offering; the programme and
     institution come from the cohort."""
     from django.utils import timezone
-
-    from apps.audit import services as audit
 
     enr = data.get("enrollment")
     ids = None
@@ -627,3 +636,34 @@ def brief(ids) -> dict:
             "detail": " · ".join(b for b in bits if b and b != "Unknown"),
         }
     return out
+
+
+def build_cv(p: Participant, *, include_contact: bool = True) -> dict:
+    """The CV document of a youth, from what is saved now (see ``cv.build``)."""
+    return _cv.build(p, include_contact=include_contact, has_photo=_photo.has(p))
+
+
+def cv_pdf(*, actor, p: Participant, include_contact: bool = True) -> tuple[bytes, str]:
+    """``(pdf bytes, file name)``. Built from the saved records at the moment of the call."""
+    doc = build_cv(p, include_contact=include_contact)
+    data = _cv_pdf.render(doc, _photo.get(p))
+    audit.record(
+        actor=actor,
+        action="participant.cv_downloaded",
+        object_type="participant",
+        object_id=p.pk,
+        after={"bytes": len(data)},
+    )
+    return data, _cv.filename(doc["name"])
+
+
+def get_photo(p: Participant) -> bytes | None:
+    return _photo.get(p)
+
+
+def save_photo(*, actor, p: Participant, raw: bytes) -> None:
+    _photo.save(actor=actor, p=p, raw=raw)
+
+
+def remove_photo(*, actor, p: Participant) -> None:
+    _photo.remove(actor=actor, p=p)

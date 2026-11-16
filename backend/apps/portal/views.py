@@ -5,6 +5,7 @@ from django.views.decorators.csrf import csrf_protect
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -12,6 +13,7 @@ from rest_framework.views import APIView
 
 from apps.api import access
 from apps.api.access import HasPermission
+from apps.api.downloads import pdf_response, photo_response, read_photo_upload
 from apps.participants import services as participants
 
 from . import services
@@ -202,6 +204,60 @@ class YouthDetailsView(_Youth):
         s = YouthDetailsSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         return self.run(services.write_details, data=s.validated_data)
+
+
+class YouthCvView(_Youth):
+    @extend_schema(operation_id="youth_cv_get", responses={200: dict})
+    def get(self, request):
+        return self.run(services.cv)
+
+
+class YouthCvPdfView(_Youth):
+    @extend_schema(operation_id="youth_cv_pdf", responses={200: bytes})
+    def get(self, request):
+        try:
+            data, name = services.cv_pdf(user=request.user)
+        except services.PortalError as exc:
+            if exc.field == "account":
+                raise NotFound from exc
+            _fail(exc)
+        return pdf_response(data, name)
+
+
+class YouthPhotoView(_Youth):
+    parser_classes = [MultiPartParser]
+    required_permission = "youth.self_service"
+
+    def _guard(self, fn, **kwargs):
+        try:
+            return fn(user=self.request.user, **kwargs)
+        except services.PortalError as exc:
+            if exc.field == "account":
+                raise NotFound from exc
+            _fail(exc)
+
+    @extend_schema(operation_id="youth_photo_get", responses={200: bytes})
+    def get(self, request):
+        return photo_response(self._guard(services.photo))
+
+    @extend_schema(
+        operation_id="youth_photo_post",
+        request={
+            "multipart/form-data": {
+                "type": "object",
+                "properties": {"photo": {"type": "string", "format": "binary"}},
+            }
+        },
+        responses={204: None},
+    )
+    def post(self, request):
+        self._guard(services.set_photo, raw=read_photo_upload(request))
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(operation_id="youth_photo_delete", responses={204: None})
+    def delete(self, request):
+        self._guard(services.clear_photo)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class YouthJourneyView(_Youth):

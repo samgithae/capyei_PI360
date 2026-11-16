@@ -2607,6 +2607,50 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/{id}/cv:
+    get:
+      operationId: participants_cv_get
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/{id}/cv.pdf:
+    get:
+      operationId: participants_cv_pdf
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/participants/{id}/enrollments:
     post:
       operationId: participants_enrollment_add
@@ -2761,6 +2805,69 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/{id}/photo:
+    get:
+      operationId: participants_photo_get
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+    post:
+      operationId: participants_photo_post
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                photo:
+                  type: string
+                  format: binary
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+    delete:
+      operationId: participants_photo_delete
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/participants/{id}/profile:
     get:
       operationId: participants_profile_get
@@ -4258,6 +4365,36 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/youth/cv:
+    get:
+      operationId: youth_cv_get
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/cv.pdf:
+    get:
+      operationId: youth_cv_pdf
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/youth/details:
     put:
       operationId: youth_details_put
@@ -4365,6 +4502,48 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/youth/photo:
+    get:
+      operationId: youth_photo_get
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+    post:
+      operationId: youth_photo_post
+      tags:
+      - youth
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                photo:
+                  type: string
+                  format: binary
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+    delete:
+      operationId: youth_photo_delete
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/youth/placement:
     get:
       operationId: youth_placement_get
@@ -5315,6 +5494,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/_Experience'
+        certifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/_Certification'
+        practical:
+          type: array
+          items:
+            $ref: '#/components/schemas/_Practical'
+        languages:
+          type: array
+          items:
+            $ref: '#/components/schemas/_Language'
         readiness:
           $ref: '#/components/schemas/_Readiness'
     Promote:
@@ -5887,13 +6078,19 @@ components:
       - kind
     VerifyKindEnum:
       enum:
+      - certification
       - experience
+      - language
+      - practical
       - qualification
       - readiness
       - skill
       type: string
       description: |-
+        * `certification` - certification
         * `experience` - experience
+        * `language` - language
+        * `practical` - practical
         * `qualification` - qualification
         * `readiness` - readiness
         * `skill` - skill
@@ -5930,6 +6127,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/_YouthContact'
+    _Certification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 200
+        issuer:
+          type: string
+          maxLength: 200
+        year_obtained:
+          type: integer
+          maximum: 2100
+          minimum: 1950
+          nullable: true
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - name
     _Experience:
       type: object
       properties:
@@ -5946,13 +6166,46 @@ components:
           type: string
           format: uuid
           nullable: true
+        employment_type:
+          type: string
+          maxLength: 14
+        start_date:
+          type: string
+          format: date
+          nullable: true
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        is_current:
+          type: boolean
         months:
           type: integer
           maximum: 720
           minimum: 0
+          nullable: true
+        responsibilities:
+          type: string
+          maxLength: 3000
+        achievements:
+          type: string
+          maxLength: 3000
       required:
-      - months
       - role_title
+    _Language:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        language:
+          type: string
+          maxLength: 60
+        proficiency:
+          type: string
+          maxLength: 20
+      required:
+      - language
     _NewContact:
       type: object
       properties:
@@ -6017,6 +6270,35 @@ components:
         ward:
           type: string
           maxLength: 100
+    _Practical:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organisation:
+          type: string
+          maxLength: 200
+        role:
+          type: string
+          maxLength: 200
+        kind:
+          type: string
+          maxLength: 20
+        start_date:
+          type: string
+          format: date
+          nullable: true
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        description:
+          type: string
+          maxLength: 3000
+      required:
+      - kind
+      - organisation
     _Qualification:
       type: object
       properties:
@@ -6032,15 +6314,25 @@ components:
         institution:
           type: string
           maxLength: 200
+        field_of_study:
+          type: string
+          maxLength: 200
         grade_id:
           type: string
           format: uuid
+          nullable: true
+        start_year:
+          type: integer
+          maximum: 2100
+          minimum: 1950
           nullable: true
         year_awarded:
           type: integer
           maximum: 2100
           minimum: 1950
           nullable: true
+        currently_studying:
+          type: boolean
       required:
       - level_id
     _Readiness:
@@ -6062,6 +6354,26 @@ components:
             type: string
             format: uuid
           maxItems: 30
+        summary:
+          type: string
+          maxLength: 2000
+        preferred_roles:
+          type: array
+          items:
+            type: string
+            maxLength: 100
+          maxItems: 15
+        preferred_county_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 47
+        willing_to_relocate:
+          type: boolean
+          nullable: true
+        no_work_experience:
+          type: boolean
     _Skill:
       type: object
       properties:

@@ -248,6 +248,38 @@ def write_profile(*, user, data) -> dict:
     return read(user)
 
 
+def _consented_participant(user, what):
+    account = _own(user)
+    if not _consented(account):
+        raise PortalError("consent", f"Accept the notice before {what}.")
+    return account.participant
+
+
+def cv(*, user) -> dict:
+    """The youth's own CV, from what is saved now."""
+    return participants.build_cv(_consented_participant(user, "viewing your CV"))
+
+
+def cv_pdf(*, user) -> tuple[bytes, str]:
+    return participants.cv_pdf(actor=user, p=_consented_participant(user, "downloading your CV"))
+
+
+def photo(*, user):
+    return participants.get_photo(_consented_participant(user, "viewing your photo"))
+
+
+def set_photo(*, user, raw: bytes) -> None:
+    p = _consented_participant(user, "adding a photo")
+    try:
+        participants.save_photo(actor=user, p=p, raw=raw)
+    except participants.PhotoError as exc:
+        raise PortalError(exc.field, str(exc)) from exc
+
+
+def clear_photo(*, user) -> None:
+    participants.remove_photo(actor=user, p=_consented_participant(user, "changing your photo"))
+
+
 def write_details(*, user, data) -> dict:
     account = _own(user)
     if not _consented(account):

@@ -1,5 +1,6 @@
 from django.urls import path
 
+from . import cv_views as cv
 from . import duplicate_views as d
 from . import profile_views as pv
 from . import views as v
@@ -20,6 +21,9 @@ urlpatterns = [
     path("participants/profile-import-template", pv.ProfileImportTemplateView.as_view()),
     path("participants/<uuid:pk>/profile", pv.ProfileView.as_view()),
     path("participants/<uuid:pk>/profile/verify", pv.ProfileVerifyView.as_view()),
+    path("participants/<uuid:pk>/cv", cv.CvView.as_view()),
+    path("participants/<uuid:pk>/cv.pdf", cv.CvPdfView.as_view()),
+    path("participants/<uuid:pk>/photo", cv.PhotoView.as_view()),
     path("participants/<uuid:pk>/enrollments", v.EnrollmentCreateView.as_view()),
     path("participants/<uuid:pk>/residence", v.ResidenceView.as_view()),
     path("participants/archive", v.ParticipantArchiveView.as_view()),

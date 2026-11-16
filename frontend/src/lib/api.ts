@@ -83,6 +83,35 @@ export const upload = <T>(
   return api<T>(path, { method: 'POST', body });
 };
 
+/** Absolute URL of an API path, for an <img src> that rides on the session cookie. */
+export const apiUrl = (path: string) => `${API_BASE}${path}`;
+
+/** Fetch a file (the CV PDF) with the session cookie; returns the bytes and the server's file name. */
+export async function apiFile(
+  path: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${API_BASE}${path}`, { credentials: 'include' });
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const body = await res.json();
+      message = body.errors?.[0]?.message ?? body.detail ?? message;
+    } catch {
+      /* not JSON */
+    }
+    if (res.status === 401)
+      window.dispatchEvent(new Event(UNAUTHENTICATED_EVENT));
+    throw new ApiError(res.status, message);
+  }
+  const named = /filename="?([^";]+)"?/.exec(
+    res.headers.get('Content-Disposition') ?? '',
+  );
+  return { blob: await res.blob(), filename: named?.[1] ?? 'CV.pdf' };
+}
+
+/** Remove a record or file: DELETE with the CSRF header, no body expected back. */
+export const del = (path: string) => api<void>(path, { method: 'DELETE' });
+
 export interface Health {
   status: string;
   version: string;

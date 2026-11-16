@@ -14,6 +14,7 @@ import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
 import { CapabilityProfile } from './capability-profile';
+import { CvProfile } from './cv/cv-profile';
 import { splitName } from './split-name';
 
 interface Enrollment {
@@ -738,7 +739,12 @@ export function EditParticipant() {
           </div>
         </form>
       )}
-      {v && can('participants.view_profile') && <CapabilityProfile id={id} />}
+      {v && can('participants.view_profile') && (
+        <>
+          <CvProfile id={id} />
+          <CapabilityProfile id={id} />
+        </>
+      )}
     </div>
   );
 }

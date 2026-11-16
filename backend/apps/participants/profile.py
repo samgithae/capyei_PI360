@@ -1,9 +1,13 @@
-"""Capability profile of a youth: qualifications, skills, work experience, readiness.
+"""Capability profile of a youth: the CV data and what the compatibility rules read.
 
-Read and written as one document. A section left out of a write is left alone; a section that is
-present replaces what was there, but rows that carry an ``id`` keep their identity and their
-verification as long as the facts in them did not change. Audit entries record ids and counts,
+Qualifications, skills, work experience, certifications, practical experience, languages and
+readiness (summary, preferences, availability). Read and written as one document. A section left
+out of a write is left alone; a section that is present replaces what was there, but rows that
+carry an ``id`` keep their identity and their verification as long as the facts in them did not
+change. Inside ``readiness`` only the keys sent are changed. Audit entries record ids and counts,
 not free text."""
+
+from datetime import date
 
 from django.db import transaction
 from django.utils import timezone
@@ -12,9 +16,15 @@ from apps.audit import services as audit
 from apps.configuration import services as configuration
 
 from .models import (
+    EMPLOYMENT_TYPES,
+    LANGUAGE_LEVELS,
+    PRACTICAL_KINDS,
     WORK_PATTERNS,
     Participant,
+    ParticipantCertification,
     ParticipantExperience,
+    ParticipantLanguage,
+    ParticipantPractical,
     ParticipantQualification,
     ParticipantReadiness,
     ParticipantSkill,
@@ -22,6 +32,13 @@ from .models import (
 )
 
 PATTERN_CODES = {c for c, _ in WORK_PATTERNS}
+EMPLOYMENT_CODES = {c for c, _ in EMPLOYMENT_TYPES}
+PRACTICAL_CODES = {c for c, _ in PRACTICAL_KINDS}
+LANGUAGE_CODES = {c for c, _ in LANGUAGE_LEVELS}
+# Offered as suggestions in the language field; anything else may be typed.
+COMMON_LANGUAGES = ["English", "Kiswahili", "French", "Arabic", "Kikuyu", "Luo", "Kalenjin"]
+SUMMARY_MAX = 600
+SECTIONS = ("qualifications", "skills", "experience", "certifications", "practical", "languages")
 
 
 class ProfileError(ValueError):
@@ -42,7 +59,7 @@ def _fact(f):
 
 def _hide_staff(doc: dict) -> dict:
     """The same document without the names of the staff who verified entries."""
-    for key in ("qualifications", "skills", "experience"):
+    for key in SECTIONS:
         for row in doc[key]:
             row["verified_by"] = ""
     doc["readiness"]["verified_by"] = ""
@@ -62,6 +79,9 @@ def _read(p: Participant) -> dict:
     quals = p.qualifications.select_related("level", "grade", "verified_by")
     skills = p.skills.select_related("skill", "verified_by")
     exp = p.experience.select_related("sector", "verified_by")
+    certs = p.certifications.select_related("verified_by")
+    practical = p.practical_experience.select_related("verified_by")
+    languages = p.languages.select_related("verified_by")
     ready = ParticipantReadiness.objects.filter(participant=p).select_related("verified_by").first()
     top = quals.first()
     return {
@@ -73,7 +93,10 @@ def _read(p: Participant) -> dict:
                 "rank": q.level.rank,
                 "title": q.title,
                 "institution": q.institution,
+                "field_of_study": q.field_of_study,
+                "start_year": q.start_year,
                 "year_awarded": q.year_awarded,
+                "currently_studying": q.currently_studying,
                 "grade_id": str(q.grade_id) if q.grade_id else None,
                 "grade": q.grade.name if q.grade_id else "",
                 "grade_rank": q.grade.rank if q.grade_id else None,
@@ -85,6 +108,7 @@ def _read(p: Participant) -> dict:
                 **_fact(s),
                 "skill_id": str(s.skill_id),
                 "skill": s.skill.name,
+                "category": s.skill.category,
                 "proficiency": s.proficiency,
             }
             for s in skills
@@ -97,8 +121,39 @@ def _read(p: Participant) -> dict:
                 "sector_id": str(e.sector_id) if e.sector_id else None,
                 "sector": e.sector.name if e.sector_id else "",
                 "months": e.months,
+                "employment_type": e.employment_type,
+                "start_date": _iso(e.start_date),
+                "end_date": _iso(e.end_date),
+                "is_current": e.is_current,
+                "responsibilities": e.responsibilities,
+                "achievements": e.achievements,
             }
             for e in exp
+        ],
+        "certifications": [
+            {
+                **_fact(c),
+                "name": c.name,
+                "issuer": c.issuer,
+                "year_obtained": c.year_obtained,
+                "expiry_date": _iso(c.expiry_date),
+            }
+            for c in certs
+        ],
+        "practical": [
+            {
+                **_fact(x),
+                "organisation": x.organisation,
+                "role": x.role,
+                "kind": x.kind,
+                "start_date": _iso(x.start_date),
+                "end_date": _iso(x.end_date),
+                "description": x.description,
+            }
+            for x in practical
+        ],
+        "languages": [
+            {**_fact(x), "language": x.language, "proficiency": x.proficiency} for x in languages
         ],
         "readiness": {
             **(_fact(ready) if ready else {"id": None, "source": None, "verified": False}),
@@ -112,6 +167,18 @@ def _read(p: Participant) -> dict:
             "interest_sectors": (
                 [s.name for s in ready.interest_sectors.order_by("name")] if ready else []
             ),
+            "summary": ready.summary if ready else "",
+            "preferred_roles": list(ready.preferred_roles) if ready else [],
+            "preferred_county_ids": (
+                [str(i) for i in ready.preferred_counties.values_list("pk", flat=True)]
+                if ready
+                else []
+            ),
+            "preferred_counties": (
+                [c.name for c in ready.preferred_counties.order_by("name")] if ready else []
+            ),
+            "willing_to_relocate": ready.willing_to_relocate if ready else None,
+            "no_work_experience": ready.no_work_experience if ready else False,
         },
         "summary": {
             "highest_qualification": top.level.name if top else "",
@@ -134,15 +201,18 @@ def _stamp(obj, actor, source):
 
 
 def _sync(p, qs, rows, build, tracked, actor, source):
-    """Replace the rows of one section. ``build(row)`` returns field values or raises."""
+    """Replace the rows of one section. ``build(row)`` returns field values or raises.
+    ``tracked`` is the set of fields whose change clears verification, or a function of the
+    built values that returns it."""
     existing = {str(o.pk): o for o in qs}
     keep = set()
     for row in rows:
         values = build(row)
+        names = tracked(values) if callable(tracked) else tracked
         obj = existing.get(str(row.get("id") or ""))
         if obj is None:
             obj = qs.model(participant=p)
-        elif all(getattr(obj, k) == v for k, v in values.items() if k in tracked):
+        elif all(getattr(obj, k) == v for k, v in values.items() if k in names):
             keep.add(str(obj.pk))
             continue  # nothing changed: keep it and its verification
         for k, v in values.items():
@@ -161,6 +231,19 @@ def _sync(p, qs, rows, build, tracked, actor, source):
     return len(keep)
 
 
+def _text(r, key):
+    return (r.get(key) or "").strip()
+
+
+def _months_between(start: date, end: date) -> int:
+    return max(0, (end.year - start.year) * 12 + end.month - start.month)
+
+
+def _check_dates(start, end, field):
+    if start and end and end < start:
+        raise ProfileError("The end date cannot be before the start date.", field)
+
+
 @transaction.atomic
 def write(*, actor, p: Participant, data: dict, source=ProfileFact.STAFF) -> dict:
     counts = {}
@@ -174,11 +257,20 @@ def write(*, actor, p: Participant, data: dict, source=ProfileFact.STAFF) -> dic
                 grade = configuration.active_grade(level.pk, r["grade_id"])
                 if grade is None:
                     raise ProfileError("That grade does not belong to this level.", "grade")
+            studying = bool(r.get("currently_studying"))
+            start, done = r.get("start_year"), r.get("year_awarded")
+            if studying:
+                done = None  # still studying: no completion year
+            if start and done and done < start:
+                raise ProfileError("The completion year is before the start year.", "year")
             return {
                 "level": level,
-                "title": r.get("title", "").strip(),
-                "institution": r.get("institution", "").strip(),
-                "year_awarded": r.get("year_awarded"),
+                "title": _text(r, "title"),
+                "institution": _text(r, "institution"),
+                "field_of_study": _text(r, "field_of_study"),
+                "start_year": start,
+                "year_awarded": done,
+                "currently_studying": studying,
                 "grade": grade,
             }
 
@@ -187,7 +279,16 @@ def write(*, actor, p: Participant, data: dict, source=ProfileFact.STAFF) -> dic
             ParticipantQualification.objects.filter(participant=p),
             data["qualifications"],
             qual,
-            {"level", "title", "institution", "year_awarded", "grade"},
+            {
+                "level",
+                "title",
+                "institution",
+                "field_of_study",
+                "start_year",
+                "year_awarded",
+                "currently_studying",
+                "grade",
+            },
             actor,
             source,
         )
@@ -217,43 +318,123 @@ def write(*, actor, p: Participant, data: dict, source=ProfileFact.STAFF) -> dic
 
         def exp(r):
             sector = r.get("sector_id")
+            kind = r.get("employment_type") or ""
+            if kind and kind not in EMPLOYMENT_CODES:
+                raise ProfileError("Unknown employment type.", "employment_type")
+            start, end = r.get("start_date"), r.get("end_date")
+            current = bool(r.get("is_current"))
+            if current:
+                end = None  # still working there
+            _check_dates(start, end, "experience")
+            if start:  # worked out from the dates, so it is never asked for twice
+                months = _months_between(start, end or timezone.localdate())
+            elif r.get("months") is not None:
+                months = r["months"]
+            else:
+                raise ProfileError("Give the start date, or how many months you worked.", "months")
             return {
                 "role_title": r["role_title"].strip(),
-                "employer_name": r.get("employer_name", "").strip(),
+                "employer_name": _text(r, "employer_name"),
                 "sector": _lookup("sectors", sector, "sector") if sector else None,
-                "months": r["months"],
+                "months": months,
+                "employment_type": kind,
+                "start_date": start,
+                "end_date": end,
+                "is_current": current,
+                "responsibilities": _text(r, "responsibilities"),
+                "achievements": _text(r, "achievements"),
             }
 
+        base = {
+            "role_title",
+            "employer_name",
+            "sector",
+            "employment_type",
+            "start_date",
+            "end_date",
+            "is_current",
+            "responsibilities",
+            "achievements",
+        }
         counts["experience"] = _sync(
             p,
             ParticipantExperience.objects.filter(participant=p),
             data["experience"],
             exp,
-            {"role_title", "employer_name", "sector", "months"},
+            # Months is derived from the dates; it is a fact only when there are no dates.
+            lambda v: base | ({"months"} if v["start_date"] is None else set()),
+            actor,
+            source,
+        )
+
+    if "certifications" in data:
+
+        def cert(r):
+            return {
+                "name": r["name"].strip(),
+                "issuer": _text(r, "issuer"),
+                "year_obtained": r.get("year_obtained"),
+                "expiry_date": r.get("expiry_date"),
+            }
+
+        counts["certifications"] = _sync(
+            p,
+            ParticipantCertification.objects.filter(participant=p),
+            data["certifications"],
+            cert,
+            {"name", "issuer", "year_obtained", "expiry_date"},
+            actor,
+            source,
+        )
+
+    if "practical" in data:
+
+        def practical(r):
+            if r["kind"] not in PRACTICAL_CODES:
+                raise ProfileError("Unknown kind of practical experience.", "kind")
+            _check_dates(r.get("start_date"), r.get("end_date"), "practical")
+            return {
+                "organisation": r["organisation"].strip(),
+                "role": _text(r, "role"),
+                "kind": r["kind"],
+                "start_date": r.get("start_date"),
+                "end_date": r.get("end_date"),
+                "description": _text(r, "description"),
+            }
+
+        counts["practical"] = _sync(
+            p,
+            ParticipantPractical.objects.filter(participant=p),
+            data["practical"],
+            practical,
+            {"organisation", "role", "kind", "start_date", "end_date", "description"},
+            actor,
+            source,
+        )
+
+    if "languages" in data:
+        names = [r["language"].strip().lower() for r in data["languages"]]
+        if len(set(names)) < len(names):
+            raise ProfileError("A language can be listed only once.", "languages")
+
+        def language(r):
+            level = r.get("proficiency") or "fluent"
+            if level not in LANGUAGE_CODES:
+                raise ProfileError("Unknown language level.", "proficiency")
+            return {"language": r["language"].strip(), "proficiency": level}
+
+        counts["languages"] = _sync(
+            p,
+            ParticipantLanguage.objects.filter(participant=p),
+            data["languages"],
+            language,
+            {"language", "proficiency"},
             actor,
             source,
         )
 
     if "readiness" in data:
-        r = data["readiness"]
-        patterns = r.get("work_patterns", [])
-        bad = [x for x in patterns if x not in PATTERN_CODES]
-        if bad:
-            raise ProfileError(f"Unknown work pattern: {bad[0]}.", "work_patterns")
-        sectors = [_lookup("sectors", i, "sector") for i in r.get("interest_sector_ids", [])]
-        row, _ = ParticipantReadiness.objects.get_or_create(participant=p)
-        changed = (
-            row.available_from != r.get("available_from")
-            or sorted(row.work_patterns) != sorted(patterns)
-            or set(row.interest_sectors.values_list("pk", flat=True)) != {s.pk for s in sectors}
-        )
-        if changed or row.source is None:
-            row.available_from = r.get("available_from")
-            row.work_patterns = sorted(patterns)
-            _stamp(row, actor, source)
-            row.save()
-            row.interest_sectors.set(sectors)
-        counts["readiness"] = 1
+        counts["readiness"] = _write_readiness(p, data["readiness"], actor, source)
 
     if counts:
         audit.record(
@@ -266,10 +447,68 @@ def write(*, actor, p: Participant, data: dict, source=ProfileFact.STAFF) -> dic
     return read(p)
 
 
+def _write_readiness(p, r, actor, source) -> int:
+    """Change only the readiness keys that were sent; the rest stay as they are."""
+    row, _ = ParticipantReadiness.objects.get_or_create(participant=p)
+    new = {}
+    if "available_from" in r:
+        new["available_from"] = r["available_from"]
+    if "work_patterns" in r:
+        bad = [x for x in r["work_patterns"] if x not in PATTERN_CODES]
+        if bad:
+            raise ProfileError(f"Unknown work pattern: {bad[0]}.", "work_patterns")
+        new["work_patterns"] = sorted(r["work_patterns"])
+    if "summary" in r:
+        new["summary"] = (r["summary"] or "").strip()
+        if len(new["summary"]) > SUMMARY_MAX:
+            raise ProfileError(f"Keep the summary under {SUMMARY_MAX} characters.", "summary")
+    if "preferred_roles" in r:
+        roles = [x.strip() for x in r["preferred_roles"] if x.strip()]
+        new["preferred_roles"] = list(dict.fromkeys(roles))  # no repeats, order kept
+    if "willing_to_relocate" in r:
+        new["willing_to_relocate"] = r["willing_to_relocate"]
+    if "no_work_experience" in r:
+        new["no_work_experience"] = bool(r["no_work_experience"])
+    sectors = (
+        [_lookup("sectors", i, "sector") for i in r["interest_sector_ids"]]
+        if "interest_sector_ids" in r
+        else None
+    )
+    counties = None
+    if "preferred_county_ids" in r:
+        counties = []
+        for i in r["preferred_county_ids"]:
+            if not configuration.county_exists(i):
+                raise ProfileError("Unknown county.", "preferred_county_ids")
+            counties.append(i)
+    changed = row.source is None or any(getattr(row, k) != v for k, v in new.items())
+    if sectors is not None:
+        changed = changed or set(row.interest_sectors.values_list("pk", flat=True)) != {
+            s.pk for s in sectors
+        }
+    if counties is not None:
+        changed = changed or {
+            str(i) for i in row.preferred_counties.values_list("pk", flat=True)
+        } != {str(i) for i in counties}
+    if changed:
+        for k, v in new.items():
+            setattr(row, k, v)
+        _stamp(row, actor, source)
+        row.save()
+        if sectors is not None:
+            row.interest_sectors.set(sectors)
+        if counties is not None:
+            row.preferred_counties.set(counties)
+    return 1
+
+
 KINDS = {
     "qualification": ParticipantQualification,
     "skill": ParticipantSkill,
     "experience": ParticipantExperience,
+    "certification": ParticipantCertification,
+    "practical": ParticipantPractical,
+    "language": ParticipantLanguage,
     "readiness": ParticipantReadiness,
 }
 
@@ -301,6 +540,13 @@ def options() -> dict:
     return {
         **configuration.profile_options(),
         "work_patterns": [{"id": c, "name": n} for c, n in WORK_PATTERNS],
+        "employment_types": [{"id": c, "name": n} for c, n in EMPLOYMENT_TYPES],
+        "practical_kinds": [{"id": c, "name": n} for c, n in PRACTICAL_KINDS],
+        "language_levels": [{"id": c, "name": n} for c, n in LANGUAGE_LEVELS],
+        "languages": COMMON_LANGUAGES,
+        "counties": [
+            {"id": c["id"], "name": c["name"]} for c in configuration.filter_options()["counties"]
+        ],
     }
 
 

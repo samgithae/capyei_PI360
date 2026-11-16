@@ -17,15 +17,22 @@ from .models import Participant, ParticipantSkill
 PROFILE, EDIT = "participants.view_profile", "participants.edit"
 
 
+def _year(**kw):
+    return serializers.IntegerField(
+        min_value=1950, max_value=2100, allow_null=True, required=False, **kw
+    )
+
+
 class _Qualification(serializers.Serializer):
     id = serializers.UUIDField(required=False)
     level_id = serializers.UUIDField()
     title = serializers.CharField(max_length=200, allow_blank=True, required=False)
     institution = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    field_of_study = serializers.CharField(max_length=200, allow_blank=True, required=False)
     grade_id = serializers.UUIDField(allow_null=True, required=False)
-    year_awarded = serializers.IntegerField(
-        min_value=1950, max_value=2100, allow_null=True, required=False
-    )
+    start_year = _year()
+    year_awarded = _year()
+    currently_studying = serializers.BooleanField(required=False)
 
 
 class _Skill(serializers.Serializer):
@@ -41,7 +48,38 @@ class _Experience(serializers.Serializer):
     role_title = serializers.CharField(max_length=200)
     employer_name = serializers.CharField(max_length=200, allow_blank=True, required=False)
     sector_id = serializers.UUIDField(allow_null=True, required=False)
-    months = serializers.IntegerField(min_value=0, max_value=720)
+    employment_type = serializers.CharField(max_length=14, allow_blank=True, required=False)
+    start_date = serializers.DateField(allow_null=True, required=False)
+    end_date = serializers.DateField(allow_null=True, required=False)
+    is_current = serializers.BooleanField(required=False)
+    # Optional: worked out from the dates when they are given.
+    months = serializers.IntegerField(min_value=0, max_value=720, allow_null=True, required=False)
+    responsibilities = serializers.CharField(max_length=3000, allow_blank=True, required=False)
+    achievements = serializers.CharField(max_length=3000, allow_blank=True, required=False)
+
+
+class _Certification(serializers.Serializer):
+    id = serializers.UUIDField(required=False)
+    name = serializers.CharField(max_length=200)
+    issuer = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    year_obtained = _year()
+    expiry_date = serializers.DateField(allow_null=True, required=False)
+
+
+class _Practical(serializers.Serializer):
+    id = serializers.UUIDField(required=False)
+    organisation = serializers.CharField(max_length=200)
+    role = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    kind = serializers.CharField(max_length=20)
+    start_date = serializers.DateField(allow_null=True, required=False)
+    end_date = serializers.DateField(allow_null=True, required=False)
+    description = serializers.CharField(max_length=3000, allow_blank=True, required=False)
+
+
+class _Language(serializers.Serializer):
+    id = serializers.UUIDField(required=False)
+    language = serializers.CharField(max_length=60)
+    proficiency = serializers.CharField(max_length=20, required=False)
 
 
 class _Readiness(serializers.Serializer):
@@ -52,12 +90,24 @@ class _Readiness(serializers.Serializer):
     interest_sector_ids = serializers.ListField(
         child=serializers.UUIDField(), max_length=30, required=False
     )
+    summary = serializers.CharField(max_length=2000, allow_blank=True, required=False)
+    preferred_roles = serializers.ListField(
+        child=serializers.CharField(max_length=100), max_length=15, required=False
+    )
+    preferred_county_ids = serializers.ListField(
+        child=serializers.UUIDField(), max_length=47, required=False
+    )
+    willing_to_relocate = serializers.BooleanField(allow_null=True, required=False)
+    no_work_experience = serializers.BooleanField(required=False)
 
 
 class ProfileSerializer(serializers.Serializer):
     qualifications = _Qualification(many=True, max_length=30, required=False)
     skills = _Skill(many=True, max_length=60, required=False)
     experience = _Experience(many=True, max_length=40, required=False)
+    certifications = _Certification(many=True, max_length=30, required=False)
+    practical = _Practical(many=True, max_length=30, required=False)
+    languages = _Language(many=True, max_length=15, required=False)
     readiness = _Readiness(required=False)
 
 
