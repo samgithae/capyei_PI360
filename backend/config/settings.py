@@ -97,7 +97,9 @@ DATABASES = {
     "default": dj_database_url.config(
         env="DATABASE_URL",
         default="postgres://pi360:pi360@localhost:5432/pi360",
-        conn_max_age=60,
+        # runserver starts a thread per request and a dashboard load fires many at once, so
+        # kept-alive connections pile up past a small dev database's limit. Close them in dev.
+        conn_max_age=0 if DEBUG else 60,
     )
 }
 # SQLite is only used for local runs and tests. Taking the write lock when a transaction
