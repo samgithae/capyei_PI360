@@ -1,15 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
-import { TeamPanel } from '@/pages/employer/team-panel';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
-import { api, ApiError, post } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -20,11 +17,7 @@ import {
 } from '@/components/ui/table';
 import { ActivityTimeline } from '@/components/shared/activity-timeline';
 import { DetailList, Section } from '@/components/shared/info-card';
-import {
-  ConfirmDialog,
-  DialogShell,
-  FormModal,
-} from '@/components/shared/modals';
+import { DialogShell } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
@@ -36,20 +29,12 @@ import {
   Option,
   Options,
 } from './employer-form';
+import { PeoplePanel, staffEndpoints } from './people-panel';
 
-interface Contact {
-  id: string;
-  name: string;
-  role: string;
-  email: string;
-  phone: string;
-  is_primary: boolean;
-}
 interface Detail extends EmployerValues {
   id: string;
   sectors: Option[];
   counties: Option[];
-  contacts: Contact[];
 }
 interface Event {
   at: string;
@@ -74,15 +59,6 @@ export function EmployerPage() {
   const canEdit = can('employers.edit');
   const [query] = useSearchParams();
   const [editing, setEditing] = useState(canEdit && query.get('edit') === '1');
-  const [adding, setAdding] = useState(false);
-  const [removing, setRemoving] = useState<Contact | null>(null);
-  const [contact, setContact] = useState({
-    name: '',
-    role: '',
-    email: '',
-    phone: '',
-  });
-  const [contactError, setContactError] = useState('');
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['employer', id] });
@@ -121,29 +97,6 @@ export function EmployerPage() {
       refresh();
     },
   });
-  const addContact = useMutation({
-    mutationFn: () => post(`/employers/${id}/contacts`, contact),
-    onSuccess: () => {
-      setContact({ name: '', role: '', email: '', phone: '' });
-      setContactError('');
-      setAdding(false);
-      toast.success('Contact added.');
-      refresh();
-    },
-    onError: (e) =>
-      setContactError(e instanceof ApiError ? e.message : 'Could not add.'),
-  });
-  const removeContact = useMutation({
-    mutationFn: (cid: string) =>
-      api(`/employers/${id}/contacts/${cid}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      toast.success('Contact removed.');
-      refresh();
-    },
-    onError: (e) =>
-      toast.error(e instanceof ApiError ? e.message : 'Could not remove.'),
-  });
-
   if (q.isError) {
     const missing = q.error instanceof ApiError && q.error.status === 404;
     return (
@@ -235,82 +188,11 @@ export function EmployerPage() {
             />
           </Section>
 
-          <Section
-            title="Contacts"
-            description="People to reach at this employer."
-            flush
-            action={
-              canEdit && (
-                <Button size="sm" onClick={() => setAdding(true)}>
-                  <Plus /> Add contact
-                </Button>
-              )
-            }
-          >
-            {e.contacts.length === 0 ? (
-              <div className="p-5">
-                <EmptyState
-                  title="No contacts yet"
-                  hint={canEdit ? 'Use Add contact to record one.' : undefined}
-                />
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40">
-                      <TableHead>Name</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      {canEdit && (
-                        <TableHead className="w-16">
-                          <span className="sr-only">Actions</span>
-                        </TableHead>
-                      )}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {e.contacts.map((c) => (
-                      <TableRow key={c.id}>
-                        <TableCell className="font-medium">
-                          {c.name}
-                          {c.is_primary && (
-                            <span className="ms-2 text-xs text-muted-foreground">
-                              (primary)
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>{c.role}</TableCell>
-                        <TableCell>{c.email}</TableCell>
-                        <TableCell>{c.phone}</TableCell>
-                        {canEdit && (
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              aria-label={`Remove ${c.name}`}
-                              onClick={() => setRemoving(c)}
-                            >
-                              <Trash2 />
-                            </Button>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </Section>
-
-          {can('employers.invite_user') && (
-            <TeamPanel
-              base={`/employers/${id}/users`}
-              title="Portal accounts"
-              description="People at this employer who can sign in to the employer portal. The first account is created here; the company's admin can add the rest."
-            />
-          )}
+          <PeoplePanel
+            endpoints={staffEndpoints(e.id)}
+            canEdit={canEdit}
+            canAccess={can('employers.invite_user')}
+          />
 
           {(opps.data?.results.length ?? 0) > 0 && (
             <Section
@@ -365,53 +247,6 @@ export function EmployerPage() {
           )}
         </Section>
       </div>
-
-      <FormModal
-        open={adding}
-        onOpenChange={(o) => {
-          setAdding(o);
-          if (!o) setContactError('');
-        }}
-        title="Add contact"
-        description="Record a person to reach at this employer."
-        submitLabel="Add contact"
-        pending={addContact.isPending}
-        error={contactError}
-        onSubmit={() => addContact.mutate()}
-      >
-        {(
-          [
-            ['name', 'Name', true, 'text'],
-            ['role', 'Role', false, 'text'],
-            ['email', 'Email', false, 'email'],
-            ['phone', 'Phone', false, 'tel'],
-          ] as const
-        ).map(([k, label, required, type]) => (
-          <div key={k} className="space-y-1.5">
-            <Label htmlFor={`contact-${k}`}>
-              {label}
-              {required && <span className="text-destructive"> *</span>}
-            </Label>
-            <Input
-              id={`contact-${k}`}
-              type={type}
-              required={required}
-              value={contact[k]}
-              onChange={(ev) =>
-                setContact({ ...contact, [k]: ev.target.value })
-              }
-            />
-          </div>
-        ))}
-      </FormModal>
-
-      <ConfirmDialog
-        open={removing !== null}
-        onOpenChange={(o) => !o && setRemoving(null)}
-        title="Remove this contact?"
-        description={`${removing?.name ?? ''} will be removed from this employer. The removal is kept in the activity history.`}
-        onConfirm={() => removing && removeContact.mutate(removing.id)}
-      />
     </div>
   );
 }

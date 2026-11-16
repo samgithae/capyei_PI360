@@ -9,6 +9,7 @@ urlpatterns = [
     path("employer/activate", views.ActivateView.as_view()),
     path("employer/me", views.EmployerMeView.as_view()),
     path("employer/roles", views.EmployerRolesView.as_view()),
+    path("employer/people", views.EmployerPeopleView.as_view()),
     path("employer/staff", views.EmployerStaffView.as_view()),
     path("employer/staff/<uuid:mpk>", views.EmployerStaffMemberView.as_view()),
     path("employer/dashboard", d.OwnDashboardView.as_view()),
@@ -37,6 +38,7 @@ urlpatterns = [
     path("employer/referrals/<uuid:pk>/cv", rv.OwnReferralCvView.as_view()),
     path("employer/referrals/<uuid:pk>/cv.pdf", rv.OwnReferralCvPdfView.as_view()),
     path("employer/referrals/<uuid:pk>/photo", rv.OwnReferralPhotoView.as_view()),
+    path("employers/<uuid:pk>/people", views.StaffEmployerPeopleView.as_view()),
     path("employers/<uuid:pk>/users", views.StaffEmployerUsersView.as_view()),
     path("employers/<uuid:pk>/users/<uuid:mpk>", views.StaffEmployerUserView.as_view()),
 ]

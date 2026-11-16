@@ -9,6 +9,8 @@ class EmployerPortalConfig(AppConfig):
     def ready(self):
         from apps.api import access
 
+        from . import sync
         from .services import mfa_required
 
         access.register_mfa_policy(mfa_required)
+        sync.connect()

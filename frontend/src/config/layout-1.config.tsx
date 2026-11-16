@@ -70,10 +70,10 @@ export const MENU_SIDEBAR: MenuConfig = [
     permission: 'employer.view_profile',
   },
   {
-    title: 'Team',
+    title: 'People',
     icon: Users,
-    path: '/employer/team',
-    permission: 'employer.manage_staff',
+    path: '/employer/people',
+    permission: 'employer.view_profile',
   },
   { heading: 'Participants' },
   {

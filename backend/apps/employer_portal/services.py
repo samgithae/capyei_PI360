@@ -12,6 +12,7 @@ This module coordinates identity (accounts, roles), employers (the company) and 
 
 import hashlib
 import secrets
+import uuid
 from datetime import timedelta
 
 from django.conf import settings
@@ -137,6 +138,7 @@ def _row(member) -> dict:
     last = member.invites.order_by("-created_at").first()
     return {
         "id": str(member.pk),
+        "contact_id": str(member.contact_id) if member.contact_id else None,
         "name": member.full_name,
         "email": member.user.email,
         "job_title": member.job_title,
@@ -152,6 +154,21 @@ def _row(member) -> dict:
 def team(employer_id) -> list[dict]:
     qs = EmployerMember.objects.filter(employer_id=employer_id).select_related("user")
     return [_row(m) for m in qs]
+
+
+def people_list(employer_id) -> list[dict]:
+    """One row per person on the company's contact list: their details, and ``access`` (the
+    same row ``team`` returns) when they can sign in, else null."""
+    members = {
+        m.contact_id: m
+        for m in EmployerMember.objects.filter(
+            employer_id=employer_id, contact__isnull=False
+        ).select_related("user")
+    }
+    return [
+        {**c, "access": _row(members[uid]) if (uid := uuid.UUID(c["id"])) in members else None}
+        for c in employers.contacts_of(employer_id)
+    ]
 
 
 def _member_of(employer_id, member_id) -> EmployerMember:
@@ -181,9 +198,59 @@ def _guard_last_admin(member, what):
         raise PortalError("user", f"This is the company's only active admin: {what}.")
 
 
+def _person_for_invite(*, actor, employer_id, contact_id, email, name, title, phone, is_primary):
+    """The contact record the new account will belong to, created or brought up to date.
+
+    Refused if that person already has an account (an address change would otherwise lock them
+    out): the one sign-in they have stays theirs."""
+    try:
+        if contact_id:
+            person = employers.own_contact(employer_id, contact_id)
+        else:
+            person = employers.contact_by_email(employer_id, email)
+    except employers.Missing:
+        raise PortalError("contact", "There is no such person at this company.") from None
+    if person is not None:
+        if EmployerMember.objects.filter(contact_id=person["id"]).exists():
+            raise PortalError("contact", "This person already has an account at this company.")
+        data = {"name": name, "email": email}
+        if title:
+            data["role"] = title
+        return employers.save_own_contact(
+            actor=actor, employer_id=employer_id, data=data, contact_id=person["id"]
+        )
+    return employers.save_own_contact(
+        actor=actor,
+        employer_id=employer_id,
+        data={
+            "name": name,
+            "role": title,
+            "email": email,
+            "phone": (phone or "").strip(),
+            "is_primary": bool(is_primary),
+        },
+    )
+
+
 @transaction.atomic
-def invite(*, actor, employer_id, email, full_name, role_id, job_title="", first=False):
+def invite(
+    *,
+    actor,
+    employer_id,
+    email,
+    full_name,
+    role_id,
+    job_title="",
+    first=False,
+    contact_id=None,
+    phone="",
+    is_primary=False,
+):
     """Invite a person to the company. Replaces a pending invite for the same address.
+
+    The person is one record on the company's contact list: ``contact_id`` gives portal access to a
+    person already listed; otherwise a listed contact with the same e-mail address is used, or a
+    new one is made. ``phone`` and ``is_primary`` apply only to a contact made here.
 
     Staff (``employers.invite_user``) and a company admin (``employer.manage_staff``) both call
     this; the view has checked the permission and, for a company admin, that ``employer_id`` is
@@ -206,6 +273,17 @@ def invite(*, actor, employer_id, email, full_name, role_id, job_title="", first
         if existing.user.is_active or existing.user.has_usable_password():
             raise PortalError("email", "This person already has an account at this company.")
         identity.delete_pending_account(actor=actor, user=existing.user)  # replaces the invite
+    title = (job_title or "").strip()
+    person = _person_for_invite(
+        actor=actor,
+        employer_id=employer_id,
+        contact_id=contact_id,
+        email=wanted,
+        name=name,
+        title=title,
+        phone=phone,
+        is_primary=is_primary,
+    )
     try:
         user = identity.create_pending_account(actor=actor, email=wanted, role_name=role["name"])
     except identity.AccessError as exc:
@@ -213,8 +291,9 @@ def invite(*, actor, employer_id, email, full_name, role_id, job_title="", first
     member = EmployerMember.objects.create(
         user=user,
         employer_id=employer_id,
+        contact_id=person["id"],
         full_name=name,
-        job_title=(job_title or "").strip(),
+        job_title=title or person["role"],
         is_owner=first,
         created_by=actor,
     )
@@ -453,7 +532,7 @@ def dashboard(user) -> dict:
                     "at": m["invited_at"].isoformat() if m["invited_at"] else None,
                     "text": f"Invite for {m['name']} not yet accepted"
                     + (" (expired)" if m["state"] == "expired" else ""),
-                    "link": "/employer/team",
+                    "link": "/employer/people",
                 }
             )
         if pending:
@@ -463,7 +542,7 @@ def dashboard(user) -> dict:
                     "count": len(pending),
                     "text": f"{len(pending)} invitation{'' if len(pending) == 1 else 's'} not yet "
                     "accepted",
-                    "link": "/employer/team",
+                    "link": "/employer/people",
                 }
             )
     out["activity"] = sorted(out["activity"], key=lambda a: a["at"] or "", reverse=True)[:15]

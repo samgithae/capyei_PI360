@@ -1,5 +1,6 @@
 import { useAuth } from '@/auth/auth-context';
 import { RequireAuth, RequirePermission } from '@/auth/guards';
+import { AccountPage } from '@/pages/account/account-page';
 import { PortalSettingsPage } from '@/pages/admin/portal-settings-page';
 import { REFERENCE_KINDS, ReferencePage } from '@/pages/admin/reference-page';
 import { UsersPage } from '@/pages/admin/users-page';
@@ -10,11 +11,11 @@ import {
   EmployerOpportunitiesPage,
   EmployerOpportunityPage,
 } from '@/pages/employer/employer-opportunities';
+import { EmployerPeoplePage } from '@/pages/employer/employer-people';
 import {
   EmployerReferralPage,
   EmployerReferralsPage,
 } from '@/pages/employer/employer-referrals';
-import { EmployerTeamPage } from '@/pages/employer/employer-team';
 import { EmployerPage } from '@/pages/employers/employer-page';
 import { EmployersPage } from '@/pages/employers/employers-page';
 import { GuidePage } from '@/pages/help/guide-page';
@@ -78,6 +79,7 @@ export function AppRoutingSetup() {
       <Route element={<RequireAuth />}>
         <Route element={<Layout1 />}>
           <Route path="/" element={<Home />} />
+          <Route path="/account" element={<AccountPage />} />
           <Route path="/help" element={<HelpPage />} />
           <Route path="/help/:slug" element={<GuidePage />} />
           <Route
@@ -127,12 +129,13 @@ export function AppRoutingSetup() {
             element={<RequirePermission permission="employer.view_profile" />}
           >
             <Route path="/employer/company" element={<EmployerCompanyPage />} />
+            <Route path="/employer/people" element={<EmployerPeoplePage />} />
           </Route>
+          {/* Contacts and Team were two pages; old links land on the one list. */}
           <Route
-            element={<RequirePermission permission="employer.manage_staff" />}
-          >
-            <Route path="/employer/team" element={<EmployerTeamPage />} />
-          </Route>
+            path="/employer/team"
+            element={<Navigate to="/employer/people" replace />}
+          />
           {SECTIONS.map(([path, permission, title]) => (
             <Route
               key={path}

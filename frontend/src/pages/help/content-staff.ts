@@ -269,9 +269,9 @@ export const STAFF_GUIDES: Guide[] = [
     needs: ['employers.invite_user'],
     to: { path: '/employers', label: 'Open employers' },
     steps: [
-      'Open the employer and find Portal accounts. Invite the first person, usually their director or HR lead, as Company admin. Only PI 360 staff create a company’s first account.',
+      'Open the employer and find People. It is one list: everyone to reach at the employer, with their portal access on the same row. Choose Add person, tick Give access to the employer portal, and pick Company admin for the first person, usually their director or HR lead. For someone already on the list, choose Give access on their row. Only PI 360 staff create a company’s first account.',
       'The person gets an email to set a password. If the link expires or is lost, withdraw the invite and send a new one.',
-      'The company admin adds their own colleagues. You can suspend or reactivate anyone from the same panel.',
+      'The company admin adds their own colleagues. You can change a role, suspend or reactivate anyone from their row. A person who can sign in cannot be removed or have their sign-in email changed here: suspend the account, or withdraw the invitation, first.',
       'When a company asks to publish an opportunity, it shows Waiting for your approval. Approve and open it, or send it back with a reason the company will see. To list them all, use Awaiting approval on Opportunities.',
       'Under Administration, Employer portal, two settings change the rules for every company: whether employers publish on their own, and whether they need a second sign-in step. Both start off.',
     ],

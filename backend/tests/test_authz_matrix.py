@@ -74,6 +74,7 @@ MATRIX = {
     "employer/activate": {"POST": PUBLIC},
     "employer/me": {"GET": "employer.portal"},
     "employer/roles": {"GET": "employer.manage_staff"},
+    "employer/people": {"GET": "employer.view_profile"},
     "employer/staff": {"GET": "employer.manage_staff", "POST": "employer.manage_staff"},
     "employer/staff/<uuid:mpk>": {
         "PATCH": "employer.manage_staff",
@@ -114,6 +115,7 @@ MATRIX = {
     "employer/referrals/<uuid:pk>/photo": {"GET": "employer.view_referrals"},
     "employer/referrals/<uuid:pk>/why": {"GET": "employer.view_referrals"},
     "opportunities/<uuid:pk>/publish-decline": {"POST": "employers.edit"},
+    "employers/<uuid:pk>/people": {"GET": "employers.view"},
     "employers/<uuid:pk>/users": {"GET": "employers.view", "POST": "employers.invite_user"},
     "employers/<uuid:pk>/users/<uuid:mpk>": {
         "PATCH": "employers.invite_user",

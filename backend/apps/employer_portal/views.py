@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.api import access
 from apps.api.access import HasPermission
 from apps.employers import services as employers
 
@@ -39,6 +40,10 @@ class EmployerInviteSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=150)
     job_title = serializers.CharField(max_length=100, allow_blank=True, required=False)
     role_id = serializers.IntegerField()
+    # Give access to a person already on the contact list, or fill in a new one's details.
+    contact_id = serializers.UUIDField(required=False)
+    phone = serializers.CharField(max_length=50, allow_blank=True, required=False)
+    is_primary = serializers.BooleanField(required=False)
 
 
 class MemberPatchSerializer(serializers.Serializer):
@@ -158,6 +163,30 @@ class EmployerRolesView(APIView):
         )
 
 
+def _role_options():
+    return [{k: r[k] for k in ("id", "name", "description")} for r in services.assignable_roles()]
+
+
+class EmployerPeopleView(APIView):
+    """The company's people as one list: each contact, with the sign-in they may have.
+
+    Anyone who can see the company profile sees the list. Who can sign in, and as what, is the
+    admin's business, so the ``access`` column and the roles come only with ``manage_staff``."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": "employer.view_profile"}
+
+    @extend_schema(operation_id="employer_people_list", responses={200: dict})
+    def get(self, request):
+        member = _run(services.own_member, user=request.user)
+        rows = services.people_list(member.employer_id)
+        if not access.has_permission(request.user, MANAGE):
+            return Response(
+                {"people": [{**p, "access": None} for p in rows], "roles": [], "can_access": False}
+            )
+        return Response({"people": rows, "roles": _role_options(), "can_access": True})
+
+
 class EmployerStaffView(APIView):
     """A company admin's team: list, invite."""
 
@@ -210,6 +239,27 @@ def _employer(pk):
     if not employers.exists(pk):
         raise NotFound
     return pk
+
+
+class StaffEmployerPeopleView(APIView):
+    """PI staff: the people at an employer. Each is one contact record, with the sign-in they may
+    have; this is the list the employer page shows."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": VIEW}
+
+    @extend_schema(operation_id="employers_people_list", responses={200: dict})
+    def get(self, request, pk):
+        _employer(pk)
+        return Response(
+            {
+                "people": services.people_list(pk),
+                "roles": [
+                    {k: r[k] for k in ("id", "name", "description")}
+                    for r in services.assignable_roles()
+                ],
+            }
+        )
 
 
 class StaffEmployerUsersView(APIView):

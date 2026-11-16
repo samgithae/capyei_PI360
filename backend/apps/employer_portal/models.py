@@ -17,6 +17,17 @@ class EmployerMember(models.Model):
     full_name = models.CharField(max_length=150)
     job_title = models.CharField(max_length=100, blank=True)
     is_owner = models.BooleanField(default=False)  # the first account staff set up
+    # The person's record on the employer's contact list. A contact is one person; this member is
+    # that person's optional sign-in. Name and job title follow the contact (see ``sync``); the
+    # e-mail is the sign-in name, so it stays with the account. PROTECT: a person who can sign in
+    # is never removed from the list by accident.
+    contact = models.OneToOneField(
+        "employers.EmployerContact",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="portal_member",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )

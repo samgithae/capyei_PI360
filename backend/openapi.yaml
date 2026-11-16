@@ -1096,6 +1096,26 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/employer/people:
+    get:
+      operationId: employer_people_list
+      description: |-
+        The company's people as one list: each contact, with the sign-in they may have.
+
+        Anyone who can see the company profile sees the list. Who can sign in, and as what, is the
+        admin's business, so the ``access`` column and the roles come only with ``manage_staff``.
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/employer/profile:
     get:
       operationId: employer_profile_get
@@ -1817,6 +1837,13 @@ paths:
       responses:
         '204':
           description: No response body
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/employers/{id}/evidence:
     get:
       operationId: employer_evidence
@@ -1862,6 +1889,31 @@ paths:
               schema:
                 type: array
                 items: {}
+          description: ''
+  /api/v1/employers/{id}/people:
+    get:
+      operationId: employers_people_list
+      description: |-
+        PI staff: the people at an employer. Each is one contact record, with the sign-in they may
+        have; this is the list the employer page shows.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
           description: ''
   /api/v1/employers/{id}/users:
     get:
@@ -6356,6 +6408,14 @@ components:
           maxLength: 100
         role_id:
           type: integer
+        contact_id:
+          type: string
+          format: uuid
+        phone:
+          type: string
+          maxLength: 50
+        is_primary:
+          type: boolean
       required:
       - email
       - full_name

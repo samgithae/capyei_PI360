@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
-import { LogOut, Menu } from 'lucide-react';
+import { LogOut, Menu, UserRound } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { generalSettings } from '@/config/general.config';
 import { cn } from '@/lib/utils';
@@ -107,6 +107,9 @@ export function Header() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => navigate('/account')}>
+                <UserRound /> My account
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() =>
                   void logout().then(() =>

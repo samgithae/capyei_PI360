@@ -300,10 +300,13 @@ class ContactDetailView(APIView):
         c = services.save_contact(actor=request.user, employer=e, data=s.validated_data, contact=c)
         return Response(_contact(c))
 
-    @extend_schema(responses={204: None})
+    @extend_schema(responses={204: None, 409: dict})
     def delete(self, request, pk, cpk):
         e, c = self._contact(pk, cpk)
-        services.remove_contact(actor=request.user, employer=e, contact=c)
+        try:
+            services.remove_contact(actor=request.user, employer=e, contact=c)
+        except services.RuleViolation as exc:
+            return _violation(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

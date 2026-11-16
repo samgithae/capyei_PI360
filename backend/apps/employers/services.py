@@ -6,6 +6,7 @@ from difflib import SequenceMatcher
 
 from django.db import transaction
 from django.db.models import ProtectedError
+from django.dispatch import Signal
 from django.utils import timezone
 
 from apps.audit import services as audit
@@ -188,6 +189,25 @@ def update_employer(*, actor, employer, data, confirm_duplicate=False):
     return employer
 
 
+# Sent after a contact is saved, with the saved ``contact``. The employer portal listens, so a
+# person's sign-in follows their contact record without this module knowing about it.
+contact_saved = Signal()
+
+
+def set_contact_email(contact, email):
+    """Put a contact's e-mail address back, without treating it as an edit."""
+    EmployerContact.objects.filter(pk=contact.pk).update(email=email)
+    contact.email = email
+
+
+def _audited(data):
+    """The audit trail never holds an e-mail address: it records that one was set."""
+    out = {k: v for k, v in data.items() if k != "email"}
+    if "email" in data:
+        out["email_set"] = bool(data["email"])
+    return out
+
+
 @transaction.atomic
 def save_contact(*, actor, employer, data, contact=None):
     """Create or update a contact; making one primary demotes the previous primary."""
@@ -197,14 +217,15 @@ def save_contact(*, actor, employer, data, contact=None):
         contact = EmployerContact.objects.create(employer=employer, **data)
         action, before = "employer.contact_added", None
     else:
-        before = {k: getattr(contact, k) for k in data}
+        before = _audited({k: getattr(contact, k) for k in data})
         for k, v in data.items():
             setattr(contact, k, v)
         contact.save()
         action = "employer.contact_updated"
+    contact_saved.send(sender=EmployerContact, contact=contact)
     audit.record(
         actor=actor, action=action, object_type="employer", object_id=employer.pk,
-        before=before, after={"contact": str(contact.pk), **data},
+        before=before, after={"contact": str(contact.pk), **_audited(data)},
     )  # fmt: skip
     return contact
 
@@ -212,7 +233,16 @@ def save_contact(*, actor, employer, data, contact=None):
 @transaction.atomic
 def remove_contact(*, actor, employer, contact):
     snap = {"contact": str(contact.pk), "name": contact.name}
-    contact.delete()
+    try:
+        with transaction.atomic():
+            contact.delete()
+    except ProtectedError as exc:  # something is linked to this person: today, a portal sign-in
+        raise RuleViolation(
+            "contact",
+            f"{contact.name} can sign in to the employer portal. Suspend the account, or withdraw "
+            "the invitation, before removing the person.",
+            "has_portal_access",
+        ) from exc
     audit.record(
         actor=actor, action="employer.contact_removed", object_type="employer",
         object_id=employer.pk, before=snap,
@@ -919,12 +949,15 @@ from . import own as _own  # noqa: E402
 Missing = _own.Missing
 KIND_CHOICES = _own.KIND_CHOICES
 FACTOR_CHOICES = _own.FACTOR_CHOICES
+contact_by_email = _own.contact_by_email
 contact_dict = _own.contact_dict
+contacts_of = _own.contacts_of
 create_own_opportunity = _own.create_own_opportunity
 move_own_opportunity = _own.move_own_opportunity
 opportunity_detail = _own.opportunity_detail
 opportunity_figures = _own.opportunity_figures
 opportunity_summary = _own.opportunity_summary
+own_contact = _own.own_contact
 own_opportunities = _own.own_opportunities
 own_opportunity = _own.own_opportunity
 own_profile = _own.own_profile

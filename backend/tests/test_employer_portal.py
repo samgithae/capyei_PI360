@@ -377,3 +377,43 @@ def test_with_the_switch_on_an_employer_must_set_up_a_second_factor_to_sign_in(a
         content_type=JSON,
     )
     assert r.json()["status"] != "ok"
+
+
+# ---- the employer's own account page changes their password ------------------------------------
+
+CHANGE = "/api/v1/auth/password/change"
+NEW_PASSWORD = "another-long-passphrase-42"  # noqa: S105 (test value)
+
+
+def sign_in(password):
+    return api().post(
+        "/api/v1/auth/login",
+        {"username": "dir@acme.example", "password": password},
+        content_type=JSON,
+    )
+
+
+def test_an_employer_user_changes_their_own_password(admin):
+    me = api(admin)
+    bad = me.post(
+        CHANGE, {"current_password": "wrong", "new_password": NEW_PASSWORD}, content_type=JSON
+    )
+    assert bad.status_code == 400
+    assert "current_password" in str(bad.json()), "the wrong current password is named"
+    weak = me.post(
+        CHANGE, {"current_password": PASSWORD, "new_password": "short"}, content_type=JSON
+    )
+    assert weak.status_code == 400 and "new_password" in str(weak.json())
+    done = me.post(
+        CHANGE, {"current_password": PASSWORD, "new_password": NEW_PASSWORD}, content_type=JSON
+    )
+    assert done.status_code == 204
+    assert me.get("/api/v1/employer/dashboard").status_code == 200  # still signed in
+    assert sign_in(PASSWORD).json().get("status") != "ok"
+    assert sign_in(NEW_PASSWORD).json()["status"] == "ok"
+
+
+def test_changing_the_password_needs_the_current_one_even_when_signed_in(admin):
+    r = api(admin).post(CHANGE, {"new_password": NEW_PASSWORD}, content_type=JSON)
+    assert r.status_code == 400
+    assert sign_in(NEW_PASSWORD).json().get("status") != "ok"

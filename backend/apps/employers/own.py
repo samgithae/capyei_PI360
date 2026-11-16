@@ -178,6 +178,24 @@ def _contact(employer_id, contact_id):
     return c
 
 
+def contact_by_email(employer_id, email) -> dict | None:
+    """The company's contact with this e-mail address, or None (case does not matter)."""
+    wanted = (email or "").strip()
+    if not wanted:
+        return None
+    c = EmployerContact.objects.filter(employer_id=employer_id, email__iexact=wanted).first()
+    return contact_dict(c) if c else None
+
+
+def own_contact(employer_id, contact_id) -> dict:
+    return contact_dict(_contact(employer_id, contact_id))
+
+
+def contacts_of(employer_id) -> list[dict]:
+    """Everyone on the company's contact list, main contact first."""
+    return [contact_dict(c) for c in EmployerContact.objects.filter(employer_id=employer_id)]
+
+
 def save_own_contact(*, actor, employer_id, data, contact_id=None) -> dict:
     e = _employer(employer_id)
     contact = _contact(employer_id, contact_id) if contact_id else None

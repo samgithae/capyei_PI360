@@ -100,6 +100,8 @@ export interface ReferralPage {
 
 export interface Member {
   id: string;
+  /** The person's record on the contact list (one person, one record). */
+  contact_id?: string | null;
   name: string;
   email: string;
   job_title: string;
