@@ -35,10 +35,41 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("participants.invite", "Invite a youth to sign in", "Participants"),
     # Held only by the Youth role: the signed-in youth's own record, nothing else.
     Permission("youth.self_service", "Use the youth self-service portal", "Youth portal"),
+    # Held only by the employer roles: a signed-in employer user sees and acts on their own
+    # company's records, nothing else. The portal checks the company on every request.
+    Permission("employer.portal", "Use the employer portal", "Employer portal"),
+    Permission("employer.view_dashboard", "View the company dashboard", "Employer portal"),
+    Permission("employer.view_profile", "View the company profile", "Employer portal"),
+    Permission("employer.edit_profile", "Edit the company profile", "Employer portal"),
+    Permission(
+        "employer.view_opportunities", "View the company's opportunities", "Employer portal"
+    ),
+    Permission(
+        "employer.edit_opportunities",
+        "Create and edit the company's opportunities",
+        "Employer portal",
+    ),
+    Permission(
+        "employer.publish_opportunities",
+        "Open and close the company's opportunities",
+        "Employer portal",
+    ),
+    Permission("employer.view_referrals", "View referrals sent to the company", "Employer portal"),
+    Permission(
+        "employer.respond_referrals",
+        "Respond to referrals (review, interview, decide)",
+        "Employer portal",
+    ),
+    Permission(
+        "employer.manage_staff", "Invite and manage the company's portal users", "Employer portal"
+    ),
     Permission("placements.view", "View placements", "Placements"),
     Permission("placements.edit", "Record and edit placements", "Placements"),
     Permission("employers.view", "View employers and opportunities", "Employers"),
     Permission("employers.edit", "Edit employers and opportunities", "Employers"),
+    Permission(
+        "employers.invite_user", "Invite and manage an employer's portal users", "Employers"
+    ),
     Permission("referrals.view", "View referrals", "Referrals"),
     Permission("referrals.edit", "Create and update referrals", "Referrals"),
     Permission("referrals.approve", "Approve selected referral actions", "Referrals"),

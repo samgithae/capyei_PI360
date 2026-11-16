@@ -171,7 +171,7 @@ def test_flag_off_by_default_and_audience(admin, make_user):
     patch(c, "/api/v1/config/flags/new.screen", {"roles": [], "environments": ["production"]})
     assert services.is_enabled("new.screen", admin) is False  # APP_ENV is development in tests
     assert "flag.changed" in actions()
-    assert FeatureFlag.objects.count() == 1
+    assert FeatureFlag.objects.filter(key="new.screen").count() == 1  # one row, edited in place
 
 
 @pytest.mark.django_db

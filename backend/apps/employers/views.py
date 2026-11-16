@@ -19,6 +19,9 @@ from .models import Employer, EmployerContact, Opportunity, OpportunityRequireme
 
 VIEW, EDIT = "employers.view", "employers.edit"
 
+_refs, _contact, _req = services.refs, services.contact_dict, services.requirement_dict
+_opp_summary, _opp_detail = services.opportunity_summary, services.opportunity_detail
+
 
 def _archive_one(request, queryset, pk, object_type):
     result = audit.set_archived(
@@ -61,11 +64,6 @@ class OpportunityRestoreView(OpportunityArchiveView):
     archive = False
 
 
-def _refs(rows):
-    """Linked reference rows as ``[{id, name}]``, by name."""
-    return [{"id": str(r.pk), "name": r.name} for r in sorted(rows, key=lambda r: r.name)]
-
-
 def _summary(e):
     return {
         "id": str(e.pk),
@@ -75,13 +73,6 @@ def _summary(e):
         "counties": _refs(e.counties.all()),
         "archived": e.archived_at is not None,
     }
-
-
-def _contact(c):
-    return {
-        "id": str(c.pk), "name": c.name, "role": c.role, "email": c.email,
-        "phone": c.phone, "is_primary": c.is_primary,
-    }  # fmt: skip
 
 
 def _detail(e):
@@ -336,66 +327,6 @@ def _violation(exc):
     )
 
 
-def _req(r):
-    return {
-        "id": str(r.pk), "factor": r.factor, "description": r.description,
-        "is_mandatory": r.is_mandatory,
-        "qualification_level_id": (
-            str(r.qualification_level_id) if r.qualification_level_id else None
-        ),
-        "min_grade_id": str(r.min_grade_id) if r.min_grade_id else None,
-        "skill_id": str(r.skill_id) if r.skill_id else None,
-        "min_months": r.min_months,
-        "needed_by": r.needed_by.isoformat() if r.needed_by else None,
-        "work_pattern": r.work_pattern,
-        "needs_structuring": r.needs_structuring,
-    }  # fmt: skip
-
-
-def _opp_summary(o):
-    return {
-        "id": str(o.pk),
-        "title": o.title,
-        "employer_id": str(o.employer_id),
-        "employer": o.employer.name,
-        "kind": o.kind,
-        "status": o.status,
-        "counties": _refs(o.counties.all()),
-        "sectors": _refs(o.sectors.all()),
-        "positions": o.positions,
-        "closing_date": o.closing_date.isoformat() if o.closing_date else None,
-        "archived": o.archived_at is not None,
-    }
-
-
-def _opp_detail(o):
-    return {
-        **_opp_summary(o),
-        "sector_ids": [s["id"] for s in _refs(o.sectors.all())],
-        "county_ids": [c["id"] for c in _refs(o.counties.all())],
-        "location": o.location,
-        "description": o.description,
-        "start_date": o.start_date.isoformat() if o.start_date else None,
-        "requirements": [_req(r) for r in o.requirements.all()],
-        "requirement_options": {
-            **{
-                k: v
-                for k, v in configuration.profile_options().items()
-                if k not in ("sectors", "skills")
-            },
-            # Only the skills this opportunity already asks for; the picker searches the rest.
-            "skills": list(
-                configuration.skills_by_ids(
-                    r.skill_id for r in o.requirements.all() if r.skill_id
-                ).values()
-            ),
-            "work_patterns": [
-                {"id": k, "name": n.capitalize()} for k, n in services.PATTERN_NAMES.items()
-            ],
-        },
-    }
-
-
 def _opp(pk):
     try:
         return (
@@ -456,7 +387,16 @@ class OpportunityListView(APIView):
         operation_id="opportunities_list",
         parameters=[
             OpenApiParameter(n, str)
-            for n in ("q", "status", "employer", "kind", "archived", "offset", "page_size")
+            for n in (
+                "q",
+                "status",
+                "employer",
+                "kind",
+                "awaiting",
+                "archived",
+                "offset",
+                "page_size",
+            )
         ],
         responses={200: dict},
     )
@@ -474,6 +414,8 @@ class OpportunityListView(APIView):
             qs = qs.filter(status=g["status"])
         if g.get("kind") in {k for k, _ in Opportunity.TYPES}:
             qs = qs.filter(kind=g["kind"])
+        if g.get("awaiting") == "1":  # companies asking PI staff to publish
+            qs = qs.filter(publish_requested_at__isnull=False)
         try:
             if g.get("employer"):
                 qs = qs.filter(employer_id=uuid.UUID(g["employer"]))
@@ -547,6 +489,34 @@ class OpportunityTransitionView(APIView):
                 opportunity=_opp(pk),
                 to=s.validated_data["to"],
                 reason=s.validated_data.get("reason", ""),
+            )
+        except services.RuleViolation as exc:
+            return _violation(exc)
+        return Response(_opp_detail(_opp(pk)))
+
+
+class DeclineSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=500)
+
+
+class OpportunityDeclineView(APIView):
+    """Staff turn down a company's request to publish; the reason is shown to the company.
+    Approving is the ordinary transition to open, which also clears the request."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": EDIT}
+
+    @extend_schema(
+        operation_id="opportunities_publish_decline",
+        request=DeclineSerializer,
+        responses={200: dict, 409: dict},
+    )
+    def post(self, request, pk):
+        s = DeclineSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            services.decline_publish(
+                actor=request.user, opportunity=_opp(pk), reason=s.validated_data["reason"]
             )
         except services.RuleViolation as exc:
             return _violation(exc)

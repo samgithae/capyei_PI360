@@ -1,3 +1,4 @@
+import { EMPLOYER_GUIDES } from './content-employer';
 import { OFFICER_GUIDES } from './content-officer';
 import { STAFF_GUIDES } from './content-staff';
 import { YOUTH_GUIDES } from './content-youth';
@@ -8,4 +9,5 @@ export const ALL_GUIDES: Guide[] = [
   ...STAFF_GUIDES,
   ...OFFICER_GUIDES,
   ...YOUTH_GUIDES,
+  ...EMPLOYER_GUIDES,
 ];

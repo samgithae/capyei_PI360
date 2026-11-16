@@ -579,3 +579,22 @@ def brief(ids) -> dict:
             f"{r.get_stage_display()}",
         }
     return out
+
+
+# ---- a company's own referrals (employer portal) ---------------------------------------------
+# Re-exported here so other modules import only ``services``. ``own`` imports this module first,
+# so this stays at the end of the file.
+from . import own as _own  # noqa: E402
+
+Missing = _own.Missing
+EMPLOYER_MOVES = _own.EMPLOYER_MOVES
+move_own_referral = _own.move_own_referral
+own_cv = _own.own_cv
+own_dashboard = _own.own_dashboard
+own_cv_pdf = _own.own_cv_pdf
+own_photo = _own.own_photo
+own_referral = _own.own_referral
+own_referrals = _own.own_referrals
+pair_of = _own.pair_of
+own_reasons = _own.own_reasons
+set_own_interview = _own.set_own_interview

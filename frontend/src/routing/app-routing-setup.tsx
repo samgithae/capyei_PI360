@@ -1,8 +1,20 @@
 import { useAuth } from '@/auth/auth-context';
 import { RequireAuth, RequirePermission } from '@/auth/guards';
+import { PortalSettingsPage } from '@/pages/admin/portal-settings-page';
 import { REFERENCE_KINDS, ReferencePage } from '@/pages/admin/reference-page';
 import { UsersPage } from '@/pages/admin/users-page';
 import { DashboardListPage } from '@/pages/dashboard/dashboard-list-page';
+import { EmployerCompanyPage } from '@/pages/employer/employer-company';
+import { EmployerDashboardPage } from '@/pages/employer/employer-dashboard';
+import {
+  EmployerOpportunitiesPage,
+  EmployerOpportunityPage,
+} from '@/pages/employer/employer-opportunities';
+import {
+  EmployerReferralPage,
+  EmployerReferralsPage,
+} from '@/pages/employer/employer-referrals';
+import { EmployerTeamPage } from '@/pages/employer/employer-team';
 import { EmployerPage } from '@/pages/employers/employer-page';
 import { EmployersPage } from '@/pages/employers/employers-page';
 import { GuidePage } from '@/pages/help/guide-page';
@@ -42,9 +54,11 @@ const SECTIONS: [string, string, string][] = [
   ['/reports', 'reports.view_aggregate', 'Reports'],
 ];
 
-/** A youth-only account has no staff pages; its home is the portal. */
+/** A youth-only or employer-only account has no staff pages; each has its own home. */
 function Home() {
   const { can } = useAuth();
+  if (can('employer.portal') && !can('participants.view'))
+    return <Navigate to="/employer" replace />;
   return can('youth.self_service') && !can('participants.view') ? (
     <Navigate to="/me" replace />
   ) : (
@@ -57,6 +71,10 @@ export function AppRoutingSetup() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/youth/activate" element={<ActivatePage />} />
+      <Route
+        path="/employer/activate"
+        element={<ActivatePage audience="employer" />}
+      />
       <Route element={<RequireAuth />}>
         <Route element={<Layout1 />}>
           <Route path="/" element={<Home />} />
@@ -73,6 +91,47 @@ export function AppRoutingSetup() {
               path="/me/opportunities/:id"
               element={<MyOpportunityPage />}
             />
+          </Route>
+          <Route
+            element={<RequirePermission permission="employer.view_dashboard" />}
+          >
+            <Route path="/employer" element={<EmployerDashboardPage />} />
+          </Route>
+          <Route
+            element={
+              <RequirePermission permission="employer.view_opportunities" />
+            }
+          >
+            <Route
+              path="/employer/opportunities"
+              element={<EmployerOpportunitiesPage />}
+            />
+            <Route
+              path="/employer/opportunities/:id"
+              element={<EmployerOpportunityPage />}
+            />
+          </Route>
+          <Route
+            element={<RequirePermission permission="employer.view_referrals" />}
+          >
+            <Route
+              path="/employer/referrals"
+              element={<EmployerReferralsPage />}
+            />
+            <Route
+              path="/employer/referrals/:id"
+              element={<EmployerReferralPage />}
+            />
+          </Route>
+          <Route
+            element={<RequirePermission permission="employer.view_profile" />}
+          >
+            <Route path="/employer/company" element={<EmployerCompanyPage />} />
+          </Route>
+          <Route
+            element={<RequirePermission permission="employer.manage_staff" />}
+          >
+            <Route path="/employer/team" element={<EmployerTeamPage />} />
           </Route>
           {SECTIONS.map(([path, permission, title]) => (
             <Route
@@ -130,6 +189,10 @@ export function AppRoutingSetup() {
                 element={<ReferencePage key={k} kind={k} />}
               />
             ))}
+            <Route
+              path="/administration/employer-portal"
+              element={<PortalSettingsPage />}
+            />
           </Route>
           <Route
             element={<RequirePermission permission="identity.view_users" />}

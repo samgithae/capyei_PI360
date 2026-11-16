@@ -607,6 +607,961 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/employer/activate:
+    post:
+      operationId: employer_activate
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployerActivate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EmployerActivate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EmployerActivate'
+        required: true
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/employer/activate/check:
+    post:
+      operationId: employer_activate_check
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployerToken'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EmployerToken'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EmployerToken'
+        required: true
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/employer/contacts:
+    post:
+      operationId: employer_contacts_post
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnContact'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OwnContact'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OwnContact'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/contacts/{cpk}:
+    patch:
+      operationId: employer_contacts_patch
+      parameters:
+      - in: path
+        name: cpk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnContact'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnContact'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnContact'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: employer_contacts_delete
+      parameters:
+      - in: path
+        name: cpk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/employer/dashboard:
+    get:
+      operationId: employer_dashboard
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/me:
+    get:
+      operationId: employer_me_get
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/opportunities:
+    get:
+      operationId: employer_opportunities_list
+      parameters:
+      - in: query
+        name: offset
+        schema:
+          type: string
+      - in: query
+        name: page_size
+        schema:
+          type: string
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: employer_opportunities_post
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnOpportunity'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OwnOpportunity'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OwnOpportunity'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/opportunities/{id}:
+    get:
+      operationId: employer_opportunities_get
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: employer_opportunities_patch
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnOpportunity'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnOpportunity'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnOpportunity'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/opportunities/{id}/requirements:
+    post:
+      operationId: employer_requirements_post
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnRequirement'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OwnRequirement'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OwnRequirement'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/opportunities/{id}/requirements/{rpk}:
+    patch:
+      operationId: employer_requirements_patch
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: rpk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnRequirement'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnRequirement'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnRequirement'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: employer_requirements_delete
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: rpk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/opportunities/{id}/requirements/skills:
+    put:
+      operationId: employer_requirement_skills_put
+      description: Save the whole skills picker in one call, like the staff screen.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnSkillSync'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OwnSkillSync'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OwnSkillSync'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/opportunities/{id}/transition:
+    post:
+      operationId: employer_opportunities_move
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnOpportunityMove'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OwnOpportunityMove'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OwnOpportunityMove'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/profile:
+    get:
+      operationId: employer_profile_get
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: employer_profile_patch
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnProfile'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnProfile'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOwnProfile'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/referral-reasons:
+    get:
+      operationId: employer_referral_reasons
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/referrals:
+    get:
+      operationId: employer_referrals_list
+      parameters:
+      - in: query
+        name: offset
+        schema:
+          type: string
+      - in: query
+        name: opportunity
+        schema:
+          type: string
+      - in: query
+        name: page_size
+        schema:
+          type: string
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: stage
+        schema:
+          type: string
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/referrals/{id}:
+    get:
+      operationId: employer_referrals_get
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/referrals/{id}/cv:
+    get:
+      operationId: employer_referrals_cv
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/referrals/{id}/cv.pdf:
+    get:
+      operationId: employer_referrals_cv_pdf
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/employer/referrals/{id}/interview:
+    post:
+      operationId: employer_referrals_interview
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnInterview'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OwnInterview'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OwnInterview'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/referrals/{id}/photo:
+    get:
+      operationId: employer_referrals_photo
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/employer/referrals/{id}/transition:
+    post:
+      operationId: employer_referrals_move
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnReferralMove'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OwnReferralMove'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OwnReferralMove'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/referrals/{id}/why:
+    get:
+      operationId: employer_referral_fit
+      description: |-
+        Why PI360 suggested this youth to a company, in plain words: which of the opportunity's
+        requirements the youth meets. For the company's own referrals only; no scores.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+          description: ''
+  /api/v1/employer/roles:
+    get:
+      operationId: employer_roles_list
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+          description: ''
+  /api/v1/employer/skills:
+    get:
+      operationId: employer_skills_search
+      description: |-
+        The skills pick-list a company chooses requirements from: search, any case, paged. A
+        company picks from the shared list; adding a new skill stays with PI staff.
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      - in: query
+        name: offset
+        schema:
+          type: integer
+      - in: query
+        name: q
+        schema:
+          type: string
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/skills/categories:
+    get:
+      operationId: employer_skills_categories
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/skills/popular:
+    get:
+      operationId: employer_skills_popular
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/staff:
+    get:
+      operationId: employer_staff_list
+      description: 'A company admin''s team: list, invite.'
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+          description: ''
+    post:
+      operationId: employer_staff_invite
+      description: 'A company admin''s team: list, invite.'
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployerInvite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EmployerInvite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EmployerInvite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employer/staff/{mpk}:
+    patch:
+      operationId: employer_staff_update
+      description: Change a colleague's role, switch them off or on, or withdraw an
+        unaccepted invite.
+      parameters:
+      - in: path
+        name: mpk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberPatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberPatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberPatch'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: employer_staff_withdraw
+      description: Change a colleague's role, switch them off or on, or withdraw an
+        unaccepted invite.
+      parameters:
+      - in: path
+        name: mpk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/employers:
     get:
       operationId: employers_list
@@ -908,6 +1863,126 @@ paths:
                 type: array
                 items: {}
           description: ''
+  /api/v1/employers/{id}/users:
+    get:
+      operationId: employers_users_list
+      description: 'PI staff: an employer''s portal users, and setting up its first
+        account.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: employers_users_invite
+      description: 'PI staff: an employer''s portal users, and setting up its first
+        account.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployerInvite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EmployerInvite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EmployerInvite'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employers/{id}/users/{mpk}:
+    patch:
+      operationId: employers_users_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: mpk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberPatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberPatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMemberPatch'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: employers_users_withdraw
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: mpk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/employers/archive:
     post:
       operationId: employers_archive_create
@@ -2011,6 +3086,10 @@ paths:
         schema:
           type: string
       - in: query
+        name: awaiting
+        schema:
+          type: string
+      - in: query
         name: employer
         schema:
           type: string
@@ -2183,6 +3262,50 @@ paths:
               schema:
                 type: array
                 items: {}
+          description: ''
+  /api/v1/opportunities/{id}/publish-decline:
+    post:
+      operationId: opportunities_publish_decline
+      description: |-
+        Staff turn down a company's request to publish; the reason is shown to the company.
+        Approving is the ordinary transition to open, which also clears the request.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - opportunities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Decline'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Decline'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Decline'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
           description: ''
   /api/v1/opportunities/{id}/requirements:
     post:
@@ -3669,6 +4792,31 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/referrals/{id}/fit:
+    get:
+      operationId: referral_fit
+      description: |-
+        Why this youth was put forward for this opportunity: the Compatibility checks for the
+        one pair. Follows the referral's own permission and scope, so anyone who can open the
+        referral can see why it was made.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - referrals
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+          description: ''
   /api/v1/referrals/{id}/history:
     get:
       operationId: referrals_audit
@@ -5131,6 +6279,14 @@ components:
       description: |-
         * `ok` - ok
         * `unavailable` - unavailable
+    Decline:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+      required:
+      - reason
     DuplicateReason:
       type: object
       properties:
@@ -5174,6 +6330,36 @@ components:
           default: false
       required:
       - name
+    EmployerActivate:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 200
+        password:
+          type: string
+          maxLength: 128
+      required:
+      - password
+      - token
+    EmployerInvite:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+          maxLength: 150
+        job_title:
+          type: string
+          maxLength: 100
+        role_id:
+          type: integer
+      required:
+      - email
+      - full_name
+      - role_id
     EmployerStatusEnum:
       enum:
       - active
@@ -5184,6 +6370,14 @@ components:
         * `active` - Active
         * `inactive` - Inactive
         * `prospect` - Prospect
+    EmployerToken:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 200
+      required:
+      - token
     EnrollmentStatusEnum:
       enum:
       - enrolled
@@ -5440,6 +6634,189 @@ components:
         * `internship` - Internship
         * `apprenticeship` - Apprenticeship
         * `other` - Other
+    OwnContact:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        role:
+          type: string
+          maxLength: 100
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 200
+          - type: string
+            maxLength: 0
+        phone:
+          type: string
+          maxLength: 50
+        is_primary:
+          type: boolean
+          default: false
+      required:
+      - name
+    OwnInterview:
+      type: object
+      properties:
+        at:
+          type: string
+          format: date-time
+        place:
+          type: string
+          default: ''
+          maxLength: 200
+        note:
+          type: string
+          default: ''
+          maxLength: 500
+      required:
+      - at
+    OwnOpportunity:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        kind:
+          $ref: '#/components/schemas/OpportunityKindEnum'
+        sector_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+        county_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+        location:
+          type: string
+          maxLength: 200
+        positions:
+          type: integer
+          maximum: 10000
+          minimum: 1
+        description:
+          type: string
+        start_date:
+          type: string
+          format: date
+          nullable: true
+        closing_date:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - title
+    OwnOpportunityMove:
+      type: object
+      description: |-
+        ``open`` publishes, or asks PI staff to when the company may not publish on its own;
+        ``closed`` stops taking referrals; ``withdraw`` takes back a request that is waiting.
+      properties:
+        to:
+          $ref: '#/components/schemas/OwnOpportunityMoveToEnum'
+      required:
+      - to
+    OwnOpportunityMoveToEnum:
+      enum:
+      - open
+      - closed
+      - withdraw
+      type: string
+      description: |-
+        * `open` - open
+        * `closed` - closed
+        * `withdraw` - withdraw
+    OwnReferralMove:
+      type: object
+      properties:
+        to:
+          $ref: '#/components/schemas/OwnReferralMoveToEnum'
+        reason_id:
+          type: string
+          format: uuid
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - to
+    OwnReferralMoveToEnum:
+      enum:
+      - under_review
+      - interview
+      - selected
+      - rejected
+      type: string
+      description: |-
+        * `under_review` - under_review
+        * `interview` - interview
+        * `selected` - selected
+        * `rejected` - rejected
+    OwnRequirement:
+      type: object
+      properties:
+        factor:
+          $ref: '#/components/schemas/FactorEnum'
+        description:
+          type: string
+          maxLength: 300
+        is_mandatory:
+          type: boolean
+          default: false
+        qualification_level_id:
+          type: string
+          format: uuid
+          nullable: true
+        min_grade_id:
+          type: string
+          format: uuid
+          nullable: true
+        skill_id:
+          type: string
+          format: uuid
+          nullable: true
+        min_months:
+          type: integer
+          maximum: 600
+          minimum: 0
+          nullable: true
+        needed_by:
+          type: string
+          format: date
+          nullable: true
+        work_pattern:
+          type: string
+          maxLength: 20
+      required:
+      - factor
+    OwnSkillItem:
+      type: object
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+        is_mandatory:
+          type: boolean
+          default: false
+      required:
+      - skill_id
+    OwnSkillSync:
+      type: object
+      properties:
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/OwnSkillItem'
+      required:
+      - skills
     PaginatedAuditEventList:
       type: object
       required:
@@ -5685,6 +7062,16 @@ components:
         reason:
           type: string
           writeOnly: true
+    PatchedMemberPatch:
+      type: object
+      properties:
+        role_id:
+          type: integer
+        active:
+          type: boolean
+        reason:
+          type: string
+          maxLength: 300
     PatchedOpportunityUpdate:
       type: object
       description: Moving a draft to another employer is allowed; the services re-check
@@ -5727,6 +7114,126 @@ components:
         employer_id:
           type: string
           format: uuid
+    PatchedOwnContact:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        role:
+          type: string
+          maxLength: 100
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 200
+          - type: string
+            maxLength: 0
+        phone:
+          type: string
+          maxLength: 50
+        is_primary:
+          type: boolean
+          default: false
+    PatchedOwnOpportunity:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        kind:
+          $ref: '#/components/schemas/OpportunityKindEnum'
+        sector_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+        county_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+        location:
+          type: string
+          maxLength: 200
+        positions:
+          type: integer
+          maximum: 10000
+          minimum: 1
+        description:
+          type: string
+        start_date:
+          type: string
+          format: date
+          nullable: true
+        closing_date:
+          type: string
+          format: date
+          nullable: true
+    PatchedOwnProfile:
+      type: object
+      description: The name, status and notes are PI staff's; a company edits where
+        and what it does.
+      properties:
+        sub_county:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+          maxLength: 200
+        website:
+          type: string
+          maxLength: 200
+        sector_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+        county_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+    PatchedOwnRequirement:
+      type: object
+      properties:
+        factor:
+          $ref: '#/components/schemas/FactorEnum'
+        description:
+          type: string
+          maxLength: 300
+        is_mandatory:
+          type: boolean
+          default: false
+        qualification_level_id:
+          type: string
+          format: uuid
+          nullable: true
+        min_grade_id:
+          type: string
+          format: uuid
+          nullable: true
+        skill_id:
+          type: string
+          format: uuid
+          nullable: true
+        min_months:
+          type: integer
+          maximum: 600
+          minimum: 0
+          nullable: true
+        needed_by:
+          type: string
+          format: date
+          nullable: true
+        work_pattern:
+          type: string
+          maxLength: 20
     PatchedParticipantEdit:
       type: object
       properties:

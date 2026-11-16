@@ -44,6 +44,37 @@ export const MENU_SIDEBAR: MenuConfig = [
     path: '/me/profile',
     permission: 'youth.self_service',
   },
+  { heading: 'Your company' },
+  {
+    title: 'Dashboard',
+    icon: LayoutDashboard,
+    path: '/employer',
+    permission: 'employer.view_dashboard',
+  },
+  {
+    title: 'Opportunities',
+    icon: Briefcase,
+    path: '/employer/opportunities',
+    permission: 'employer.view_opportunities',
+  },
+  {
+    title: 'Referrals',
+    icon: ClipboardList,
+    path: '/employer/referrals',
+    permission: 'employer.view_referrals',
+  },
+  {
+    title: 'Company profile',
+    icon: Building2,
+    path: '/employer/company',
+    permission: 'employer.view_profile',
+  },
+  {
+    title: 'Team',
+    icon: Users,
+    path: '/employer/team',
+    permission: 'employer.manage_staff',
+  },
   { heading: 'Participants' },
   {
     title: 'Youth',
@@ -112,6 +143,11 @@ export const MENU_SIDEBAR: MenuConfig = [
         title: 'Staff accounts',
         path: '/administration/users',
         permission: 'identity.view_users',
+      },
+      {
+        title: 'Employer portal',
+        path: '/administration/employer-portal',
+        permission: 'config.view',
       },
       {
         title: 'Programmes',

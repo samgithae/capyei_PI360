@@ -41,6 +41,16 @@ def exists(employer_id) -> bool:
     return Employer.objects.filter(pk=employer_id).exists()
 
 
+def is_active(employer_id) -> bool:
+    """True while the company may use the employer portal: it exists, is not archived and has not
+    been set to inactive."""
+    return (
+        Employer.objects.filter(pk=employer_id, archived_at__isnull=True)
+        .exclude(status=Employer.INACTIVE)
+        .exists()
+    )
+
+
 def find_similar(name, *, exclude=None):
     """Existing employers whose name is the same after normalising, or nearly so."""
     key = norm(name)
@@ -323,27 +333,112 @@ def update_opportunity(*, actor, opportunity, data):
     return opportunity
 
 
+def _check_can_open(opportunity, today):
+    """The rules for opening: an active employer and a closing date that is still to come."""
+    if opportunity.employer.status == Employer.INACTIVE:
+        raise RuleViolation("employer", "Employer is inactive.", "employer_inactive")
+    if not opportunity.closing_date or opportunity.closing_date < today:
+        raise RuleViolation(
+            "closing_date", "Set a closing date in the future before opening.", "closing_date"
+        )
+
+
 @transaction.atomic
 def transition(*, actor, opportunity, to, reason="", today=None):
-    """Move an opportunity along the state machine; opening needs a future closing date."""
+    """Move an opportunity along the state machine; opening needs a future closing date. Opening
+    answers any publish request the company made."""
     today = today or date.today()
     if to not in Opportunity.TRANSITIONS.get(opportunity.status, set()):
         raise RuleViolation(
             "status", f"Cannot go from {opportunity.status} to {to}.", "bad_transition"
         )
     if to == Opportunity.OPEN:
-        if opportunity.employer.status == Employer.INACTIVE:
-            raise RuleViolation("employer", "Employer is inactive.", "employer_inactive")
-        if not opportunity.closing_date or opportunity.closing_date < today:
-            raise RuleViolation(
-                "closing_date", "Set a closing date in the future before opening.", "closing_date"
-            )
+        _check_can_open(opportunity, today)
     before = opportunity.status
     opportunity.status = to
-    opportunity.save(update_fields=["status", "updated_at"])
+    fields = ["status", "updated_at"]
+    if to == Opportunity.OPEN and (
+        opportunity.publish_requested_at or opportunity.publish_declined_at
+    ):
+        opportunity.publish_requested_at = opportunity.publish_declined_at = None
+        opportunity.publish_requested_by = opportunity.publish_declined_reason = ""
+        fields += [
+            "publish_requested_at", "publish_requested_by", "publish_declined_at",
+            "publish_declined_reason",
+        ]  # fmt: skip
+    opportunity.save(update_fields=fields)
     audit.record(
         actor=actor, action=f"opportunity.{to}", object_type="opportunity",
         object_id=opportunity.pk, before={"status": before}, after={"status": to}, reason=reason,
+    )  # fmt: skip
+    return opportunity
+
+
+@transaction.atomic
+def request_publish(*, actor, opportunity, label, today=None):
+    """The company asks PI staff to open this opportunity. Staff see it waiting for approval; the
+    company sees "waiting" until staff open it or decline with a reason."""
+    today = today or date.today()
+    if Opportunity.OPEN not in Opportunity.TRANSITIONS.get(opportunity.status, set()):
+        raise RuleViolation("status", "This opportunity cannot be published now.", "bad_transition")
+    if opportunity.publish_requested_at:
+        raise RuleViolation("status", "Already waiting for approval.", "already_requested")
+    _check_can_open(opportunity, today)
+    opportunity.publish_requested_at = timezone.now()
+    opportunity.publish_requested_by = (label or "")[:150]
+    opportunity.publish_declined_at, opportunity.publish_declined_reason = None, ""
+    opportunity.save(
+        update_fields=[
+            "publish_requested_at",
+            "publish_requested_by",
+            "publish_declined_at",
+            "publish_declined_reason",
+            "updated_at",
+        ]  # fmt: skip
+    )
+    audit.record(
+        actor=actor, action="opportunity.publish_requested", object_type="opportunity",
+        object_id=opportunity.pk, after={"status": opportunity.status},
+    )  # fmt: skip
+    return opportunity
+
+
+@transaction.atomic
+def withdraw_publish_request(*, actor, opportunity):
+    if not opportunity.publish_requested_at:
+        raise RuleViolation("status", "Nothing is waiting for approval.", "not_requested")
+    opportunity.publish_requested_at, opportunity.publish_requested_by = None, ""
+    opportunity.save(update_fields=["publish_requested_at", "publish_requested_by", "updated_at"])
+    audit.record(
+        actor=actor, action="opportunity.publish_withdrawn", object_type="opportunity",
+        object_id=opportunity.pk,
+    )  # fmt: skip
+    return opportunity
+
+
+@transaction.atomic
+def decline_publish(*, actor, opportunity, reason):
+    """Staff turn a publish request down. The reason is shown to the company."""
+    reason = (reason or "").strip()
+    if not opportunity.publish_requested_at:
+        raise RuleViolation("status", "Nothing is waiting for approval.", "not_requested")
+    if not reason:
+        raise RuleViolation("reason", "Say why, so the company can fix it.", "reason_required")
+    opportunity.publish_requested_at, opportunity.publish_requested_by = None, ""
+    opportunity.publish_declined_at = timezone.now()
+    opportunity.publish_declined_reason = reason[:500]
+    opportunity.save(
+        update_fields=[
+            "publish_requested_at",
+            "publish_requested_by",
+            "publish_declined_at",
+            "publish_declined_reason",
+            "updated_at",
+        ]  # fmt: skip
+    )
+    audit.record(
+        actor=actor, action="opportunity.publish_declined", object_type="opportunity",
+        object_id=opportunity.pk, reason=reason,
     )  # fmt: skip
     return opportunity
 
@@ -815,3 +910,31 @@ def brief_opportunities(ids) -> dict:
             "detail": f"{o.employer.name} · {o.get_status_display()}{close}",
         }
     return out
+
+
+# The company-scoped functions the employer portal calls. Imported last because ``own`` imports
+# this module; always import ``services``, never ``own``.
+from . import own as _own  # noqa: E402
+
+Missing = _own.Missing
+KIND_CHOICES = _own.KIND_CHOICES
+FACTOR_CHOICES = _own.FACTOR_CHOICES
+contact_dict = _own.contact_dict
+create_own_opportunity = _own.create_own_opportunity
+move_own_opportunity = _own.move_own_opportunity
+opportunity_detail = _own.opportunity_detail
+opportunity_figures = _own.opportunity_figures
+opportunity_summary = _own.opportunity_summary
+own_opportunities = _own.own_opportunities
+own_opportunity = _own.own_opportunity
+own_profile = _own.own_profile
+publish_request_dict = _own.publish_request_dict
+refs = _own.refs
+remove_own_contact = _own.remove_own_contact
+remove_own_requirement = _own.remove_own_requirement
+requirement_dict = _own.requirement_dict
+save_own_contact = _own.save_own_contact
+save_own_requirement = _own.save_own_requirement
+sync_own_skills = _own.sync_own_skills
+update_own_opportunity = _own.update_own_opportunity
+update_own_profile = _own.update_own_profile

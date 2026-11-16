@@ -441,3 +441,44 @@ class OpportunitySuggestionsView(APIView):
         if out is None:
             raise NotFound()
         return Response(out)
+
+
+class EmployerReferralFitView(APIView):
+    """Why PI360 suggested this youth to a company, in plain words: which of the opportunity's
+    requirements the youth meets. For the company's own referrals only; no scores."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": "employer.view_referrals"}
+
+    @extend_schema(operation_id="employer_referral_fit", responses={200: dict(type="object")})
+    def get(self, request, pk):
+        from datetime import date
+
+        from apps.employer_portal import services as portal
+
+        try:
+            employer_id = portal.own_employer_id(request.user)
+        except portal.PortalError:
+            raise NotFound() from None
+        out = services.employer_referral_fit(employer_id, pk, date.today())
+        if out is None:
+            raise NotFound()
+        return Response(out)
+
+
+class ReferralFitView(APIView):
+    """Why this youth was put forward for this opportunity: the Compatibility checks for the
+    one pair. Follows the referral's own permission and scope, so anyone who can open the
+    referral can see why it was made."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": "referrals.view"}
+
+    @extend_schema(operation_id="referral_fit", responses={200: dict(type="object")})
+    def get(self, request, pk):
+        from datetime import date
+
+        out = services.referral_fit(request.user, pk, date.today())
+        if out is None:
+            raise NotFound()
+        return Response(out)

@@ -430,6 +430,86 @@ def suggest_youth(opportunity_id, visible_ids, today: date, limit: int = 50) -> 
     }
 
 
+def _pair_fit(ref: dict, today: date) -> dict:
+    """The Compatibility checks for one youth and one opportunity. ``ref`` holds
+    ``participant_id``, ``opportunity_id`` and ``origin``."""
+    from apps.employers import services as employers
+    from apps.participants import services as participants
+
+    from . import compatibility
+
+    base = {"origin": ref["origin"]}
+    opp = employers.compatibility_inputs(ref["opportunity_id"])
+    version = active_version(COMPATIBILITY)
+    if opp is None or version is None:
+        return {**base, "available": False, "reason": "No compatibility rule is active yet."}
+    pid = str(ref["participant_id"])  # the snapshots are keyed by the id as text
+    youth = participants.capability_snapshots([pid]).get(pid)
+    if youth is None:
+        return {
+            **base,
+            "available": False,
+            "reason": "No qualifications, skills or experience are recorded for this youth yet.",
+        }
+    a = compatibility.assess(version.definition, opp, youth["snapshot"], today)
+    return {**base, "available": True, "rule": {"version": version.number}, **a}
+
+
+def referral_fit(user, referral_id, today: date) -> dict | None:
+    """Why one referred youth fits the opportunity they were referred to: the same Compatibility
+    checks that rank the suggestions, for this one pair. None when the referral does not exist or
+    is outside the caller's scope. Nothing is stored. ``origin`` tells staff whether the youth
+    applied themselves; the checks are then context, not the reason they were put forward."""
+    from apps.referrals import services as referrals
+
+    ref = (
+        referrals.visible(user)
+        .filter(pk=referral_id)
+        .values("participant_id", "opportunity_id", "origin")
+        .first()
+    )
+    if ref is None:
+        return None
+    return _pair_fit(ref, today)
+
+
+# What a company is told, in plain words. No scores, weights, rule versions or source notes.
+_PLAIN_OUTCOME = {"pass": "met", "fail": "not_met", "unknown": "not_recorded"}
+_PLAIN_GROUP = {
+    "eligible": "Meets every must-have requirement.",
+    "eligible_with_unknowns": "Meets the must-haves we could check; some are not recorded yet.",
+    "not_eligible": "Does not meet at least one must-have requirement.",
+}
+
+
+def employer_referral_fit(employer_id, referral_id, today: date) -> dict | None:
+    """Why PI360 suggested this youth, for the company that was referred them: each requirement
+    of the opportunity and whether the youth meets it. None when the referral is not this
+    company's. Never includes a score, a rule version or the system's notes."""
+    from apps.referrals import services as referrals
+
+    try:
+        pair = referrals.pair_of(employer_id, referral_id)
+    except referrals.Missing:
+        return None
+    fit = _pair_fit({**pair, "origin": ""}, today)
+    if not fit["available"]:
+        return {"available": False, "summary": "", "checks": []}
+    return {
+        "available": True,
+        "summary": _PLAIN_GROUP.get(fit["group"], ""),
+        "checks": [
+            {
+                "label": c["label"],
+                "must_have": bool(c["mandatory"]),
+                "outcome": _PLAIN_OUTCOME[c["outcome"]],
+            }
+            for c in fit["checks"]
+            if c["outcome"] in _PLAIN_OUTCOME
+        ],
+    }
+
+
 # ---- Settings: the numbers an administrator can change (settings_registry) ----
 
 

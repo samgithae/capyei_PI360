@@ -33,6 +33,19 @@ def register(backend: AccessBackend) -> None:
     _backend = backend
 
 
+_mfa_policies: list = []
+
+
+def register_mfa_policy(policy) -> None:
+    """A portal module says when its own users need a second factor (a callable user -> bool)."""
+    if policy not in _mfa_policies:
+        _mfa_policies.append(policy)
+
+
+def portal_mfa_required(user) -> bool:
+    return any(policy(user) for policy in _mfa_policies)
+
+
 def permissions_of(user) -> frozenset[str]:
     if _backend is None or not getattr(user, "is_authenticated", False):
         return frozenset()

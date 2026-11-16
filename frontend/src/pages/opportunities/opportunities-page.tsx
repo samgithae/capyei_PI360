@@ -381,6 +381,14 @@ export function OpportunitiesPage() {
               onChange={(v) => set('kind', v)}
               className="w-36 capitalize"
             />
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={params.get('awaiting') === '1'}
+                onChange={(e) => set('awaiting', e.target.checked ? '1' : '')}
+              />
+              Awaiting approval
+            </label>
             {canArchive && (
               <ShowArchived
                 checked={showArchived}

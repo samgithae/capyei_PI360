@@ -42,10 +42,10 @@ interface EmployerPlaces {
  * The counties and industries / sectors one employer works in. An opportunity may only use these,
  * so they are the only choices offered. Reloads whenever the employer changes.
  */
-export function useEmployerPlaces(employerId: string) {
+export function useEmployerPlaces(employerId: string, path?: string) {
   return useQuery({
-    queryKey: ['employer', employerId, 'places'],
-    queryFn: () => api<EmployerPlaces>(`/employers/${employerId}`),
+    queryKey: ['employer', employerId, 'places', path ?? ''],
+    queryFn: () => api<EmployerPlaces>(path ?? `/employers/${employerId}`),
     enabled: !!employerId,
   });
 }
@@ -53,14 +53,19 @@ export function useEmployerPlaces(employerId: string) {
 function EmptyForEmployer({
   what,
   employerId,
+  href,
 }: {
   what: string;
   employerId: string;
+  href?: string;
 }) {
   return (
     <>
       This employer has no {what} yet.{' '}
-      <Link to={`/employers/${employerId}`} className="text-primary underline">
+      <Link
+        to={href ?? `/employers/${employerId}`}
+        className="text-primary underline"
+      >
         Add them on the employer profile
       </Link>{' '}
       first.
@@ -92,14 +97,21 @@ export function WhereWhatFields({
   idPrefix,
   employerId,
   stored,
+  placesPath,
+  profileHref,
 }: {
   value: WhereWhat;
   onChange: (p: Partial<WhereWhat>) => void;
   idPrefix: string;
   employerId: string;
   stored?: EmployerPlaces;
+  /** Where the company's counties and industries are read from. The employer portal passes
+   * its own profile route, so the staff-only employer record is never requested. */
+  placesPath?: string;
+  /** Where "add them on the profile" points. Defaults to the staff employer page. */
+  profileHref?: string;
 }) {
-  const places = useEmployerPlaces(employerId);
+  const places = useEmployerPlaces(employerId, placesPath);
   const counties = places.data?.counties ?? [];
   const sectors = places.data?.sectors ?? [];
   const nameOf = (rows: MultiOption[], extra: MultiOption[], id: string) =>
@@ -120,7 +132,11 @@ export function WhereWhatFields({
     !employerId ? (
       `Choose an employer first to pick its ${noun}.`
     ) : (
-      <EmptyForEmployer what={what} employerId={employerId} />
+      <EmptyForEmployer
+        what={what}
+        employerId={employerId}
+        href={profileHref}
+      />
     );
   return (
     <>

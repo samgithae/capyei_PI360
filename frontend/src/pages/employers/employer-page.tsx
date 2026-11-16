@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
+import { TeamPanel } from '@/pages/employer/team-panel';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
@@ -302,6 +303,14 @@ export function EmployerPage() {
               </div>
             )}
           </Section>
+
+          {can('employers.invite_user') && (
+            <TeamPanel
+              base={`/employers/${id}/users`}
+              title="Portal accounts"
+              description="People at this employer who can sign in to the employer portal. The first account is created here; the company's admin can add the rest."
+            />
+          )}
 
           {(opps.data?.results.length ?? 0) > 0 && (
             <Section

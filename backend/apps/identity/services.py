@@ -284,6 +284,42 @@ def role_names(user) -> list[str]:
     )
 
 
+def roles_limited_to(prefix: str) -> list[dict]:
+    """Active roles whose every permission starts with ``prefix`` (a portal's own family). A
+    portal uses this to offer only its own roles, never a staff role, whatever an administrator
+    later edits."""
+    out = []
+    for r in Role.objects.filter(active=True).order_by("name"):
+        if r.permissions and all(c.startswith(prefix) for c in r.permissions):
+            out.append(
+                {
+                    "id": r.pk,
+                    "name": r.name,
+                    "description": r.description,
+                    "permissions": list(r.permissions),
+                }
+            )
+    return out
+
+
+def suspend_user(*, actor, user, reason):
+    """Switch an account off and end its sessions (see users.suspend_user)."""
+    from .users import suspend_user as _suspend
+
+    return _suspend(actor=actor, user=user, reason=reason)
+
+
+def reactivate_user(*, actor, user, reason=""):
+    from .users import reactivate_user as _reactivate
+
+    return _reactivate(actor=actor, user=user, reason=reason)
+
+
+def get_role(role_id):
+    """A role by id (or None), for modules that may not import the model."""
+    return Role.objects.filter(pk=role_id, active=True).first()
+
+
 __all__ = [
     "AccessError",
     "ROLE_ASSIGNABLE",
@@ -294,10 +330,14 @@ __all__ = [
     "delete_pending_account",
     "delete_role",
     "ensure_default_roles",
+    "get_role",
     "grant_permission",
+    "reactivate_user",
     "remove_role",
     "revoke_grant",
     "role_names",
+    "roles_limited_to",
     "set_scopes",
+    "suspend_user",
     "update_role",
 ]

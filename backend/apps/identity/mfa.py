@@ -3,6 +3,8 @@
 from django.conf import settings
 from django_otp.plugins.otp_totp.models import TOTPDevice
 
+from apps.api import access
+
 DEVICE_NAME = "authenticator"
 
 
@@ -20,9 +22,22 @@ def is_youth_only(user) -> bool:
     return bool(roles) and all(set(perms) <= YOUTH_ONLY for perms in roles)
 
 
+def is_employer_only(user) -> bool:
+    """An employer-portal account holds only ``employer.*`` permissions: not staff. Whether it
+    needs a second factor is the employer portal's setting, not the staff rule."""
+    if user.is_superuser or user.is_staff:
+        return False
+    roles = list(
+        user.role_assignments.filter(role__active=True).values_list("role__permissions", flat=True)
+    )
+    return bool(roles) and all(all(c.startswith("employer.") for c in perms) for perms in roles)
+
+
 def required_for(user) -> bool:
     if is_youth_only(user):
         return False
+    if is_employer_only(user):
+        return access.portal_mfa_required(user)
     if settings.AUTH_MFA_ALL_STAFF or user.is_superuser or user.is_staff:
         return True
     return user.role_assignments.filter(

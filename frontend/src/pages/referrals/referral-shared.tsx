@@ -55,7 +55,12 @@ export interface ReferralDetail extends ReferralRow {
   next_stages: string[];
   unsuccessful: string[];
   history: StageEvent[];
-  can: { edit: boolean; reopen: boolean; reassign: boolean };
+  can: {
+    edit: boolean;
+    reopen: boolean;
+    reassign: boolean;
+    view_profile: boolean;
+  };
 }
 export interface Reason {
   id: string;

@@ -70,6 +70,55 @@ MATRIX = {
         "POST": "participants.invite",
         "DELETE": "participants.invite",
     },
+    "employer/activate/check": {"POST": PUBLIC},
+    "employer/activate": {"POST": PUBLIC},
+    "employer/me": {"GET": "employer.portal"},
+    "employer/roles": {"GET": "employer.manage_staff"},
+    "employer/staff": {"GET": "employer.manage_staff", "POST": "employer.manage_staff"},
+    "employer/staff/<uuid:mpk>": {
+        "PATCH": "employer.manage_staff",
+        "DELETE": "employer.manage_staff",
+    },
+    "employer/dashboard": {"GET": "employer.view_dashboard"},
+    "employer/profile": {"GET": "employer.view_profile", "PATCH": "employer.edit_profile"},
+    "employer/contacts": {"POST": "employer.edit_profile"},
+    "employer/contacts/<uuid:cpk>": {
+        "PATCH": "employer.edit_profile",
+        "DELETE": "employer.edit_profile",
+    },
+    "employer/opportunities": {
+        "GET": "employer.view_opportunities",
+        "POST": "employer.edit_opportunities",
+    },
+    "employer/opportunities/<uuid:pk>": {
+        "GET": "employer.view_opportunities",
+        "PATCH": "employer.edit_opportunities",
+    },
+    "employer/opportunities/<uuid:pk>/transition": {"POST": "employer.publish_opportunities"},
+    "employer/opportunities/<uuid:pk>/requirements": {"POST": "employer.edit_opportunities"},
+    "employer/opportunities/<uuid:pk>/requirements/skills": {"PUT": "employer.edit_opportunities"},
+    "employer/opportunities/<uuid:pk>/requirements/<uuid:rpk>": {
+        "PATCH": "employer.edit_opportunities",
+        "DELETE": "employer.edit_opportunities",
+    },
+    "employer/skills": {"GET": "employer.view_opportunities"},
+    "employer/skills/categories": {"GET": "employer.view_opportunities"},
+    "employer/skills/popular": {"GET": "employer.view_opportunities"},
+    "employer/referrals": {"GET": "employer.view_referrals"},
+    "employer/referral-reasons": {"GET": "employer.view_referrals"},
+    "employer/referrals/<uuid:pk>": {"GET": "employer.view_referrals"},
+    "employer/referrals/<uuid:pk>/transition": {"POST": "employer.respond_referrals"},
+    "employer/referrals/<uuid:pk>/interview": {"POST": "employer.respond_referrals"},
+    "employer/referrals/<uuid:pk>/cv": {"GET": "employer.view_referrals"},
+    "employer/referrals/<uuid:pk>/cv.pdf": {"GET": "employer.view_referrals"},
+    "employer/referrals/<uuid:pk>/photo": {"GET": "employer.view_referrals"},
+    "employer/referrals/<uuid:pk>/why": {"GET": "employer.view_referrals"},
+    "opportunities/<uuid:pk>/publish-decline": {"POST": "employers.edit"},
+    "employers/<uuid:pk>/users": {"GET": "employers.view", "POST": "employers.invite_user"},
+    "employers/<uuid:pk>/users/<uuid:mpk>": {
+        "PATCH": "employers.invite_user",
+        "DELETE": "employers.invite_user",
+    },
     "youth/activate/check": {"POST": PUBLIC},
     "youth/activate": {"POST": PUBLIC},
     "youth/me": {"GET": "youth.self_service"},
@@ -143,6 +192,7 @@ MATRIX = {
     "referrals/<uuid:pk>/assign": {"POST": "caseload.reassign"},
     "referrals/<uuid:pk>/history": {"GET": "referrals.view"},
     "opportunities/<uuid:pk>/suggestions": {"GET": "participants.view_profile"},
+    "referrals/<uuid:pk>/fit": {"GET": "referrals.view"},
     "rules": {"GET": "intelligence.view", "POST": "intelligence.manage_rules"},
     "rules/operators": {"GET": "intelligence.view"},
     "employers/<uuid:pk>/evidence": {"GET": "intelligence.view"},
@@ -230,6 +280,7 @@ def concrete(route):
         route.replace("<uuid:cpk>", "00000000-0000-0000-0000-000000000001")
         .replace("<uuid:rpk>", "00000000-0000-0000-0000-000000000002")
         .replace("<uuid:enrollment_id>", "00000000-0000-0000-0000-000000000003")
+        .replace("<uuid:mpk>", "00000000-0000-0000-0000-000000000004")
         .replace("<int:pk>", "999999")
         .replace("<uuid:pk>", "00000000-0000-0000-0000-000000000000")
         .replace("<str:kind>", "sectors")

@@ -19,6 +19,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { SelectField } from '@/components/shared/select-field';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { CandidateProfile, WhySuggested } from './candidate-profile';
 import { InterviewCard } from './interview-card';
 import {
   stageName,
@@ -292,6 +293,12 @@ export function ReferralPage() {
               note={r.interview_note}
               onSaved={refresh}
             />
+          )}
+          {r.can.view_profile && (
+            <>
+              <WhySuggested id={r.id} origin={r.origin} />
+              <CandidateProfile participantId={r.participant_id} />
+            </>
           )}
           <Section title="Overview">
             <DetailList

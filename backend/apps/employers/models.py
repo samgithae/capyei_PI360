@@ -103,6 +103,12 @@ class Opportunity(models.Model):
     start_date = models.DateField(null=True, blank=True)
     closing_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUSES, default=DRAFT, db_index=True)
+    # Employer portal: a company that may not publish on its own asks PI staff to open the
+    # opportunity. Staff approve (open it) or decline with a reason the company can read.
+    publish_requested_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    publish_requested_by = models.CharField(max_length=150, blank=True)
+    publish_declined_at = models.DateTimeField(null=True, blank=True)
+    publish_declined_reason = models.CharField(max_length=500, blank=True)
     archived_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

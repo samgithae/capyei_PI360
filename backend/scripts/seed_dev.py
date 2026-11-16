@@ -10,6 +10,9 @@ For referrals: dev.officer / dev-officer-password (Placement officer with three 
 dev.viewer is the Manager over that officer's caseload.
 Youth portal: catherine.macharia@example.org / dev-youth-password-1 (needs a youth named
 "Catherine Njeri Macharia" in the dev database; skipped if there is none).
+Employer portal for "Synthetic Traders Ltd": dev.boss@synthetic-traders.example
+(Company admin) / dev-employer-password-1, and dev.viewer@synthetic-traders.example
+(Employer viewer) / dev-employer-password-1. Staff approve opportunities by default.
 """
 
 from django.conf import settings
@@ -146,6 +149,32 @@ if _youth is not None and portal.invite_status(_youth)["state"] == "none":
     _invite.token_hash = hashlib.sha256(_token.encode()).hexdigest()
     _invite.save(update_fields=["token_hash"])
     portal.activate(token=_token, password="dev-youth-password-1")  # noqa: S106
+# Employer portal logins for the synthetic company, so both views can be tried by hand.
+import hashlib  # noqa: E402
+
+from apps.employer_portal import services as portal_employer  # noqa: E402
+from apps.employer_portal.models import EmployerInvite  # noqa: E402
+from apps.identity.models import Role  # noqa: E402
+
+for _mail, _name, _role, _owner in (
+    ("dev.boss@synthetic-traders.example", "Wanjiru Boss", "Company admin", True),
+    ("dev.viewer@synthetic-traders.example", "Kamau Viewer", "Employer viewer", False),
+):
+    if User.objects.filter(email=_mail).exists():
+        continue
+    portal_employer.invite(
+        actor=User.objects.get(username="dev.admin"),
+        employer_id=employer.pk,
+        email=_mail,
+        full_name=_name,
+        role_id=Role.objects.get(name=_role).pk,
+        first=_owner,
+    )
+    _row = EmployerInvite.objects.filter(email=_mail).latest("created_at")
+    _token = f"dev-employer-token-{_mail}"  # one per account: the hash is unique
+    _row.token_hash = hashlib.sha256(_token.encode()).hexdigest()
+    _row.save(update_fields=["token_hash"])
+    portal_employer.activate(token=_token, password="dev-employer-password-1")  # noqa: S106
 # Draft rule versions for the product owner to review (T-048). Safe to run again.
 from apps.intelligence import initial_rules  # noqa: E402
 

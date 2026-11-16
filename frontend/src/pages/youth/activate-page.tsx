@@ -10,14 +10,20 @@ import { Label } from '@/components/ui/label';
 type Phase = 'checking' | 'ready' | 'invalid' | 'done';
 
 /** Public page opened from the invite e-mail. The one-time token is in the URL fragment so it
- * is never sent to a server log; the youth chooses a password, then signs in as usual. */
-export function ActivatePage() {
+ * is never sent to a server log; the person chooses a password, then signs in as usual. Youth
+ * and employer users have their own activate routes; the page is otherwise the same. */
+export function ActivatePage({
+  audience = 'youth',
+}: {
+  audience?: 'youth' | 'employer';
+}) {
+  const who = audience === 'youth' ? 'your officer' : 'your company admin';
   const [token] = useState(() =>
     new URLSearchParams(window.location.hash.replace(/^#/, '')).get('token'),
   );
   const [phase, setPhase] = useState<Phase>(token ? 'checking' : 'invalid');
   const [message, setMessage] = useState(
-    token ? '' : 'This link is not complete. Ask your officer for a new one.',
+    token ? '' : `This link is not complete. Ask ${who} for a new one.`,
   );
   const [password, setPassword] = useState('');
   const [again, setAgain] = useState('');
@@ -25,7 +31,7 @@ export function ActivatePage() {
 
   useEffect(() => {
     if (!token) return;
-    post('/youth/activate/check', { token })
+    post(`/${audience}/activate/check`, { token })
       .then(() => setPhase('ready'))
       .catch((e) => {
         setMessage(e instanceof ApiError ? e.message : 'Could not check link.');
@@ -33,7 +39,7 @@ export function ActivatePage() {
       });
     // Drop the token from the address bar and history once read.
     window.history.replaceState(null, '', window.location.pathname);
-  }, [token]);
+  }, [token, audience]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,7 +47,7 @@ export function ActivatePage() {
     setBusy(true);
     setMessage('');
     try {
-      await post('/youth/activate', { token, password });
+      await post(`/${audience}/activate`, { token, password });
       setPhase('done');
     } catch (err) {
       setMessage(

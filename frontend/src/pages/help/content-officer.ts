@@ -66,7 +66,7 @@ export const OFFICER_GUIDES: Guide[] = [
       'Every move adds a line to the history with who and when.',
     ],
     why: 'Reason codes let the pilot learn why placements fail instead of reading free text.',
-    related: ['correct-referral'],
+    related: ['correct-referral', 'share-candidate'],
     updated: '2026-11',
   },
   {
@@ -83,6 +83,24 @@ export const OFFICER_GUIDES: Guide[] = [
       'Reopening a closed referral needs a Manager.',
     ],
     why: 'Keeping the original makes the record trustworthy.',
+    updated: '2026-11',
+  },
+  {
+    slug: 'share-candidate',
+    title: 'Give an employer what they need to decide on a candidate',
+    summary:
+      'Read why a youth was suggested, check their profile and send the CV.',
+    group: 'Referrals',
+    needs: ['referrals.view', 'participants.view_profile'],
+    to: { path: '/referrals', label: 'Open referrals' },
+    steps: [
+      'Open the referral. Under Why this youth was suggested, read each requirement of the opportunity: green is met, red is not met, amber means the youth has no record for it yet.',
+      'If something is amber, open the youth, add the missing qualification, skill or experience, and come back. The list updates the next time you open the referral.',
+      'Read the Candidate profile below it. This is the CV exactly as the employer receives it.',
+      'Choose View full profile to open the whole youth record, or Download CV (PDF) to save the CV and send it to the employer.',
+    ],
+    why: 'An employer can only agree to an interview when they can see what the youth has and why they fit. The CV never includes national ID, date of birth, scores, support flags or staff notes. Contact details appear only if your role may see them. If the youth applied themselves, the page says so, and the requirement list is for context.',
+    related: ['move-referral', 'suggested-youth'],
     updated: '2026-11',
   },
 ];

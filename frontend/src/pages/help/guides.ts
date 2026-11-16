@@ -30,6 +30,7 @@ export const GROUPS = [
   'Employers and opportunities',
   'Rules',
   'Referrals',
+  'Your company',
 ] as const;
 export type GuideGroup = (typeof GROUPS)[number];
 

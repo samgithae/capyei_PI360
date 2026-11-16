@@ -76,4 +76,22 @@ describe('help guides', () => {
     expect(visible.some((g) => g.slug === 'create-youth')).toBe(true);
     expect(visible.some((g) => g.slug === 'youth-add-skills')).toBe(false);
   });
+
+  it('show an employer only employer guides, and only what the role may do', () => {
+    const viewer = new Set([
+      'employer.portal',
+      'employer.view_dashboard',
+      'employer.view_profile',
+      'employer.view_opportunities',
+      'employer.view_referrals',
+    ]);
+    const can = (p?: string) => !p || viewer.has(p);
+    const { start, rest } = guidesFor(ALL_GUIDES, can);
+    expect(start?.slug).toBe('employer-start');
+    const slugs = rest.map((g) => g.slug);
+    expect(slugs).toContain('employer-referral');
+    expect(slugs).not.toContain('employer-team');
+    expect(slugs).not.toContain('employer-opportunity');
+    expect(slugs).not.toContain('create-youth');
+  });
 });

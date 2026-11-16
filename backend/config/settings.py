@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.identity",
     "apps.participants",
     "apps.portal",
+    "apps.employer_portal",
     "apps.employers",
     "apps.referrals",
     "apps.placements",

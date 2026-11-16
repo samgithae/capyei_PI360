@@ -4,6 +4,8 @@ from . import views as v
 
 urlpatterns = [
     path("opportunities/<uuid:pk>/suggestions", v.OpportunitySuggestionsView.as_view()),
+    path("referrals/<uuid:pk>/fit", v.ReferralFitView.as_view()),
+    path("employer/referrals/<uuid:pk>/why", v.EmployerReferralFitView.as_view()),
     path("employers/<uuid:pk>/evidence", v.EmployerEvidenceView.as_view()),
     path("support/queue", v.SupportQueueView.as_view()),
     path("participants/<uuid:pk>/support-review", v.SupportReviewView.as_view()),

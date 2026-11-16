@@ -17,6 +17,7 @@ urlpatterns = [
     path("opportunities/restore", v.OpportunityRestoreView.as_view()),
     path("opportunities/<uuid:pk>", v.OpportunityDetailView.as_view()),
     path("opportunities/<uuid:pk>/transition", v.OpportunityTransitionView.as_view()),
+    path("opportunities/<uuid:pk>/publish-decline", v.OpportunityDeclineView.as_view()),
     path("opportunities/<uuid:pk>/history", v.OpportunityHistoryView.as_view()),
     path("requirement-skills", v.SkillSearchView.as_view()),
     path("requirement-skills/categories", v.SkillCategoryView.as_view()),

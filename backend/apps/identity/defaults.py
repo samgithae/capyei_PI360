@@ -14,6 +14,7 @@ STAFF_VIEW = [
 ADMIN_ALSO = [
     "participants.edit",
     "participants.invite",
+    "employers.invite_user",
     "participants.import",
     "placements.edit",
     "employers.edit",
@@ -31,6 +32,16 @@ ADMIN_ALSO = [
 # Rule versions (T-047). Who approves rules is D-009; until it is answered the administrator
 # both drafts and approves. Split the two permissions across roles to get a second pair of eyes.
 RULES = ["intelligence.manage_rules", "intelligence.approve_rules"]
+
+# The employer portal roles. Each holds only ``employer.*`` codes, which is what lets a company
+# admin assign them (never a staff role). The first role is the one with ``employer.manage_staff``.
+EMPLOYER_BASE = [
+    "employer.portal",
+    "employer.view_dashboard",
+    "employer.view_profile",
+    "employer.view_opportunities",
+    "employer.view_referrals",
+]
 
 DEFAULT_ROLES = [
     {
@@ -61,6 +72,7 @@ DEFAULT_ROLES = [
         + [
             "participants.edit",
             "participants.invite",
+            "employers.invite_user",
             "participants.import",
             "placements.edit",
             "employers.edit",
@@ -123,5 +135,46 @@ DEFAULT_ROLES = [
         "scope_mode": "assigned",
         "active": True,
         "permissions": ["youth.self_service"],
+    },
+    {
+        "name": "Company admin",
+        "description": "Employer director or owner: everything in the employer portal, including "
+        "inviting colleagues and choosing their roles.",
+        "scope_mode": "assigned",
+        "active": True,
+        "permissions": EMPLOYER_BASE
+        + [
+            "employer.edit_profile",
+            "employer.edit_opportunities",
+            "employer.publish_opportunities",
+            "employer.respond_referrals",
+            "employer.manage_staff",
+        ],
+    },
+    {
+        "name": "HR / Recruiter",
+        "description": "Employer HR: manages opportunities and responds to referrals.",
+        "scope_mode": "assigned",
+        "active": True,
+        "permissions": EMPLOYER_BASE
+        + [
+            "employer.edit_opportunities",
+            "employer.publish_opportunities",
+            "employer.respond_referrals",
+        ],
+    },
+    {
+        "name": "Hiring manager",
+        "description": "Employer hiring manager: reads opportunities and responds to referrals.",
+        "scope_mode": "assigned",
+        "active": True,
+        "permissions": EMPLOYER_BASE + ["employer.respond_referrals"],
+    },
+    {
+        "name": "Employer viewer",
+        "description": "Employer user who can read the dashboard, opportunities and referrals.",
+        "scope_mode": "assigned",
+        "active": True,
+        "permissions": EMPLOYER_BASE,
     },
 ]

@@ -74,6 +74,8 @@ def _detail(r, user):
             "edit": has_permission(user, EDIT),
             "reopen": has_permission(user, APPROVE),
             "reassign": has_permission(user, REASSIGN),
+            # The candidate's full profile and CV are separate records with their own permission.
+            "view_profile": has_permission(user, "participants.view_profile"),
         },
     }
 

@@ -25,7 +25,11 @@ export function SidebarMenu() {
   const matchPath = useCallback(
     (path: string): boolean =>
       path === pathname ||
-      (path.length > 1 && pathname.startsWith(path) && path !== '/'),
+      // '/employer' is the dashboard and the parent of every other portal page.
+      (path.length > 1 &&
+        path !== '/employer' &&
+        pathname.startsWith(path) &&
+        path !== '/'),
     [pathname],
   );
 

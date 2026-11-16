@@ -28,7 +28,12 @@ import {
   type PickedSkill,
 } from '@/components/shared/skill-picker';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Notice,
+} from '@/components/states';
 import { EditOpportunity } from './opportunity-edit';
 import { RequirementForm } from './requirement-form';
 import {
@@ -58,6 +63,11 @@ interface Detail {
   employer: string;
   kind: string;
   status: string;
+  publish_request?: {
+    state: 'none' | 'pending' | 'declined';
+    requested_by: string;
+    declined_reason: string;
+  };
   sectors: { id: string; name: string }[];
   counties: { id: string; name: string }[];
   location: string;
@@ -102,6 +112,8 @@ export function OpportunityPage() {
   const [reqError, setReqError] = useState('');
   const [removing, setRemoving] = useState<Requirement | null>(null);
   const [confirmMove, setConfirmMove] = useState<string | null>(null);
+  const [declining, setDeclining] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [skillsError, setSkillsError] = useState('');
   const [referring, setReferring] = useState(false);
@@ -149,6 +161,17 @@ export function OpportunityPage() {
     mutationFn: (to: string) => post(`/opportunities/${id}/transition`, { to }),
     onSuccess: (_d, to) => {
       toast.success(`Opportunity is now ${to}.`);
+      refresh();
+    },
+    onError: fail,
+  });
+  const decline = useMutation({
+    mutationFn: () =>
+      post(`/opportunities/${id}/publish-decline`, { reason: declineReason }),
+    onSuccess: () => {
+      toast.success('Sent back to the company.');
+      setDeclining(false);
+      setDeclineReason('');
       refresh();
     },
     onError: fail,
@@ -338,6 +361,41 @@ export function OpportunityPage() {
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
+      )}
+
+      {o.publish_request?.state === 'pending' && (
+        <Notice tone="warning" title="Waiting for your approval">
+          <p>
+            {o.employer} asked to publish this opportunity
+            {o.publish_request.requested_by
+              ? ` (${o.publish_request.requested_by})`
+              : ''}
+            . Opening it makes it available for referrals.
+          </p>
+          {canEdit && (
+            <div className="mt-3 flex gap-2">
+              <Button
+                size="sm"
+                disabled={move.isPending}
+                onClick={() => move.mutate('open')}
+              >
+                Approve and open
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setDeclining(true)}
+              >
+                Send back with a reason
+              </Button>
+            </div>
+          )}
+        </Notice>
+      )}
+      {o.publish_request?.state === 'declined' && (
+        <Notice tone="info" title="Sent back to the company">
+          <p>Reason shown to them: {o.publish_request.declined_reason}</p>
+        </Notice>
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -568,6 +626,27 @@ export function OpportunityPage() {
         description="It will no longer count towards compatibility. The removal is kept in the activity history."
         onConfirm={() => removing && delReq.mutate(removing.id)}
       />
+      <FormModal
+        open={declining}
+        onOpenChange={setDeclining}
+        title="Send back to the company"
+        description="The company sees this reason on the opportunity and can fix it and ask again."
+        submitLabel="Send back"
+        pending={decline.isPending}
+        error={error}
+        onSubmit={() => {
+          if (!declineReason.trim()) return;
+          decline.mutate();
+        }}
+      >
+        <Label htmlFor="decline-reason">Reason</Label>
+        <Input
+          id="decline-reason"
+          maxLength={500}
+          value={declineReason}
+          onChange={(e) => setDeclineReason(e.target.value)}
+        />
+      </FormModal>
       <ConfirmDialog
         open={confirmMove !== null}
         onOpenChange={(x) => !x && setConfirmMove(null)}

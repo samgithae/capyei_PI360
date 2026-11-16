@@ -261,4 +261,21 @@ export const STAFF_GUIDES: Guide[] = [
     related: ['rule-settings'],
     updated: '2026-11',
   },
+  {
+    slug: 'employer-portal-accounts',
+    title: 'Give an employer access to the portal',
+    summary: 'Invite the first account, approve opportunities, set the rules.',
+    group: 'Employers and opportunities',
+    needs: ['employers.invite_user'],
+    to: { path: '/employers', label: 'Open employers' },
+    steps: [
+      'Open the employer and find Portal accounts. Invite the first person, usually their director or HR lead, as Company admin. Only PI 360 staff create a company’s first account.',
+      'The person gets an email to set a password. If the link expires or is lost, withdraw the invite and send a new one.',
+      'The company admin adds their own colleagues. You can suspend or reactivate anyone from the same panel.',
+      'When a company asks to publish an opportunity, it shows Waiting for your approval. Approve and open it, or send it back with a reason the company will see. To list them all, use Awaiting approval on Opportunities.',
+      'Under Administration, Employer portal, two settings change the rules for every company: whether employers publish on their own, and whether they need a second sign-in step. Both start off.',
+    ],
+    why: 'Employers only ever see their own company. Contact details of young people are shown to them only after they select the person.',
+    updated: '2026-11',
+  },
 ];
