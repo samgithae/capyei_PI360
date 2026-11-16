@@ -1,0 +1,36 @@
+# Persistent local development database: PostgreSQL only, kept small on purpose.
+# Synthetic data only (SEC-14). Use scripts/dev-db.sh rather than calling this directly.
+# Data lives in the named volume pi360_devdata, so it survives reboots and /tmp clean-ups.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: pi360-dev-db
+    restart: "no"  # starts only when you run `scripts/dev-db.sh up`
+    environment:
+      POSTGRES_DB: pi360_dev
+      POSTGRES_USER: pi360
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5433:5432"  # local only; 5433 avoids clashing with any other Postgres
+    volumes:
+      - pi360_devdata:/var/lib/postgresql/data
+    # Hard caps so this cannot starve other apps.
+    mem_limit: 256m
+    cpus: 0.5
+    command: >
+      postgres
+      -c max_connections=20
+      -c shared_buffers=32MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=16MB
+      -c effective_cache_size=96MB
+      -c max_wal_size=128MB
+      -c autovacuum_max_workers=1
+      -c log_min_messages=warning
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pi360 -d pi360_dev"]
+      interval: 10s
+      retries: 10
+
+volumes:
+  pi360_devdata:

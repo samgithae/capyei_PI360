@@ -527,3 +527,55 @@ def support_facts(ids, *, since, stalled_before) -> dict:
         .values_list("participant_id", flat=True)
     )
     return {"unsuccessful": unsuccessful, "stalled": stalled, "referred": referred}
+
+
+# --- for reporting (T-070) -------------------------------------------------------------------
+
+
+def report_facts(user) -> list[dict]:
+    """One dict per submitted referral the user may see (drafts are not yet a referral)."""
+    from django.db.models import Min, Q
+
+    rows = (
+        visible(user)
+        .exclude(stage=Referral.DRAFT)
+        .annotate(placed_at=Min("events__at", filter=Q(events__to_stage=Referral.PLACED)))
+        .values_list(
+            "pk",
+            "participant_id",
+            "opportunity_id",
+            "stage",
+            "referred_at",
+            "updated_at",
+            "placed_at",
+            "assigned_to_id",
+        )
+    )
+    return [
+        {
+            "id": r[0],
+            "participant_id": r[1],
+            "opportunity_id": r[2],
+            "stage": r[3],
+            "referred_at": r[4],
+            "updated_at": r[5],
+            "placed_at": r[6],
+            "assigned_to_id": r[7],
+        }
+        for r in rows
+    ]
+
+
+def brief(ids) -> dict:
+    """``{id: {name, detail}}`` for a page of referrals in a drill-down list."""
+    out = {}
+    qs = Referral.objects.filter(pk__in=list(ids)).select_related(
+        "participant", "opportunity__employer"
+    )
+    for r in qs:
+        out[r.pk] = {
+            "name": str(r.participant),
+            "detail": f"{r.opportunity.title}, {r.opportunity.employer.name} · "
+            f"{r.get_stage_display()}",
+        }
+    return out

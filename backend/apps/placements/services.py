@@ -245,3 +245,16 @@ def for_enrollments(enrollment_ids) -> list[dict]:
         }
         for p in rows.select_related("employer")
     ]
+
+
+# --- for reporting (T-070) -------------------------------------------------------------------
+
+
+def placed_facts() -> list[dict]:
+    """Every placement mapped as a real placement: which enrollment and when it started."""
+    return [
+        {"enrollment_id": e, "on": d or c.date()}
+        for e, d, c in Placement.objects.filter(status="placed").values_list(
+            "enrollment_id", "start_date", "created_at"
+        )
+    ]

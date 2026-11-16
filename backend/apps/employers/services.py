@@ -562,3 +562,41 @@ def compatibility_inputs(opportunity_id):
         "sector_id": str(o.sector_id) if o.sector_id else None,
         "requirements": rows,
     }
+
+
+# --- for reporting (T-070) -------------------------------------------------------------------
+
+
+def report_facts() -> dict:
+    """Active employers and every live opportunity, as plain facts."""
+    employers = [
+        {"id": i, "county_id": c, "county": cn}
+        for i, c, cn in Employer.objects.filter(
+            status=Employer.ACTIVE, archived_at__isnull=True
+        ).values_list("pk", "county_id", "county__name")
+    ]
+    opportunities = [
+        {"id": i, "status": s, "closing": d, "employer_id": e, "county_id": c, "created_at": t}
+        for i, s, d, e, c, t in Opportunity.objects.filter(
+            archived_at__isnull=True, employer__archived_at__isnull=True
+        ).values_list("pk", "status", "closing_date", "employer_id", "county_id", "created_at")
+    ]
+    return {"employers": employers, "opportunities": opportunities}
+
+
+def brief_employers(ids) -> dict:
+    return {
+        e.pk: {"name": e.name, "detail": e.county.name if e.county_id else ""}
+        for e in Employer.objects.filter(pk__in=list(ids)).select_related("county")
+    }
+
+
+def brief_opportunities(ids) -> dict:
+    out = {}
+    for o in Opportunity.objects.filter(pk__in=list(ids)).select_related("employer"):
+        close = f" · closes {o.closing_date.isoformat()}" if o.closing_date else ""
+        out[o.pk] = {
+            "name": o.title,
+            "detail": f"{o.employer.name} · {o.get_status_display()}{close}",
+        }
+    return out

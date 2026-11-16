@@ -125,6 +125,8 @@ MATRIX = {
     "rules/operators": {"GET": "intelligence.view"},
     "employers/<uuid:pk>/evidence": {"GET": "intelligence.view"},
     "support/queue": {"GET": "participants.view_profile"},
+    "reporting/dashboard": {"GET": SIGNED_IN},
+    "reporting/drilldown": {"GET": SIGNED_IN},
     "participants/<uuid:pk>/support-review": {"POST": "referrals.edit"},
     "rules/settings": {"GET": "intelligence.view", "PUT": "intelligence.manage_rules"},
     "rules/<uuid:pk>": {"GET": "intelligence.view"},

@@ -29,7 +29,8 @@ the import, directory and admin tooling. Pushed `main` is at `github.com/samgith
 | Module C evidence: employer "Referral evidence" card (counts, period, source, "Insufficient evidence" under the minimum, no overall rating) | Built, uncommitted; minimum and period are admin settings | T-067 |
 | Module A support priority: /support queue (unsuccessful referrals, stalled referral, ready-but-never-referred) with "Mark reviewed" that pauses a flag | Built, uncommitted; documents and retention flags not captured yet | T-063 |
 | Rules > Settings: admin-editable numbers (defaults in code, changes audited) behind A and C | Built, uncommitted; values are placeholders until D-013, D-028 | T-063, T-067 |
-| Dashboard, exports, case management, follow-up | Not started (M3) | T-064..T-071 |
+| **Programme dashboard** at `/`: KPI tiles, funnel, gender and placement, referral pipeline, monthly trend, age, county, needs-attention list, metric definitions; every number opens the list of records it counts (`/dashboard/list`) | Built, uncommitted; P0 and part of P1. Definitions marked "working" await CAP-YEI approval. Retention, training completion, skills demand, predictive, staff productivity not built | T-069, T-070 |
+| De-identified exports, case management, follow-up | Not started (M3) | T-064, T-065, T-071 |
 
 **Built, not yet committed (working tree, 2026-11-12):** the Module A/B/C rows above; the rules
 engine no longer needs a "product owner confirmation" tick (a parameter is unapproved only when it
@@ -89,6 +90,10 @@ duplicates a live one is not checked; official CAP-YEI SVG logo (PNG in use).
 - Append to the handoff log whenever work lands or a decision is made.
 - Decisions that belong to CAP-YEI stay "working decisions" in the code and docs; the register
   (`planning/registers/decisions.csv`) is not flipped by us.
+
+**Dashboard (2026-11-12):** `apps/reporting` builds named metrics, each a set of records, so a tile and
+its list cannot disagree; scope and list permissions apply to both. Endpoints `reporting/dashboard`
+and `reporting/drilldown`. Placed = a placement mapped as placed, or a referral that reached Placed.
 
 ## 3. Next phase
 

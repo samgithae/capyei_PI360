@@ -3624,6 +3624,58 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/reporting/dashboard:
+    get:
+      operationId: reporting_dashboard
+      parameters:
+      - in: query
+        name: period
+        schema:
+          type: string
+      tags:
+      - reporting
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/reporting/drilldown:
+    get:
+      operationId: reporting_drilldown
+      parameters:
+      - in: query
+        name: key
+        schema:
+          type: string
+      - in: query
+        name: offset
+        schema:
+          type: string
+      - in: query
+        name: page_size
+        schema:
+          type: string
+      - in: query
+        name: period
+        schema:
+          type: string
+      tags:
+      - reporting
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/rules:
     get:
       operationId: rules_list

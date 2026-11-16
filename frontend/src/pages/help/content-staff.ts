@@ -205,6 +205,24 @@ export const STAFF_GUIDES: Guide[] = [
     updated: '2026-11',
   },
   {
+    slug: 'programme-dashboard',
+    title: 'Read the programme dashboard',
+    summary:
+      'See how many youth are registered, referred and placed, and where they are lost.',
+    group: 'Referrals',
+    needs: ['participants.view'],
+    to: { path: '/', label: 'Open the dashboard' },
+    steps: [
+      'Open the dashboard from Overview. Choose the period at the top: it applies to referrals submitted and placements, not to the count of registered youth.',
+      'Read the four tiles, then Needs attention for referrals with no movement, opportunities closing soon and youth never referred.',
+      'Click any number. The list page shows exactly the records that were counted, so the count and the list always match.',
+      'The gender chart shows the split of registered youth, with the placed numbers under it. Recent opportunities and Recent referrals list the five newest; click a name to open the record.',
+    ],
+    why: 'You only see numbers and records inside your scope, and a section is left out if you cannot open its list. Retention, training completion and skills demand are not shown because PI 360 does not hold that data yet.',
+    related: ['support-queue'],
+    updated: '2026-11',
+  },
+  {
     slug: 'support-queue',
     title: 'Work the support priority queue',
     summary: 'See youth who may need extra support and record that you looked.',

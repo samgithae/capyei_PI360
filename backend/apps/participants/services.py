@@ -572,3 +572,58 @@ def enrollment_ids(participant_id) -> list:
             "pk", flat=True
         )
     )
+
+
+# --- for reporting (T-070): plain facts, scope applied, no names ----------------------------------
+
+
+def report_facts(user) -> list[dict]:
+    """One small dict per youth the user may see: the fields the dashboard groups by."""
+    rows = Participant.objects.visible_to(user).values_list(
+        "pk",
+        "gender",
+        "status",
+        "origin_county_id",
+        "origin_county__name",
+        "date_of_birth",
+        "age_at_source",
+        "age_basis_date",
+        "created_at",
+    )
+    return [
+        {
+            "id": r[0],
+            "gender": r[1],
+            "status": r[2],
+            "county_id": r[3],
+            "county": r[4],
+            "dob": r[5],
+            "age_at_source": r[6],
+            "age_basis": r[7],
+            "created_at": r[8],
+        }
+        for r in rows
+    ]
+
+
+def enrollment_owners(user) -> dict:
+    """``{enrollment id: participant id}`` for youth the user may see."""
+    from .models import ParticipantEnrollment
+
+    return dict(
+        ParticipantEnrollment.objects.filter(participant_id__in=visible_ids(user)).values_list(
+            "pk", "participant_id"
+        )
+    )
+
+
+def brief(ids) -> dict:
+    """``{id: {name, detail}}`` for a page of youth in a drill-down list."""
+    out = {}
+    for p in Participant.objects.filter(pk__in=list(ids)).select_related("origin_county"):
+        bits = [p.get_gender_display(), p.origin_county.name if p.origin_county_id else ""]
+        out[p.pk] = {
+            "name": str(p),
+            "detail": " · ".join(b for b in bits if b and b != "Unknown"),
+        }
+    return out

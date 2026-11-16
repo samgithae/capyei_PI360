@@ -2,6 +2,7 @@ import { useAuth } from '@/auth/auth-context';
 import { RequireAuth, RequirePermission } from '@/auth/guards';
 import { REFERENCE_KINDS, ReferencePage } from '@/pages/admin/reference-page';
 import { UsersPage } from '@/pages/admin/users-page';
+import { DashboardListPage } from '@/pages/dashboard/dashboard-list-page';
 import { EmployerPage } from '@/pages/employers/employer-page';
 import { EmployersPage } from '@/pages/employers/employers-page';
 import { GuidePage } from '@/pages/help/guide-page';
@@ -81,6 +82,7 @@ export function AppRoutingSetup() {
               <Route path={path} element={<PlaceholderPage title={title} />} />
             </Route>
           ))}
+          <Route path="/dashboard/list" element={<DashboardListPage />} />
           <Route element={<RequirePermission permission="participants.view" />}>
             <Route path="/youth" element={<DirectoryPage />} />
             <Route path="/youth/:id" element={<ProfilePage />} />
