@@ -1,8 +1,10 @@
-import { Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { SelectField } from '@/components/shared/select-field';
+import { SkillPickerDialog } from '@/components/shared/skill-picker';
 
 export interface CapOpt {
   id: string;
@@ -27,6 +29,8 @@ export interface SkillDraft {
   id?: string | null;
   skill_id: string;
   proficiency: string;
+  /** Shown on the chip; a skill added from the picker may not be in `options.skills` yet. */
+  name?: string;
 }
 export interface ExpDraft {
   id?: string | null;
@@ -74,7 +78,11 @@ export function draftToPayload(d: CapabilityDraft, skipBlank = false) {
       grade_id: x.grade_id || null,
       year_awarded: x.year_awarded ? Number(x.year_awarded) : null,
     })),
-    skills: s.map((x) => ({ ...x, proficiency: Number(x.proficiency) })),
+    skills: s.map((x) => ({
+      id: x.id,
+      skill_id: x.skill_id,
+      proficiency: Number(x.proficiency),
+    })),
     experience: e.map((x) => ({
       ...x,
       sector_id: x.sector_id || null,
@@ -123,6 +131,7 @@ export function CapabilityFields({
   options: CapabilityOptions;
 }) {
   const { quals, skills, exp, from, patterns, interests } = value;
+  const [picking, setPicking] = useState(false);
   const setQuals = (quals: QualDraft[]) => onChange({ ...value, quals });
   const setSkills = (skills: SkillDraft[]) => onChange({ ...value, skills });
   const setExp = (exp: ExpDraft[]) => onChange({ ...value, exp });
@@ -219,43 +228,92 @@ export function CapabilityFields({
 
       <section className="space-y-2">
         <p className={heading}>Skills</p>
-        {skills.map((x, i) => (
-          <div key={i} className="flex flex-wrap items-center gap-2">
-            <SelectField
-              label="Skill"
-              className="w-64"
-              value={x.skill_id}
-              options={o.skills}
-              onChange={(v) => patch(skills, setSkills, i, { skill_id: v })}
-            />
-            <SelectField
-              label="Proficiency"
-              className="w-36"
-              value={x.proficiency}
-              options={LEVELS}
-              onChange={(v) => patch(skills, setSkills, i, { proficiency: v })}
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              aria-label="Remove skill"
-              onClick={() => drop(skills, setSkills, i)}
-            >
-              <Trash2 />
-            </Button>
-          </div>
-        ))}
+        {skills.length > 0 && (
+          <ul className="flex flex-wrap gap-2">
+            {skills.map((x, i) => {
+              const name =
+                x.name ??
+                o.skills.find((s) => s.id === x.skill_id)?.name ??
+                'Skill';
+              return (
+                <li
+                  key={x.skill_id || i}
+                  className="flex items-center gap-1 rounded-full bg-primary/10 py-0.5 ps-3 pe-1 text-sm text-primary"
+                >
+                  <span className="font-medium">{name}</span>
+                  <select
+                    aria-label={`Level of ${name}`}
+                    className="rounded bg-transparent text-xs"
+                    value={x.proficiency}
+                    onChange={(e) =>
+                      patch(skills, setSkills, i, {
+                        proficiency: e.target.value,
+                      })
+                    }
+                  >
+                    {LEVELS.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${name}`}
+                    className="rounded-full p-1 hover:text-destructive"
+                    onClick={() => drop(skills, setSkills, i)}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
         <Button
           type="button"
           size="sm"
           variant="outline"
-          onClick={() =>
-            setSkills([...skills, { skill_id: '', proficiency: '2' }])
-          }
+          onClick={() => setPicking(true)}
         >
-          <Plus /> Add skill
+          <Plus /> Choose skills
         </Button>
+        <SkillPickerDialog
+          open={picking}
+          onOpenChange={setPicking}
+          endpoint="/participants/skills"
+          mode="level"
+          title="Choose skills"
+          description="Search for a skill, or pick from the popular ones and the categories. Pick as many as you like, then set the level for each one."
+          saveLabel="Done"
+          resetKey={skills.map((x) => x.skill_id).join(',')}
+          initial={skills
+            .filter((x) => x.skill_id)
+            .map((x) => ({
+              id: x.skill_id,
+              name:
+                x.name ??
+                o.skills.find((s) => s.id === x.skill_id)?.name ??
+                'Skill',
+              level: Number(x.proficiency) || 2,
+            }))}
+          canAdd
+          saving={false}
+          error=""
+          onSave={(picked) => {
+            // Keep a saved row's id, so editing does not recreate it; the picker owns the rest.
+            const kept = new Map(skills.map((x) => [x.skill_id, x]));
+            setSkills(
+              picked.map((p) => ({
+                ...kept.get(p.id),
+                skill_id: p.id,
+                name: p.name,
+                proficiency: String(p.level ?? 2),
+              })),
+            );
+            setPicking(false);
+          }}
+        />
       </section>
 
       <section className="space-y-2">

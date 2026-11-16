@@ -64,9 +64,12 @@ const TRADES = [
 ].map((n, i) => row(`t${i}`, n));
 const ALL = [...TRADES, row('o1', 'Bookkeeping', 'Office')];
 
-/** A small fake of the skills endpoints: partial search, category filter, offset paging. */
+/** A small fake of the skills endpoints: partial search, category filter, offset paging. It
+ * answers under any base path, as the picker is mounted on three route sets. */
 function server(path: string) {
   const url = new URL(path, 'http://x');
+  const base = url.pathname.replace(/\/(categories|popular)$/, '');
+  url.pathname = url.pathname.replace(base, '/requirement-skills');
   if (url.pathname === '/requirement-skills/categories')
     return {
       results: [
@@ -96,6 +99,8 @@ function setup(
     initial: PickedSkill[];
     canAdd: boolean;
     onSave: (p: PickedSkill[]) => void;
+    endpoint: string;
+    mode: 'requirement' | 'level';
   }> = {},
 ) {
   const onSave = props.onSave ?? vi.fn();
@@ -105,7 +110,9 @@ function setup(
       <SkillPickerDialog
         open
         onOpenChange={() => {}}
-        opportunityId="o"
+        resetKey="o"
+        endpoint={props.endpoint}
+        mode={props.mode}
         initial={props.initial ?? []}
         canAdd={props.canAdd ?? true}
         saving={false}
@@ -227,7 +234,7 @@ describe('skill picker', () => {
     expect(screen.queryByRole('button', { name: /Add “/ })).toBeNull();
     search('Nothing at all');
     expect(await screen.findByText(/No skill matches/)).toBeInTheDocument();
-    expect(screen.getByText(/Ask someone who edits/)).toBeInTheDocument();
+    expect(screen.getByText(/Ask someone who can edit/)).toBeInTheDocument();
   });
 
   it('stops a look-alike twin: shows similar skills and adds only when confirmed', async () => {
@@ -284,6 +291,46 @@ describe('skill picker', () => {
     expect(onSave).toHaveBeenCalledWith([
       { id: 't0', name: 'Welding', mandatory: true },
       { id: 't1', name: 'Plumbing', mandatory: false },
+    ]);
+  });
+
+  it('reads and adds under the endpoint it is given (youth profile routes)', async () => {
+    post.mockResolvedValue(row('new3', 'Beekeeping', 'Other'));
+    setup({ endpoint: '/youth/skills', mode: 'level' });
+    search('Beekeeping');
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Add “Beekeeping”/ }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Add skill' }));
+    await waitFor(() => expect(selected()).toHaveTextContent('Beekeeping'));
+    expect(post).toHaveBeenCalledWith('/youth/skills/add', {
+      name: 'Beekeeping',
+      category: 'Other',
+      confirm_similar: false,
+    });
+    expect(
+      api.mock.calls.every(([p]) => String(p).startsWith('/youth/skills')),
+    ).toBe(true);
+  });
+
+  it('level mode: new skills start at Working, the level can change, and it is saved', async () => {
+    const { onSave } = setup({
+      endpoint: '/youth/skills',
+      mode: 'level',
+      initial: [{ id: 't0', name: 'Welding', level: 3 }],
+    });
+    // saved level is kept; there is no "Must have" in this mode
+    expect(screen.getByLabelText('Level of Welding')).toHaveValue('3');
+    expect(screen.queryByLabelText('Must have')).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Plumbing' }));
+    expect(screen.getByLabelText('Level of Plumbing')).toHaveValue('2');
+    fireEvent.change(screen.getByLabelText('Level of Plumbing'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save skills' }));
+    expect(onSave).toHaveBeenCalledWith([
+      { id: 't0', name: 'Welding', level: 3 },
+      { id: 't1', name: 'Plumbing', level: 1 },
     ]);
   });
 });

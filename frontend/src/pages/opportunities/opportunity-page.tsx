@@ -23,6 +23,10 @@ import { ActivityTimeline } from '@/components/shared/activity-timeline';
 import { DetailList, Section } from '@/components/shared/info-card';
 import { ConfirmDialog, FormModal } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
+import {
+  SkillPickerDialog,
+  type PickedSkill,
+} from '@/components/shared/skill-picker';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EditOpportunity } from './opportunity-edit';
@@ -37,7 +41,6 @@ import {
   type Lookup,
   type Req,
 } from './requirement-model';
-import { SkillPickerDialog, type PickedSkill } from './skill-picker';
 import { SuggestedYouth } from './suggested-youth';
 
 interface Requirement extends Req {
@@ -539,7 +542,7 @@ export function OpportunityPage() {
       <SkillPickerDialog
         open={skillsOpen}
         onOpenChange={setSkillsOpen}
-        opportunityId={o.id}
+        resetKey={o.id}
         initial={o.requirements
           .filter((r) => r.factor === 'skill' && r.skill_id)
           .map((r) => ({

@@ -173,6 +173,8 @@ export interface CvPaths {
   pdf: string;
   photo: string;
   save: string;
+  /** Where the skills pick-list is served for this audience. */
+  skills: string;
   self: boolean;
 }
 
@@ -184,6 +186,7 @@ export const cvPaths = (id: string, self: boolean): CvPaths =>
         pdf: '/youth/cv.pdf',
         photo: '/youth/photo',
         save: '/youth/profile',
+        skills: '/youth/skills',
         self,
       }
     : {
@@ -192,5 +195,6 @@ export const cvPaths = (id: string, self: boolean): CvPaths =>
         pdf: `/participants/${id}/cv.pdf`,
         photo: `/participants/${id}/photo`,
         save: `/participants/${id}/profile`,
+        skills: '/participants/skills',
         self,
       };

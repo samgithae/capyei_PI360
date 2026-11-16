@@ -286,3 +286,11 @@ class YouthPlacementView(_Youth):
     @extend_schema(operation_id="youth_placement_get", responses={200: dict})
     def get(self, request):
         return self.run(services.placement)
+
+
+# The skills pick-list a youth uses on their own CV: the staff views, gated by self-service.
+YouthSkillSearch, YouthSkillCategories, YouthSkillPopular, YouthSkillAdd = (
+    participants.skill_catalogue(
+        view="youth.self_service", add="youth.self_service", prefix="youth"
+    )
+)

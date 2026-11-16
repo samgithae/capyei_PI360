@@ -30,6 +30,7 @@ from .profile import (  # noqa: F401
 from .profile import options as profile_options  # noqa: F401
 from .profile import read as read_profile  # noqa: F401
 from .profile import write as write_profile  # noqa: F401
+from .skill_views import catalogue as skill_catalogue  # noqa: F401
 
 # Field -> required? The mapping templates target exactly these names.
 FIELDS = {

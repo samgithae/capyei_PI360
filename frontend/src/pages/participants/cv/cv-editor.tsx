@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataCard } from '@/components/data-card';
 import { ConfirmDialog } from '@/components/shared/modals';
-import { SelectField } from '@/components/shared/select-field';
+import {
+  SKILL_LEVELS,
+  SkillPickerDialog,
+} from '@/components/shared/skill-picker';
 import {
   AboutDialog,
   CertificationDialog,
@@ -24,12 +27,6 @@ import type {
   ProfileOptions,
   Section,
 } from './cv-types';
-
-const PROFICIENCY = [
-  { id: '1', name: 'Basic' },
-  { id: '2', name: 'Working' },
-  { id: '3', name: 'Advanced' },
-];
 
 const message = (e: unknown) =>
   e instanceof ApiError ? e.message : 'Could not save. Try again.';
@@ -281,8 +278,16 @@ function Photo({
   );
 }
 
-function SkillsCard({ profile, save }: { profile: CvProfileData; save: Save }) {
-  const chosen = new Set(profile.skills.map((s) => s.skill_id));
+export function SkillsCard({
+  profile,
+  save,
+  endpoint,
+}: {
+  profile: CvProfileData;
+  save: Save;
+  endpoint: string;
+}) {
+  const [picking, setPicking] = useState(false);
   const rows = (change: (s: CvProfileData['skills']) => unknown[]) =>
     save.mutate({ skills: change(profile.skills) });
   return (
@@ -310,7 +315,7 @@ function SkillsCard({ profile, save }: { profile: CvProfileData; save: Save }) {
                     )
                   }
                 >
-                  {PROFICIENCY.map((l) => (
+                  {SKILL_LEVELS.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.name}
                     </option>
@@ -334,25 +339,53 @@ function SkillsCard({ profile, save }: { profile: CvProfileData; save: Save }) {
             ))}
           </ul>
         )}
-        <SelectField
-          label="Add a skill"
-          className="w-full sm:w-72"
-          value=""
-          options={profile.options.skills.filter((s) => !chosen.has(s.id))}
-          onChange={(id) =>
-            id &&
-            rows((all) => [
-              ...all.map((x) => ({ ...x })),
-              { skill_id: id, proficiency: 2 },
-            ])
-          }
-        />
-        {save.isError && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setPicking(true)}
+        >
+          <Plus /> Choose skills
+        </Button>
+        {save.isError && !picking && (
           <p role="alert" className="text-destructive">
             {message(save.error)}
           </p>
         )}
       </div>
+      <SkillPickerDialog
+        open={picking}
+        onOpenChange={setPicking}
+        endpoint={endpoint}
+        mode="level"
+        title="Choose skills"
+        description="Search for a skill, or pick from the popular ones and the categories. Pick as many as you like, then set how well you know each one."
+        saveLabel="Save skills"
+        resetKey={profile.skills.map((s) => s.skill_id).join(',')}
+        initial={profile.skills.map((s) => ({
+          id: s.skill_id,
+          name: s.skill,
+          level: s.proficiency,
+        }))}
+        canAdd
+        saving={save.isPending}
+        error={save.isError ? message(save.error) : ''}
+        onSave={(picked) => {
+          // Keep the row id of a skill already on the profile: the server
+          // matches rows by id, and a row without one is a new insert (which
+          // the one-skill-per-youth rule refuses).
+          const held = new Map(profile.skills.map((s) => [s.skill_id, s.id]));
+          save.mutate(
+            {
+              skills: picked.map((p) => ({
+                id: held.get(p.id),
+                skill_id: p.id,
+                proficiency: p.level ?? 2,
+              })),
+            },
+            { onSuccess: () => setPicking(false) },
+          );
+        }}
+      />
     </DataCard>
   );
 }
@@ -520,7 +553,7 @@ export function CvEditor({
         options={o}
       />
 
-      <SkillsCard profile={profile} save={save} />
+      <SkillsCard profile={profile} save={save} endpoint={paths.skills} />
 
       <Repeatable
         title="Certifications and training"

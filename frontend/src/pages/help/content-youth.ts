@@ -47,7 +47,7 @@ export const YOUTH_GUIDES: Guide[] = [
       'On My profile, choose Edit details. Each section of your CV is a card.',
       'Summary and preferences: write two to four sentences about you, then add the roles, sectors and counties you want, when you can start and whether you can relocate.',
       'Education, Work experience, Internships and practical experience, Certifications and Languages: choose Add, fill the form, then Save. Use the pencil to change an entry and the bin to remove it.',
-      'Skills: search the list and pick each skill. It appears as a chip. Change its level, or choose the cross to remove it.',
+      'Skills: choose Choose skills. In the window that opens, type in the search box, or pick from Popular skills or a category (open it, then choose See more for more). Choose a skill to select it; the window stays open so you can pick several. Set how well you know each one, then choose Save skills. Each skill shows as a chip: change its level, or choose the cross to remove it. If your skill is not in the list, type it and choose Add.',
       'No job yet? Tick "I have no formal work experience yet". Your CV then says so instead of leaving a gap, and your completion figure is not lowered.',
       'Fill only what you know. Anything you leave out is simply not shown on your CV.',
     ],

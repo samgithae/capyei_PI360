@@ -3,6 +3,7 @@ from django.urls import path
 from . import cv_views as cv
 from . import duplicate_views as d
 from . import profile_views as pv
+from . import skill_views as sk
 from . import views as v
 
 urlpatterns = [
@@ -16,6 +17,10 @@ urlpatterns = [
     path("participants/merges", d.MergeListView.as_view()),
     path("participants/merges/<uuid:pk>/undo", d.MergeUndoView.as_view()),
     path("participants/<uuid:pk>/contacts", v.ContactsView.as_view()),
+    path("participants/skills", sk.StaffSearch.as_view()),
+    path("participants/skills/categories", sk.StaffCategories.as_view()),
+    path("participants/skills/popular", sk.StaffPopular.as_view()),
+    path("participants/skills/add", sk.StaffAdd.as_view()),
     path("participants/profile-options", pv.ProfileOptionsView.as_view()),
     path("participants/profile-import", pv.ProfileImportView.as_view()),
     path("participants/profile-import-template", pv.ProfileImportTemplateView.as_view()),

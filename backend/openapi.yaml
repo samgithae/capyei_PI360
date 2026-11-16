@@ -3386,6 +3386,105 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/skills:
+    get:
+      operationId: staff_skills_search
+      description: Partial, any-case, paged search; ``category`` narrows to one group.
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      - in: query
+        name: offset
+        schema:
+          type: integer
+      - in: query
+        name: q
+        schema:
+          type: string
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/skills/add:
+    post:
+      operationId: staff_skills_add
+      description: Add a missing skill to the central list (409 when it exists or
+        looks like one).
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileSkillAdd'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProfileSkillAdd'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProfileSkillAdd'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/skills/categories:
+    get:
+      operationId: staff_skills_categories
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/skills/popular:
+    get:
+      operationId: staff_skills_popular
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/referrals:
     get:
       operationId: referrals_list
@@ -4731,6 +4830,105 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/youth/skills:
+    get:
+      operationId: youth_skills_search
+      description: Partial, any-case, paged search; ``category`` narrows to one group.
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      - in: query
+        name: offset
+        schema:
+          type: integer
+      - in: query
+        name: q
+        schema:
+          type: string
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/skills/add:
+    post:
+      operationId: youth_skills_add
+      description: Add a missing skill to the central list (409 when it exists or
+        looks like one).
+      tags:
+      - youth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileSkillAdd'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProfileSkillAdd'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProfileSkillAdd'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/skills/categories:
+    get:
+      operationId: youth_skills_categories
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/youth/skills/popular:
+    get:
+      operationId: youth_skills_popular
+      tags:
+      - youth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
 components:
   schemas:
     ActionEnum:
@@ -5696,6 +5894,20 @@ components:
             $ref: '#/components/schemas/_Language'
         readiness:
           $ref: '#/components/schemas/_Readiness'
+    ProfileSkillAdd:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        category:
+          type: string
+          maxLength: 80
+        confirm_similar:
+          type: boolean
+          default: false
+      required:
+      - name
     Promote:
       type: object
       properties:

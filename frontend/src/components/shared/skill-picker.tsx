@@ -24,20 +24,31 @@ import { Label } from '@/components/ui/label';
 import { SelectField } from '@/components/shared/select-field';
 
 /**
- * Skills picker for an opportunity, in the style of a job-post skills box: search, popular skills,
- * browse by category, and a "Selected skills" list with a must-have switch for each one.
+ * Skills picker in the style of a job-post skills box: search, popular skills, browse by category,
+ * and a "Selected skills" list. Used in two places:
+ *  - an opportunity's requirements (`mode="requirement"`): each skill has a must-have switch;
+ *  - a youth's profile (`mode="level"`): each skill has a level (Basic, Working, Advanced).
  *
- * Everything is read from the server a page at a time (search, category and popular endpoints),
- * so the browser never holds the whole skills list. Choices stay local until "Save skills": one
- * call then makes the opportunity's skill requirements exactly the selection, and the matching
- * engine reads those saved rows.
+ * Everything is read from the server a page at a time (search, category and popular endpoints under
+ * `endpoint`), so the browser never holds the whole skills list. Choices stay local until the save
+ * button is pressed, then `onSave` receives the whole selection.
  */
 
 export interface PickedSkill {
   id: string;
   name: string;
-  mandatory: boolean;
+  /** Opportunity requirements only. */
+  mandatory?: boolean;
+  /** Youth profile only: 1 Basic, 2 Working, 3 Advanced. */
+  level?: number;
 }
+export const SKILL_LEVELS = [
+  { id: '1', name: 'Basic' },
+  { id: '2', name: 'Working' },
+  { id: '3', name: 'Advanced' },
+];
+const DEFAULT_LEVEL = 2;
+export const OPPORTUNITY_SKILLS = '/requirement-skills';
 interface SkillRow {
   id: string;
   name: string;
@@ -69,9 +80,13 @@ function useDebounced<T>(value: T, ms = 250): T {
 }
 
 /** One server-paged list of skills: pass a search text and/or a category. */
-function useSkillPages(params: { q?: string; category?: string }, on = true) {
+function useSkillPages(
+  endpoint: string,
+  params: { q?: string; category?: string },
+  on = true,
+) {
   const query = useInfiniteQuery({
-    queryKey: ['skill-pages', params.q ?? '', params.category ?? ''],
+    queryKey: ['skill-pages', endpoint, params.q ?? '', params.category ?? ''],
     enabled: on,
     initialPageParam: 0,
     queryFn: ({ pageParam }) => {
@@ -81,7 +96,7 @@ function useSkillPages(params: { q?: string; category?: string }, on = true) {
       });
       if (params.q) sp.set('q', params.q);
       if (params.category) sp.set('category', params.category);
-      return api<Page>(`/requirement-skills?${sp}`);
+      return api<Page>(`${endpoint}?${sp}`);
     },
     getNextPageParam: (last, all) => {
       const loaded = all.reduce((n, p) => n + p.results.length, 0);
@@ -127,11 +142,13 @@ function SkillChip({
 }
 
 function CategorySection({
+  endpoint,
   category,
   startOpen,
   isPicked,
   onToggle,
 }: {
+  endpoint: string;
   category: Category;
   startOpen: boolean;
   isPicked: (id: string) => boolean;
@@ -140,7 +157,7 @@ function CategorySection({
   const [open, setOpen] = useState(startOpen);
   const [expanded, setExpanded] = useState(false);
   // Only an opened category asks the server for its skills.
-  const list = useSkillPages({ category: category.name }, open);
+  const list = useSkillPages(endpoint, { category: category.name }, open);
   const shown = expanded ? list.rows : list.rows.slice(0, PAGE);
   const Icon = open ? ChevronDown : ChevronRight;
   return (
@@ -215,11 +232,13 @@ function CategorySection({
 
 /** "+ Add 'term'": adds a missing skill to the central list, with a duplicate check. */
 function AddSkill({
+  endpoint,
   term,
   categories,
   onAdded,
   onUse,
 }: {
+  endpoint: string;
   term: string;
   categories: Category[];
   onAdded: (s: SkillRow) => void;
@@ -232,15 +251,15 @@ function AddSkill({
   const [error, setError] = useState('');
   const add = useMutation({
     mutationFn: (confirm: boolean) =>
-      post<SkillRow>('/requirement-skills/add', {
+      post<SkillRow>(`${endpoint}/add`, {
         name: term.trim(),
         category,
         confirm_similar: confirm,
       }),
     onSuccess: (row) => {
       toast.success(`“${row.name}” added to the skills list.`);
-      void qc.invalidateQueries({ queryKey: ['skill-pages'] });
-      void qc.invalidateQueries({ queryKey: ['skill-categories'] });
+      void qc.invalidateQueries({ queryKey: ['skill-pages', endpoint] });
+      void qc.invalidateQueries({ queryKey: ['skill-categories', endpoint] });
       setOpen(false);
       onAdded(row);
     },
@@ -279,7 +298,7 @@ function AddSkill({
     <div className="space-y-2 rounded-md border border-border p-3">
       <p className="text-sm">
         Add <strong>{term.trim()}</strong> to the skills list, so it can be
-        chosen for any opportunity.
+        chosen by anyone.
       </p>
       <SelectField
         label="Category"
@@ -344,7 +363,12 @@ function AddSkill({
 export function SkillPickerDialog({
   open,
   onOpenChange,
-  opportunityId,
+  endpoint = OPPORTUNITY_SKILLS,
+  mode = 'requirement',
+  title = 'Skills for this opportunity',
+  description = 'For the best results, add 3 to 5 skills. Mark the ones a youth must have; the rest count as an advantage.',
+  saveLabel = 'Save skills',
+  resetKey = '',
   initial,
   canAdd,
   saving,
@@ -353,8 +377,15 @@ export function SkillPickerDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  opportunityId: string;
-  /** The skills already saved on the opportunity, so editing starts from them. */
+  /** Where the skills list is served: `<endpoint>`, `/categories`, `/popular`, `/add`. */
+  endpoint?: string;
+  mode?: 'requirement' | 'level';
+  title?: string;
+  description?: string;
+  saveLabel?: string;
+  /** Changes when the dialog is about to edit a different record, to start over from `initial`. */
+  resetKey?: string;
+  /** The skills already saved, so editing starts from them. */
   initial: PickedSkill[];
   canAdd: boolean;
   saving: boolean;
@@ -370,38 +401,40 @@ export function SkillPickerDialog({
       setText('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, opportunityId]);
+  }, [open, resetKey]);
 
   const q = useDebounced(text.trim());
   const searching = q.length > 0;
   const categories = useQuery({
-    queryKey: ['skill-categories'],
+    queryKey: ['skill-categories', endpoint],
     enabled: open,
-    queryFn: () =>
-      api<{ results: Category[] }>('/requirement-skills/categories'),
+    queryFn: () => api<{ results: Category[] }>(`${endpoint}/categories`),
   });
   const popular = useQuery({
-    queryKey: ['skill-popular'],
+    queryKey: ['skill-popular', endpoint],
     enabled: open,
-    queryFn: () => api<{ results: Popular[] }>('/requirement-skills/popular'),
+    queryFn: () => api<{ results: Popular[] }>(`${endpoint}/popular`),
   });
-  const found = useSkillPages({ q }, open && searching);
+  const found = useSkillPages(endpoint, { q }, open && searching);
+
+  const fresh = (s: SkillRow): PickedSkill =>
+    mode === 'level'
+      ? { id: s.id, name: s.name, level: DEFAULT_LEVEL }
+      : { id: s.id, name: s.name, mandatory: false };
 
   const isPicked = (id: string) => picked.some((p) => p.id === id);
   const toggle = (s: SkillRow) =>
     setPicked((cur) =>
       cur.some((p) => p.id === s.id)
         ? cur.filter((p) => p.id !== s.id)
-        : [...cur, { id: s.id, name: s.name, mandatory: false }],
+        : [...cur, fresh(s)],
     );
   const select = (s: SkillRow) =>
     setPicked((cur) =>
-      cur.some((p) => p.id === s.id)
-        ? cur
-        : [...cur, { id: s.id, name: s.name, mandatory: false }],
+      cur.some((p) => p.id === s.id) ? cur : [...cur, fresh(s)],
     );
-  const setMandatory = (id: string, mandatory: boolean) =>
-    setPicked((cur) => cur.map((p) => (p.id === id ? { ...p, mandatory } : p)));
+  const change = (id: string, patch: Partial<PickedSkill>) =>
+    setPicked((cur) => cur.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
   const cats = categories.data?.results ?? [];
   const exact = found.rows.some(
@@ -412,11 +445,8 @@ export function SkillPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Skills for this opportunity</DialogTitle>
-          <DialogDescription>
-            For the best results, add 3 to 5 skills. Mark the ones a youth must
-            have; the rest count as an advantage.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogBody className="grid gap-5 overflow-y-auto md:grid-cols-[1fr_16rem]">
           <div className="min-w-0 space-y-4">
@@ -471,6 +501,7 @@ export function SkillPickerDialog({
                   !found.loading &&
                   (canAdd ? (
                     <AddSkill
+                      endpoint={endpoint}
                       term={q}
                       categories={cats}
                       onAdded={select}
@@ -478,8 +509,7 @@ export function SkillPickerDialog({
                     />
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      Not in the list? Ask someone who edits opportunities to
-                      add it.
+                      Not in the list? Ask someone who can edit to add it.
                     </p>
                   ))}
               </div>
@@ -511,6 +541,7 @@ export function SkillPickerDialog({
                     cats.map((c, i) => (
                       <CategorySection
                         key={c.name}
+                        endpoint={endpoint}
                         category={c}
                         startOpen={i === 0}
                         isPicked={isPicked}
@@ -554,19 +585,33 @@ export function SkillPickerDialog({
                         <X className="size-3.5" />
                       </button>
                     </div>
-                    <label className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={p.mandatory}
-                        onChange={(e) => setMandatory(p.id, e.target.checked)}
+                    {mode === 'level' ? (
+                      <SelectField
+                        label={`Level of ${p.name}`}
+                        className="mt-1 w-full"
+                        value={String(p.level ?? DEFAULT_LEVEL)}
+                        options={SKILL_LEVELS}
+                        onChange={(v) =>
+                          change(p.id, { level: Number(v) || DEFAULT_LEVEL })
+                        }
                       />
-                      Must have
-                    </label>
+                    ) : (
+                      <label className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={!!p.mandatory}
+                          onChange={(e) =>
+                            change(p.id, { mandatory: e.target.checked })
+                          }
+                        />
+                        Must have
+                      </label>
+                    )}
                   </li>
                 ))}
               </ul>
             )}
-            {picked.length > 10 && (
+            {mode === 'requirement' && picked.length > 10 && (
               <Badge variant="warning" appearance="light">
                 That is a long list: few youth will match every skill.
               </Badge>
@@ -591,7 +636,7 @@ export function SkillPickerDialog({
             disabled={saving}
             onClick={() => onSave(picked)}
           >
-            {saving ? 'Saving...' : 'Save skills'}
+            {saving ? 'Saving...' : saveLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
