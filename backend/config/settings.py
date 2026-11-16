@@ -191,6 +191,10 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "ENUM_NAME_OVERRIDES": {
         "OpportunityKindEnum": "apps.employers.models.Opportunity.TYPES",
+        # Serializers list these as bare values, so the override lists are bare values too.
+        "ParticipantStatusEnum": ["active", "completed", "withdrawn", "unknown"],
+        "EnrollmentStatusEnum": ["enrolled", "completed", "withdrawn", "unknown"],
+        "ContactKindEnum": ["phone", "email"],
     },
 }
 

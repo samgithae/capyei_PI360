@@ -4774,6 +4774,14 @@ components:
           default: false
       required:
       - name
+    ContactKindEnum:
+      enum:
+      - phone
+      - email
+      type: string
+      description: |-
+        * `phone` - phone
+        * `email` - email
     DatabaseEnum:
       enum:
       - ok
@@ -4835,6 +4843,18 @@ components:
         * `active` - Active
         * `inactive` - Inactive
         * `prospect` - Prospect
+    EnrollmentStatusEnum:
+      enum:
+      - enrolled
+      - completed
+      - withdrawn
+      - unknown
+      type: string
+      description: |-
+        * `enrolled` - enrolled
+        * `completed` - completed
+        * `withdrawn` - withdrawn
+        * `unknown` - unknown
     FactorEnum:
       enum:
       - skill
@@ -4927,14 +4947,6 @@ components:
           format: email
       required:
       - email
-    Kind204Enum:
-      enum:
-      - phone
-      - email
-      type: string
-      description: |-
-        * `phone` - phone
-        * `email` - email
     Login:
       type: object
       properties:
@@ -5110,7 +5122,7 @@ components:
       type: object
       properties:
         kind:
-          $ref: '#/components/schemas/Kind204Enum'
+          $ref: '#/components/schemas/ContactKindEnum'
         value:
           type: string
           maxLength: 200
@@ -5150,7 +5162,7 @@ components:
           default: unknown
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusE26Enum'
+          - $ref: '#/components/schemas/ParticipantStatusEnum'
           default: unknown
         date_of_birth:
           type: string
@@ -5187,6 +5199,18 @@ components:
           $ref: '#/components/schemas/Profile'
       required:
       - full_name_source
+    ParticipantStatusEnum:
+      enum:
+      - active
+      - completed
+      - withdrawn
+      - unknown
+      type: string
+      description: |-
+        * `active` - active
+        * `completed` - completed
+        * `withdrawn` - withdrawn
+        * `unknown` - unknown
     PasswordChange:
       type: object
       properties:
@@ -5281,7 +5305,7 @@ components:
       type: object
       properties:
         status:
-          $ref: '#/components/schemas/Status812Enum'
+          $ref: '#/components/schemas/EnrollmentStatusEnum'
         source_enrollment_no:
           type: string
           maxLength: 60
@@ -5393,7 +5417,7 @@ components:
         gender:
           $ref: '#/components/schemas/GenderEnum'
         status:
-          $ref: '#/components/schemas/StatusE26Enum'
+          $ref: '#/components/schemas/ParticipantStatusEnum'
     PatchedRequirement:
       type: object
       properties:
@@ -5863,30 +5887,6 @@ components:
       - signed_on
       - signer_name
       - signer_role
-    Status812Enum:
-      enum:
-      - enrolled
-      - completed
-      - withdrawn
-      - unknown
-      type: string
-      description: |-
-        * `enrolled` - enrolled
-        * `completed` - completed
-        * `withdrawn` - withdrawn
-        * `unknown` - unknown
-    StatusE26Enum:
-      enum:
-      - active
-      - completed
-      - withdrawn
-      - unknown
-      type: string
-      description: |-
-        * `active` - active
-        * `completed` - completed
-        * `withdrawn` - withdrawn
-        * `unknown` - unknown
     StatusMap:
       type: object
       properties:
@@ -6231,7 +6231,7 @@ components:
       type: object
       properties:
         kind:
-          $ref: '#/components/schemas/Kind204Enum'
+          $ref: '#/components/schemas/ContactKindEnum'
         value:
           type: string
           maxLength: 200
@@ -6252,7 +6252,7 @@ components:
           maxLength: 60
         status:
           allOf:
-          - $ref: '#/components/schemas/Status812Enum'
+          - $ref: '#/components/schemas/EnrollmentStatusEnum'
           default: enrolled
         enrolled_on:
           type: string
@@ -6412,7 +6412,7 @@ components:
       type: object
       properties:
         kind:
-          $ref: '#/components/schemas/Kind204Enum'
+          $ref: '#/components/schemas/ContactKindEnum'
         value:
           type: string
           maxLength: 200
