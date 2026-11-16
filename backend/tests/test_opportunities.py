@@ -181,9 +181,13 @@ def test_typed_requirements_are_validated_described_and_flagged(c, employer):
     bp = c.post(base, {"factor": "availability", "work_pattern": "moon"}, content_type=JSON)
     assert bp.status_code == 409
     # Changing the factor clears values that no longer apply.
+    baker = type(cook).objects.create(code="SK-BAKE", name="Baking")
     r = c.patch(
         f"{base}/{e['id']}",
-        {"factor": "skill", "skill_id": str(cook.pk), "description": ""},
+        {"factor": "skill", "skill_id": str(baker.pk), "description": ""},
         content_type=JSON,
     ).json()
-    assert r["min_months"] is None and r["skill_id"] == str(cook.pk)
+    assert r["min_months"] is None and r["skill_id"] == str(baker.pk)
+    # The same skill cannot be required twice on one opportunity.
+    twin = c.post(base, {"factor": "skill", "skill_id": str(cook.pk)}, content_type=JSON)
+    assert twin.status_code == 409 and twin.json()["errors"][0]["code"] == "duplicate"

@@ -1,7 +1,4 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { ApiError, post } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,11 +20,8 @@ import {
 } from './requirement-model';
 
 const NOTE: Record<Category, { label: string; placeholder: string } | null> = {
-  skill: { label: 'Level needed (optional)', placeholder: 'e.g. Intermediate' },
-  competency: {
-    label: 'Level needed (optional)',
-    placeholder: 'e.g. Intermediate',
-  },
+  skill: null,
+  competency: null,
   qualification: null,
   experience: null,
   certification: {
@@ -39,148 +33,6 @@ const NOTE: Record<Category, { label: string; placeholder: string } | null> = {
   other: null,
 };
 
-const words = (s: string) =>
-  s
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((w) => w.length >= 4);
-
-/** Catalogue names that look like the one being added, to avoid Customer care / Customer service twins. */
-export function similar(
-  name: string,
-  existing: { id: string; name: string }[],
-) {
-  const mine = words(name);
-  return existing.filter((e) => {
-    const theirs = words(e.name);
-    return (
-      e.name.toLowerCase() === name.trim().toLowerCase() ||
-      mine.some((w) =>
-        theirs.some(
-          (t) => t.startsWith(w.slice(0, 5)) || w.startsWith(t.slice(0, 5)),
-        ),
-      )
-    );
-  });
-}
-
-function codeFor(name: string) {
-  const slug = name
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 30);
-  return `SK-${slug}`;
-}
-
-/** Offers the catalogue entry that is missing; only people who manage the catalogue may add. */
-function AddToCatalogue({
-  lookup,
-  canAdd,
-  onAdded,
-  onUse,
-}: {
-  lookup: Lookup;
-  canAdd: boolean;
-  onAdded: (id: string) => void;
-  onUse: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [error, setError] = useState('');
-  const twins = name.trim() ? similar(name, lookup.skills) : [];
-  const add = useMutation({
-    mutationFn: () =>
-      post<{ id: string }>('/config/reference/skills', {
-        code: codeFor(name),
-        name: name.trim(),
-      }),
-    onSuccess: (r) => {
-      toast.success('Added to the skills list.');
-      setOpen(false);
-      setName('');
-      onAdded(r.id);
-    },
-    onError: (e) =>
-      setError(e instanceof ApiError ? e.message : 'Could not add it.'),
-  });
-
-  if (!canAdd)
-    return (
-      <p className="text-xs text-muted-foreground">
-        Not in the list? Ask an administrator to add it to the skills list.
-      </p>
-    );
-  if (!open)
-    return (
-      <Button
-        type="button"
-        variant="link"
-        size="sm"
-        className="h-auto p-0"
-        onClick={() => setOpen(true)}
-      >
-        Not in the list? Add a new skill
-      </Button>
-    );
-  return (
-    <div className="space-y-2 rounded-md border border-border p-3">
-      <Label htmlFor="new-skill">New skill name</Label>
-      <Input
-        id="new-skill"
-        value={name}
-        maxLength={200}
-        onChange={(e) => {
-          setName(e.target.value);
-          setError('');
-        }}
-      />
-      {twins.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          Already in the list, use one of these instead:{' '}
-          {twins.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className="me-2 text-primary underline"
-              onClick={() => {
-                onUse(t.id);
-                setOpen(false);
-                setName('');
-              }}
-            >
-              {t.name}
-            </button>
-          ))}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-xs text-destructive">
-          {error}
-        </p>
-      )}
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          size="sm"
-          disabled={!name.trim() || add.isPending}
-          onClick={() => add.mutate()}
-        >
-          {twins.length ? 'Add anyway' : 'Add to list'}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => setOpen(false)}
-        >
-          Cancel
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 export function RequirementForm({
   open,
   onOpenChange,
@@ -188,8 +40,7 @@ export function RequirementForm({
   draft,
   onChange,
   lookup,
-  canAddSkill,
-  onCatalogueChanged,
+  onPickSkills,
   pending,
   error,
   onSubmit,
@@ -200,8 +51,8 @@ export function RequirementForm({
   draft: Draft;
   onChange: (d: Draft) => void;
   lookup: Lookup;
-  canAddSkill: boolean;
-  onCatalogueChanged: () => void;
+  /** Skills and competencies are chosen in the skills picker, not in this form. */
+  onPickSkills: () => void;
   pending: boolean;
   error: string;
   onSubmit: () => void;
@@ -221,11 +72,12 @@ export function RequirementForm({
       open={open}
       onOpenChange={onOpenChange}
       title={editing ? 'Edit requirement' : 'Add requirement'}
-      description="Answer three questions. The system works out how to check it."
+      description="Answer a few questions. The system works out how to check it."
       submitLabel={editing ? 'Save changes' : 'Add requirement'}
       pending={pending}
       error={text}
       onSubmit={() => {
+        if (cat === 'skill' || cat === 'competency') return onPickSkills();
         const p = problem(draft);
         setShown(p);
         if (!p) onSubmit();
@@ -261,24 +113,15 @@ export function RequirementForm({
       <div className="space-y-1.5">
         <Label>2. What is required?</Label>
         {(cat === 'skill' || cat === 'competency') && (
-          <>
-            <SelectField
-              label="Requirement"
-              className="w-full"
-              value={draft.item}
-              options={lookup.skills}
-              onChange={(v) => set({ item: v })}
-            />
-            <AddToCatalogue
-              lookup={lookup}
-              canAdd={canAddSkill}
-              onUse={(id) => set({ item: id })}
-              onAdded={(id) => {
-                onCatalogueChanged();
-                set({ item: id });
-              }}
-            />
-          </>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Skills and competencies are chosen together: search, pick several
+              at once, add one that is missing, and mark the must-haves.
+            </p>
+            <Button type="button" variant="outline" onClick={onPickSkills}>
+              Choose skills
+            </Button>
+          </div>
         )}
         {cat === 'qualification' && (
           <>
@@ -400,39 +243,41 @@ export function RequirementForm({
         </div>
       )}
 
-      <fieldset className="space-y-2">
-        <legend className="mb-1.5 text-sm font-medium">
-          3. How important is it?
-        </legend>
-        {[
-          {
-            on: true,
-            label: 'Mandatory',
-            help: 'The participant is expected to meet this.',
-          },
-          {
-            on: false,
-            label: 'Preferred',
-            help: 'Meeting this gives an additional advantage.',
-          },
-        ].map((o) => (
-          <label key={o.label} className="flex items-start gap-2 text-sm">
-            <input
-              type="radio"
-              name="req-type"
-              className="mt-1"
-              checked={draft.mandatory === o.on}
-              onChange={() => set({ mandatory: o.on })}
-            />
-            <span>
-              {o.label}
-              <span className="block text-xs text-muted-foreground">
-                {o.help}
+      {cat !== 'skill' && cat !== 'competency' && (
+        <fieldset className="space-y-2">
+          <legend className="mb-1.5 text-sm font-medium">
+            3. How important is it?
+          </legend>
+          {[
+            {
+              on: true,
+              label: 'Mandatory',
+              help: 'The participant is expected to meet this.',
+            },
+            {
+              on: false,
+              label: 'Preferred',
+              help: 'Meeting this gives an additional advantage.',
+            },
+          ].map((o) => (
+            <label key={o.label} className="flex items-start gap-2 text-sm">
+              <input
+                type="radio"
+                name="req-type"
+                className="mt-1"
+                checked={draft.mandatory === o.on}
+                onChange={() => set({ mandatory: o.on })}
+              />
+              <span>
+                {o.label}
+                <span className="block text-xs text-muted-foreground">
+                  {o.help}
+                </span>
               </span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
+            </label>
+          ))}
+        </fieldset>
+      )}
     </FormModal>
   );
 }

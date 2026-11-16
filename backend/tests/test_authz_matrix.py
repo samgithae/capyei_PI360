@@ -166,7 +166,12 @@ MATRIX = {
     "opportunities/restore": {"POST": "records.archive"},
     "opportunities/<uuid:pk>/transition": {"POST": "employers.edit"},
     "opportunities/<uuid:pk>/history": {"GET": "employers.view"},
+    "requirement-skills": {"GET": "employers.view"},
+    "requirement-skills/categories": {"GET": "employers.view"},
+    "requirement-skills/popular": {"GET": "employers.view"},
+    "requirement-skills/add": {"POST": "employers.edit"},
     "opportunities/<uuid:pk>/requirements": {"POST": "employers.edit"},
+    "opportunities/<uuid:pk>/requirements/skills": {"PUT": "employers.edit"},
     "opportunities/<uuid:pk>/requirements/<uuid:rpk>": {
         "PATCH": "employers.edit",
         "DELETE": "employers.edit",

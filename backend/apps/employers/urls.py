@@ -18,6 +18,11 @@ urlpatterns = [
     path("opportunities/<uuid:pk>", v.OpportunityDetailView.as_view()),
     path("opportunities/<uuid:pk>/transition", v.OpportunityTransitionView.as_view()),
     path("opportunities/<uuid:pk>/history", v.OpportunityHistoryView.as_view()),
+    path("requirement-skills", v.SkillSearchView.as_view()),
+    path("requirement-skills/categories", v.SkillCategoryView.as_view()),
+    path("requirement-skills/popular", v.SkillPopularView.as_view()),
+    path("requirement-skills/add", v.SkillAddView.as_view()),
     path("opportunities/<uuid:pk>/requirements", v.RequirementListView.as_view()),
+    path("opportunities/<uuid:pk>/requirements/skills", v.RequirementSkillsView.as_view()),
     path("opportunities/<uuid:pk>/requirements/<uuid:rpk>", v.RequirementDetailView.as_view()),
 ]

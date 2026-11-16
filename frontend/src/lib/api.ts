@@ -24,6 +24,8 @@ export class ApiError extends Error {
     message: string,
     public errors: FieldError[] = [],
     public code = '',
+    /** The whole error body, for the few endpoints that return more than field errors. */
+    public body: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -50,7 +52,12 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     credentials: 'include',
   });
   if (!res.ok) {
-    let body: { errors?: FieldError[]; detail?: string; code?: string } = {};
+    let body: {
+      errors?: FieldError[];
+      detail?: string;
+      code?: string;
+      [key: string]: unknown;
+    } = {};
     try {
       body = await res.json();
     } catch {
@@ -60,7 +67,13 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (res.status === 401 && !path.startsWith('/auth/')) {
       window.dispatchEvent(new Event(UNAUTHENTICATED_EVENT));
     }
-    throw new ApiError(res.status, message, body.errors ?? [], body.code ?? '');
+    throw new ApiError(
+      res.status,
+      message,
+      body.errors ?? [],
+      body.code ?? '',
+      body,
+    );
   }
   return res.status === 204 || res.status === 202
     ? (undefined as T)

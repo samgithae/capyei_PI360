@@ -870,3 +870,154 @@ def read_upload(name, data):
         return importer.read_table(name, data)
     except importer.FileError as exc:
         raise ConfigError("file", str(exc)) from exc
+
+
+# --- Skill catalogue for the requirement picker ------------------------------------------------
+# Server-side search and paging so the browser never downloads the whole skills list, and one
+# guarded way to add a missing skill so the master list does not fill up with near-duplicates.
+
+OTHER = "Other"  # the category shown for skills that have none
+MAX_SKILL_NAME = 200
+
+
+class SkillConflict(ConfigError):
+    """The skill cannot be added as typed. ``code`` is ``exists`` (same name already there, in
+    ``existing``) or ``similar`` (look-alikes in ``similar``; the caller may confirm)."""
+
+    def __init__(self, code, message, *, existing=None, similar=()):
+        super().__init__("name", message)
+        self.code, self.existing, self.similar = code, existing, list(similar)
+
+
+def _skill_row(s):
+    return {"id": str(s.pk), "name": s.name, "category": s.category or OTHER}
+
+
+def skill_categories():
+    """Active skills' categories with how many each holds, largest list first by name."""
+    from django.db.models import Count
+
+    from .models import Skill
+
+    rows = Skill.objects.filter(active=True).values("category").annotate(n=Count("pk"))
+    out = [{"name": r["category"] or OTHER, "count": r["n"]} for r in rows]
+    return sorted(out, key=lambda c: (c["name"] == OTHER, c["name"].casefold()))
+
+
+def search_skills(*, q="", category="", limit=20, offset=0):
+    """(total, rows) of active skills whose name or category contains ``q`` (any case, partial),
+    optionally within one category. Names that start with ``q`` come first."""
+    from django.db.models import Case, IntegerField, Q, Value, When
+
+    from .models import Skill
+
+    qs = Skill.objects.filter(active=True)
+    if category:
+        qs = qs.filter(category="" if category == OTHER else category)
+    q = (q or "").strip()
+    if q:
+        n = norm(q)
+        qs = qs.filter(
+            Q(name__icontains=q) | Q(name_normalised__contains=n) | Q(category__icontains=q)
+        )
+        qs = qs.annotate(
+            rank=Case(
+                When(name_normalised__startswith=n, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        ).order_by("rank", "name")
+    else:
+        qs = qs.order_by("name")
+    limit = max(1, min(int(limit), 100))
+    offset = max(0, int(offset))
+    return qs.count(), [_skill_row(s) for s in qs[offset : offset + limit]]
+
+
+def skills_by_ids(ids):
+    """Active-or-not skill rows (id, name, category) for these ids, keyed by id string."""
+    from .models import Skill
+
+    return {str(s.pk): _skill_row(s) for s in Skill.objects.filter(pk__in=list(ids))}
+
+
+def skills_in_category(category, *, limit=8):
+    from .models import Skill
+
+    qs = Skill.objects.filter(active=True, category=category).order_by("name")[:limit]
+    return [_skill_row(s) for s in qs]
+
+
+def _stems(name):
+    return {w[:5] for w in norm(name).split() if len(w) >= 4}
+
+
+def similar_skills(name, *, limit=5):
+    """Active skills that look like ``name``: one name inside the other, or sharing a word stem
+    ("Customer care" and "Customer service"). Used to stop twins being created."""
+    from .models import Skill
+
+    n, mine = norm(name), _stems(name)
+    found = []
+    for s in Skill.objects.filter(active=True):
+        t = s.name_normalised
+        if n and (n in t or t in n) or (mine and mine & _stems(s.name)):
+            found.append(s)
+    found.sort(key=lambda s: (len(s.name), s.name))
+    return [_skill_row(s) for s in found[:limit]]
+
+
+def _skill_code(name):
+    from .models import Skill
+
+    slug = re.sub(r"[^A-Z0-9]+", "-", name.upper()).strip("-")[:24] or "SKILL"
+    code, i = f"SK-{slug}", 2
+    while Skill.objects.filter(code=code).exists():
+        code, i = f"SK-{slug}-{i}", i + 1
+    return code
+
+
+@transaction.atomic
+def add_skill(*, actor, name, category="", confirm_similar=False):
+    """Add a skill to the central list from the requirement picker.
+
+    The name is tidied (spaces collapsed, first letter capital); the same name in any spelling
+    case or punctuation is refused with the existing record; look-alikes are refused until the
+    caller confirms; the category must be one already in use, or ``Other``."""
+    from .models import Skill
+
+    name = " ".join(str(name or "").split())
+    if not any(c.isalnum() for c in name):
+        raise ConfigError("name", "Enter the name of the skill.")
+    if len(name) > MAX_SKILL_NAME:
+        raise ConfigError("name", f"Keep the name under {MAX_SKILL_NAME} characters.")
+    name = name[0].upper() + name[1:]
+    category = " ".join(str(category or "").split())
+    if category and category != OTHER and not Skill.objects.filter(category=category).exists():
+        raise ConfigError("category", "Choose one of the existing categories, or Other.")
+    same = Skill.objects.filter(name_normalised=norm(name)).first()
+    if same is not None:
+        if same.active:
+            raise SkillConflict(
+                "exists", f"“{same.name}” is already in the skills list.", existing=_skill_row(same)
+            )
+        raise ConfigError(
+            "name", f"“{same.name}” was retired. Ask an administrator to bring it back."
+        )
+    twins = similar_skills(name)
+    if twins and not confirm_similar:
+        raise SkillConflict(
+            "similar",
+            "Similar skills are already in the list. Pick one of them, or add yours anyway.",
+            similar=twins,
+        )
+    obj = create_reference(
+        actor=actor,
+        key="skills",
+        data={
+            "code": _skill_code(name),
+            "name": name,
+            "category": "" if category == OTHER else category,
+        },
+    )
+    return _skill_row(obj)

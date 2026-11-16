@@ -378,7 +378,17 @@ def _opp_detail(o):
         "start_date": o.start_date.isoformat() if o.start_date else None,
         "requirements": [_req(r) for r in o.requirements.all()],
         "requirement_options": {
-            **{k: v for k, v in configuration.profile_options().items() if k != "sectors"},
+            **{
+                k: v
+                for k, v in configuration.profile_options().items()
+                if k not in ("sectors", "skills")
+            },
+            # Only the skills this opportunity already asks for; the picker searches the rest.
+            "skills": list(
+                configuration.skills_by_ids(
+                    r.skill_id for r in o.requirements.all() if r.skill_id
+                ).values()
+            ),
             "work_patterns": [
                 {"id": k, "name": n.capitalize()} for k, n in services.PATTERN_NAMES.items()
             ],
@@ -568,6 +578,119 @@ class RequirementListView(APIView):
         except services.RuleViolation as exc:
             return _violation(exc)
         return Response(_req(r), status=status.HTTP_201_CREATED)
+
+
+class SkillItemSerializer(serializers.Serializer):
+    skill_id = serializers.UUIDField()
+    is_mandatory = serializers.BooleanField(required=False, default=False)
+
+
+class SkillSyncSerializer(serializers.Serializer):
+    skills = SkillItemSerializer(many=True)
+
+
+class SkillAddSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=200)
+    category = serializers.CharField(max_length=80, required=False, allow_blank=True)
+    confirm_similar = serializers.BooleanField(required=False, default=False)
+
+
+class SkillSearchView(APIView):
+    """Pick-list search: partial, any case, paged. ``category`` narrows to one group."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": VIEW}
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("q", str),
+            OpenApiParameter("category", str),
+            OpenApiParameter("limit", int),
+            OpenApiParameter("offset", int),
+        ],
+        responses={200: dict},
+    )
+    def get(self, request):
+        p = request.query_params
+
+        def num(key, default):
+            try:
+                return int(p.get(key, default))
+            except ValueError:
+                return default
+
+        total, rows = configuration.search_skills(
+            q=p.get("q", ""), category=p.get("category", ""),
+            limit=num("limit", 20), offset=num("offset", 0),
+        )  # fmt: skip
+        return Response({"total": total, "results": rows})
+
+
+class SkillCategoryView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"GET": VIEW}
+
+    @extend_schema(responses={200: dict})
+    def get(self, request):
+        return Response({"results": configuration.skill_categories()})
+
+
+class SkillPopularView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"GET": VIEW}
+
+    @extend_schema(responses={200: dict})
+    def get(self, request):
+        return Response({"results": services.popular_skills()})
+
+
+class SkillAddView(APIView):
+    """Add a missing skill to the central list from the picker (409 when it already exists)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": EDIT}
+
+    @extend_schema(request=SkillAddSerializer, responses={201: dict, 409: dict})
+    def post(self, request):
+        s = SkillAddSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            row = configuration.add_skill(actor=request.user, **s.validated_data)
+        except configuration.SkillConflict as exc:
+            return Response(
+                {
+                    "errors": [{"field": "name", "message": exc.message, "code": exc.code}],
+                    "existing": exc.existing,
+                    "similar": exc.similar,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        except configuration.ConfigError as exc:
+            return Response(
+                {"errors": [{"field": exc.field, "message": exc.message, "code": "invalid"}]},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(row, status=status.HTTP_201_CREATED)
+
+
+class RequirementSkillsView(APIView):
+    """Save the whole skills picker in one call (add, remove and must-have flags together)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"PUT": EDIT}
+
+    @extend_schema(request=SkillSyncSerializer, responses={200: dict, 409: dict})
+    def put(self, request, pk):
+        o = _opp(pk)
+        s = SkillSyncSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            rows = services.sync_skill_requirements(
+                actor=request.user, opportunity=o, items=s.validated_data["skills"]
+            )
+        except services.RuleViolation as exc:
+            return _violation(exc)
+        return Response({"requirements": [_req(r) for r in rows]})
 
 
 class RequirementDetailView(APIView):

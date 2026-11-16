@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
 import { ReferDialog } from '@/pages/referrals/referral-shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Plus, Send, Trash2 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { api, ApiError, post } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +37,7 @@ import {
   type Lookup,
   type Req,
 } from './requirement-model';
+import { SkillPickerDialog, type PickedSkill } from './skill-picker';
 import { SuggestedYouth } from './suggested-youth';
 
 interface Requirement extends Req {
@@ -85,6 +86,7 @@ const NEXT: Record<string, { to: string; label: string }[]> = {
 };
 export function OpportunityPage() {
   const { id } = useParams();
+  const [params, setParams] = useSearchParams();
   const { can } = useAuth();
   const qc = useQueryClient();
   const canEdit = can('employers.edit');
@@ -97,6 +99,8 @@ export function OpportunityPage() {
   const [reqError, setReqError] = useState('');
   const [removing, setRemoving] = useState<Requirement | null>(null);
   const [confirmMove, setConfirmMove] = useState<string | null>(null);
+  const [skillsOpen, setSkillsOpen] = useState(false);
+  const [skillsError, setSkillsError] = useState('');
   const [referring, setReferring] = useState(false);
   const [editingDetails, setEditingDetails] = useState(false);
 
@@ -118,6 +122,15 @@ export function OpportunityPage() {
     queryFn: () => api<Detail>(`/opportunities/${id}`),
     retry: false,
   });
+  // A new draft arrives with ?skills=1 so the picker opens straight away.
+  const ready =
+    q.data && q.data.status !== 'closed' && q.data.status !== 'expired';
+  useEffect(() => {
+    if (params.get('skills') && ready && canEdit) {
+      setSkillsOpen(true);
+      setParams({}, { replace: true });
+    }
+  }, [params, ready, canEdit, setParams]);
   const ro = q.data?.requirement_options;
   const lookup: Lookup = {
     levels: ro?.levels ?? [],
@@ -170,6 +183,26 @@ export function OpportunityPage() {
     onError: (e) =>
       setReqError(e instanceof ApiError ? e.message : 'Could not save.'),
   });
+  // The skills picker saves every skill requirement in one call.
+  const saveSkills = useMutation({
+    mutationFn: (picked: PickedSkill[]) =>
+      api(`/opportunities/${id}/requirements/skills`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          skills: picked.map((p) => ({
+            skill_id: p.id,
+            is_mandatory: p.mandatory,
+          })),
+        }),
+      }),
+    onSuccess: () => {
+      toast.success('Skills saved.');
+      setSkillsOpen(false);
+      refresh();
+    },
+    onError: (e) =>
+      setSkillsError(e instanceof ApiError ? e.message : 'Could not save.'),
+  });
   const delReq = useMutation({
     mutationFn: (rid: string) =>
       api(`/opportunities/${id}/requirements/${rid}`, { method: 'DELETE' }),
@@ -209,7 +242,13 @@ export function OpportunityPage() {
     setReqError('');
     setReqOpen(true);
   };
+  const openSkills = () => {
+    setSkillsError('');
+    setReqOpen(false);
+    setSkillsOpen(true);
+  };
   const openEdit = (r: Requirement) => {
+    if (r.factor === 'skill' && r.skill_id) return openSkills();
     setEditingId(r.id);
     setReq(toDraft(r));
     setReqError('');
@@ -343,9 +382,14 @@ export function OpportunityPage() {
             action={
               canEdit &&
               !locked && (
-                <Button size="sm" onClick={openAdd}>
-                  <Plus /> Add requirement
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={openSkills}>
+                    <Plus /> Choose skills
+                  </Button>
+                  <Button size="sm" onClick={openAdd}>
+                    <Plus /> Add requirement
+                  </Button>
+                </div>
               )
             }
           >
@@ -483,15 +527,34 @@ export function OpportunityPage() {
         draft={req}
         onChange={setReq}
         lookup={lookup}
-        canAddSkill={can('reference.manage')}
-        onCatalogueChanged={() =>
-          void qc.invalidateQueries({ queryKey: ['opportunity', id] })
-        }
+        onPickSkills={openSkills}
         pending={saveReq.isPending}
         error={reqError}
         onSubmit={() => {
           setReqError('');
           saveReq.mutate();
+        }}
+      />
+
+      <SkillPickerDialog
+        open={skillsOpen}
+        onOpenChange={setSkillsOpen}
+        opportunityId={o.id}
+        initial={o.requirements
+          .filter((r) => r.factor === 'skill' && r.skill_id)
+          .map((r) => ({
+            id: r.skill_id as string,
+            name:
+              lookup.skills.find((s) => s.id === r.skill_id)?.name ??
+              r.description,
+            mandatory: r.is_mandatory,
+          }))}
+        canAdd={canEdit}
+        saving={saveSkills.isPending}
+        error={skillsError}
+        onSave={(picked) => {
+          setSkillsError('');
+          saveSkills.mutate(picked);
         }}
       />
 

@@ -114,7 +114,7 @@ function AddOpportunity({
       }),
     onSuccess: (o) => {
       toast.success('Opportunity saved as a draft.');
-      nav(`/opportunities/${o.id}`);
+      nav(`/opportunities/${o.id}?skills=1`);
     },
     onError: (e) =>
       setError(e instanceof ApiError ? e.message : 'Could not save.'),
@@ -127,7 +127,7 @@ function AddOpportunity({
         if (!o) setError('');
       }}
       title="Add opportunity"
-      description="It is saved as a draft. Add requirements, then open it."
+      description="It is saved as a draft. Next you choose its skills, then open it."
       submitLabel="Save as draft"
       pending={create.isPending}
       error={error}

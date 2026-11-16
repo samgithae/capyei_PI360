@@ -462,6 +462,13 @@ def save_requirement(*, actor, opportunity, data, requirement=None):
     if opportunity.status in (Opportunity.CLOSED, Opportunity.EXPIRED):
         raise RuleViolation("status", "Reopen the opportunity before editing it.", "locked")
     data = _typed(requirement, data)
+    skill = data.get("skill")
+    if skill is not None:
+        twin = opportunity.requirements.filter(skill=skill)
+        if requirement is not None:
+            twin = twin.exclude(pk=requirement.pk)
+        if twin.exists():
+            raise RuleViolation("skill_id", f"“{skill.name}” is already required.", "duplicate")
     if requirement is None:
         requirement = OpportunityRequirement.objects.create(opportunity=opportunity, **data)
         action, before = "opportunity.requirement_added", None
@@ -476,6 +483,68 @@ def save_requirement(*, actor, opportunity, data, requirement=None):
         before=before, after={"requirement": str(requirement.pk), **_plain(data)},
     )  # fmt: skip
     return requirement
+
+
+MAX_SKILLS = 50  # a sanity limit on one request, not a product rule
+
+
+def popular_skills(*, limit=8):
+    """Skills opportunities ask for most, with how many opportunities want each. When fewer than
+    ``limit`` skills have been asked for yet, the list is topped up from the skills list itself so
+    a new installation still has something to start from (those carry ``used`` 0)."""
+    from django.db.models import Count
+
+    rows = (
+        OpportunityRequirement.objects.filter(skill__isnull=False, skill__active=True)
+        .values("skill")
+        .annotate(n=Count("opportunity", distinct=True))
+        .order_by("-n", "skill__name")[:limit]
+    )
+    used = {str(r["skill"]): r["n"] for r in rows}
+    found = configuration.skills_by_ids(used)
+    out = [{**found[k], "used": n} for k, n in used.items() if k in found]
+    if len(out) < limit:
+        _, more = configuration.search_skills(limit=limit + len(out))
+        out += [{**m, "used": 0} for m in more if m["id"] not in used][: limit - len(out)]
+    return out
+
+
+@transaction.atomic
+def sync_skill_requirements(*, actor, opportunity, items):
+    """Make the opportunity's skill requirements exactly ``items`` (``skill_id``, ``is_mandatory``).
+
+    One call saves the whole picker: skills not listed are removed, new ones added, and a kept
+    skill only has its must-have flag updated. A skill repeated in ``items`` counts once."""
+    if opportunity.status in (Opportunity.CLOSED, Opportunity.EXPIRED):
+        raise RuleViolation("status", "Reopen the opportunity before editing it.", "locked")
+    if len(items) > MAX_SKILLS:
+        raise RuleViolation("skills", f"Choose at most {MAX_SKILLS} skills.", "too_many")
+    want = {}
+    for it in items:
+        want[str(it["skill_id"])] = bool(it.get("is_mandatory"))
+    rows = {}
+    for sid in want:
+        row = configuration.active_reference("skills", sid)
+        if row is None:
+            raise RuleViolation("skills", "One of the skills is not in the skills list.", "invalid")
+        rows[sid] = row
+    have = {str(r.skill_id): r for r in opportunity.requirements.filter(skill__isnull=False)}
+    for sid, r in have.items():
+        if sid not in want:
+            remove_requirement(actor=actor, opportunity=opportunity, requirement=r)
+    for sid, mandatory in want.items():
+        r = have.get(sid)
+        if r is None:
+            save_requirement(
+                actor=actor, opportunity=opportunity,
+                data={"factor": "skill", "skill_id": sid, "is_mandatory": mandatory},
+            )  # fmt: skip
+        elif r.is_mandatory != mandatory:
+            save_requirement(
+                actor=actor, opportunity=opportunity,
+                data={"is_mandatory": mandatory}, requirement=r,
+            )  # fmt: skip
+    return list(opportunity.requirements.all())
 
 
 @transaction.atomic

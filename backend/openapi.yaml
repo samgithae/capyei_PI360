@@ -2300,6 +2300,49 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/opportunities/{id}/requirements/skills:
+    put:
+      operationId: opportunities_requirements_skills_update
+      description: Save the whole skills picker in one call (add, remove and must-have
+        flags together).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - opportunities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillSync'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SkillSync'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SkillSync'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/opportunities/{id}/suggestions:
     get:
       operationId: opportunity_suggestions
@@ -3773,6 +3816,106 @@ paths:
           type: string
       tags:
       - reporting
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/requirement-skills:
+    get:
+      operationId: requirement_skills_retrieve
+      description: 'Pick-list search: partial, any case, paged. ``category`` narrows
+        to one group.'
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      - in: query
+        name: offset
+        schema:
+          type: integer
+      - in: query
+        name: q
+        schema:
+          type: string
+      tags:
+      - requirement-skills
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/requirement-skills/add:
+    post:
+      operationId: requirement_skills_add_create
+      description: Add a missing skill to the central list from the picker (409 when
+        it already exists).
+      tags:
+      - requirement-skills
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillAdd'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SkillAdd'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SkillAdd'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/requirement-skills/categories:
+    get:
+      operationId: requirement_skills_categories_retrieve
+      tags:
+      - requirement-skills
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/requirement-skills/popular:
+    get:
+      operationId: requirement_skills_popular_retrieve
+      tags:
+      - requirement-skills
       security:
       - cookieAuth: []
       responses:
@@ -5887,6 +6030,40 @@ components:
       - signed_on
       - signer_name
       - signer_role
+    SkillAdd:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        category:
+          type: string
+          maxLength: 80
+        confirm_similar:
+          type: boolean
+          default: false
+      required:
+      - name
+    SkillItem:
+      type: object
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+        is_mandatory:
+          type: boolean
+          default: false
+      required:
+      - skill_id
+    SkillSync:
+      type: object
+      properties:
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkillItem'
+      required:
+      - skills
     StatusMap:
       type: object
       properties:
