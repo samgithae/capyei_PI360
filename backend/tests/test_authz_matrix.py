@@ -75,6 +75,11 @@ MATRIX = {
     "employer/me": {"GET": "employer.portal"},
     "employer/roles": {"GET": "employer.manage_staff"},
     "employer/people": {"GET": "employer.view_profile"},
+    "employer/logo": {
+        "GET": "employer.view_profile",
+        "POST": "employer.edit_profile",
+        "DELETE": "employer.edit_profile",
+    },
     "employer/staff": {"GET": "employer.manage_staff", "POST": "employer.manage_staff"},
     "employer/staff/<uuid:mpk>": {
         "PATCH": "employer.manage_staff",

@@ -9,12 +9,16 @@ import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { DetailList, Section } from '@/components/shared/info-card';
 import { FormModal } from '@/components/shared/modals';
 import { MultiSelectField } from '@/components/shared/multi-select-field';
 import { PageHeader } from '@/components/shared/page-header';
 import { ErrorState, LoadingState } from '@/components/states';
+import { CompanyLogo } from './company-logo';
 import type { Ref } from './employer-types';
+
+const DESCRIPTION_MAX = 600;
 
 interface Profile {
   id: string;
@@ -26,6 +30,8 @@ interface Profile {
   sub_county: string;
   address: string;
   website: string;
+  description: string;
+  logo_version: string | null;
   options: { sectors: Ref[]; counties: Ref[] };
 }
 
@@ -49,6 +55,7 @@ export function EmployerCompanyPage() {
     sub_county: '',
     address: '',
     website: '',
+    description: '',
     sector_ids: [] as string[],
     county_ids: [] as string[],
   });
@@ -59,6 +66,7 @@ export function EmployerCompanyPage() {
         sub_county: p.sub_county,
         address: p.address,
         website: p.website,
+        description: p.description,
         sector_ids: p.sector_ids,
         county_ids: p.county_ids,
       });
@@ -101,6 +109,26 @@ export function EmployerCompanyPage() {
           )
         }
       />
+      <Section
+        title="Logo and about"
+        description="Shown to PI 360 staff. Keep the description short: who you are and what you do."
+      >
+        <div className="space-y-5">
+          <CompanyLogo
+            version={p.logo_version}
+            canEdit={canEdit}
+            onChanged={refresh}
+          />
+          {p.description ? (
+            <p className="whitespace-pre-line text-sm">{p.description}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No description yet.
+              {canEdit && ' Use Edit details to add one.'}
+            </p>
+          )}
+        </div>
+      </Section>
       <Section title="Details">
         <DetailList
           items={[
@@ -141,6 +169,20 @@ export function EmployerCompanyPage() {
           save.mutate();
         }}
       >
+        <div className="space-y-1.5">
+          <Label htmlFor="ec-about">About the company</Label>
+          <Textarea
+            id="ec-about"
+            rows={4}
+            maxLength={DESCRIPTION_MAX}
+            placeholder="Who you are and what you do, in a few sentences."
+            value={v.description}
+            onChange={(e) => setV({ ...v, description: e.target.value })}
+          />
+          <p className="text-xs text-muted-foreground">
+            {v.description.length} / {DESCRIPTION_MAX}
+          </p>
+        </div>
         <div className="space-y-1.5">
           <Label>Industry / Sector</Label>
           <MultiSelectField

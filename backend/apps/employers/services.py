@@ -27,7 +27,7 @@ from .models import (
 SIMILAR = (
     0.88  # name similarity that triggers the duplicate warning; steward decides, never auto-merged
 )
-FIELDS = ("name", "sub_county", "address", "website", "status", "notes")
+FIELDS = ("name", "sub_county", "address", "website", "description", "status", "notes")
 # Many-to-many links, given as lists of reference ids: payload key -> (attribute, reference kind).
 LINKS = {"sector_ids": ("sectors", "sectors"), "county_ids": ("counties", "counties")}
 SINGULAR = {"sectors": "sector", "counties": "county"}
@@ -960,13 +960,17 @@ opportunity_summary = _own.opportunity_summary
 own_contact = _own.own_contact
 own_opportunities = _own.own_opportunities
 own_opportunity = _own.own_opportunity
+LogoError = _own.LogoError
+own_logo = _own.own_logo
 own_profile = _own.own_profile
 publish_request_dict = _own.publish_request_dict
 refs = _own.refs
 remove_own_contact = _own.remove_own_contact
+remove_own_logo = _own.remove_own_logo
 remove_own_requirement = _own.remove_own_requirement
 requirement_dict = _own.requirement_dict
 save_own_contact = _own.save_own_contact
+save_own_logo = _own.save_own_logo
 save_own_requirement = _own.save_own_requirement
 sync_own_skills = _own.sync_own_skills
 update_own_opportunity = _own.update_own_opportunity

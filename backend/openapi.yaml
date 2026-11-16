@@ -756,6 +756,67 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/employer/logo:
+    get:
+      operationId: employer_logo_get
+      description: |-
+        The company's logo. Any signed-in member who can see the profile may see it; changing or
+        removing it needs the same permission as editing the profile.
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+    post:
+      operationId: employer_logo_post
+      description: |-
+        The company's logo. Any signed-in member who can see the profile may see it; changing or
+        removing it needs the same permission as editing the profile.
+      tags:
+      - employer
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                logo:
+                  type: string
+                  format: binary
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: employer_logo_delete
+      description: |-
+        The company's logo. Any signed-in member who can see the profile may see it; changing or
+        removing it needs the same permission as editing the profile.
+      tags:
+      - employer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/employer/me:
     get:
       operationId: employer_me_get
@@ -7247,6 +7308,9 @@ components:
         website:
           type: string
           maxLength: 200
+        description:
+          type: string
+          maxLength: 600
         sector_ids:
           type: array
           items:

@@ -14,6 +14,7 @@ urlpatterns = [
     path("employer/staff/<uuid:mpk>", views.EmployerStaffMemberView.as_view()),
     path("employer/dashboard", d.OwnDashboardView.as_view()),
     path("employer/profile", d.OwnProfileView.as_view()),
+    path("employer/logo", d.OwnLogoView.as_view()),
     path("employer/contacts", d.OwnContactListView.as_view()),
     path("employer/contacts/<uuid:cpk>", d.OwnContactView.as_view()),
     path("employer/opportunities", d.OwnOpportunityListView.as_view()),

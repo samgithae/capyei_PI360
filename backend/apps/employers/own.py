@@ -17,8 +17,11 @@ from django.db.models import Q
 
 from apps.configuration import services as configuration
 
+from . import logo as _logo
 from . import services
 from .models import Employer, EmployerContact, Opportunity, OpportunityRequirement
+
+LogoError = _logo.LogoError  # raised for a logo that cannot be used; the portal re-raises it
 
 # The choices a company may send, so the portal never imports the models.
 KIND_CHOICES = Opportunity.TYPES
@@ -129,7 +132,7 @@ def opportunity_detail(o):
 
 # What a company may change about itself. The name and the status stay with PI staff, and so do
 # the notes, which only staff ever see.
-PROFILE_FIELDS = ("sub_county", "address", "website", "sector_ids", "county_ids")
+PROFILE_FIELDS = ("sub_county", "address", "website", "description", "sector_ids", "county_ids")
 
 
 def _employer(employer_id):
@@ -156,6 +159,8 @@ def own_profile(employer_id) -> dict:
         "sub_county": e.sub_county,
         "address": e.address,
         "website": e.website,
+        "description": e.description,
+        "logo_version": _logo.version(e.pk),
         "contacts": [contact_dict(c) for c in e.contacts.all()],
         "options": {
             "sectors": options["sectors"],
@@ -168,6 +173,22 @@ def update_own_profile(*, actor, employer_id, data) -> dict:
     e = _employer(employer_id)
     clean = {k: v for k, v in data.items() if k in PROFILE_FIELDS}
     services.update_employer(actor=actor, employer=e, data=clean)
+    return own_profile(employer_id)
+
+
+def own_logo(employer_id) -> tuple[bytes, str] | None:
+    """The company's logo as ``(bytes, content type)``, or None when it has not set one."""
+    _employer(employer_id)
+    return _logo.get(employer_id)
+
+
+def save_own_logo(*, actor, employer_id, raw) -> dict:
+    _logo.save(actor=actor, employer=_employer(employer_id), raw=raw)
+    return own_profile(employer_id)
+
+
+def remove_own_logo(*, actor, employer_id) -> dict:
+    _logo.remove(actor=actor, employer=_employer(employer_id))
     return own_profile(employer_id)
 
 

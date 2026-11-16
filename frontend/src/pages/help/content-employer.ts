@@ -133,13 +133,14 @@ export const EMPLOYER_GUIDES: Guide[] = [
   {
     slug: 'employer-profile',
     title: 'Keep your company details up to date',
-    summary: 'Industries, counties, address and website.',
+    summary: 'Logo, about us, industries, counties, address and website.',
     group: 'Your company',
     needs: ['employer.view_profile'],
     to: { path: '/employer/company', label: 'Open company profile' },
     steps: [
       'Company profile shows what PI 360 holds about you. The company name can only be changed by PI 360 staff.',
-      'Edit details to change industries, counties, address and website. Opportunities can only use the industries and counties listed here.',
+      'Add your logo under Logo and about: choose a PNG, JPG or WebP image up to 2 MB. It is resized to fit and never cropped. Change logo replaces it and Remove takes it away. Only a Company admin can change it; everyone in the company can see it.',
+      'Edit details to write a short About the company description (up to 600 characters) and to change industries, counties, address and website. Opportunities can only use the industries and counties listed here.',
       'The people PI 360 can contact are on the People page, with who can sign in. Mark one as the primary contact there.',
     ],
     updated: '2026-11',

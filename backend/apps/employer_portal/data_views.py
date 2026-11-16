@@ -8,10 +8,12 @@ from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.api.access import HasPermission
+from apps.api.downloads import logo_response, read_logo_upload
 from apps.api.pagination import page_size_of
 from apps.configuration import services as configuration
 from apps.employers import services as employers
@@ -65,6 +67,7 @@ class OwnProfileSerializer(serializers.Serializer):
     sub_county = serializers.CharField(max_length=100, required=False, allow_blank=True)
     address = serializers.CharField(max_length=200, required=False, allow_blank=True)
     website = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    description = serializers.CharField(max_length=600, required=False, allow_blank=True)
     sector_ids = IdList()
     county_ids = IdList()
 
@@ -95,6 +98,46 @@ class OwnProfileView(APIView):
         s = OwnProfileSerializer(data=request.data, partial=True)
         s.is_valid(raise_exception=True)
         out, bad = scoped(employers.update_own_profile, request, data=dict(s.validated_data))
+        return bad or Response(out)
+
+
+class OwnLogoView(APIView):
+    """The company's logo. Any signed-in member who can see the profile may see it; changing or
+    removing it needs the same permission as editing the profile."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": VIEW_PROFILE, "POST": EDIT_PROFILE, "DELETE": EDIT_PROFILE}
+    parser_classes = [MultiPartParser]
+
+    @extend_schema(operation_id="employer_logo_get", responses={200: bytes})
+    def get(self, request):
+        eid = company(request)
+        try:
+            return logo_response(employers.own_logo(eid))
+        except employers.Missing:
+            raise NotFound from None
+
+    @extend_schema(
+        operation_id="employer_logo_post",
+        request={
+            "multipart/form-data": {
+                "type": "object",
+                "properties": {"logo": {"type": "string", "format": "binary"}},
+            }
+        },
+        responses={200: dict},
+    )
+    def post(self, request):
+        raw = read_logo_upload(request)
+        try:
+            out, bad = scoped(employers.save_own_logo, request, raw=raw)
+        except employers.LogoError as exc:
+            raise serializers.ValidationError({exc.field: [str(exc)]}) from exc
+        return bad or Response(out)
+
+    @extend_schema(operation_id="employer_logo_delete", responses={200: dict})
+    def delete(self, request):
+        out, bad = scoped(employers.remove_own_logo, request)
         return bad or Response(out)
 
 

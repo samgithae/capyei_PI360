@@ -29,6 +29,7 @@ class Employer(models.Model):
     sub_county = models.CharField(max_length=100, blank=True)
     address = models.CharField(max_length=200, blank=True)
     website = models.CharField(max_length=200, blank=True)
+    description = models.TextField(blank=True)  # a short "about us", written by the company
     status = models.CharField(max_length=10, choices=STATUSES, default=ACTIVE)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -44,6 +45,19 @@ class Employer(models.Model):
     def save(self, *args, **kwargs):
         self.name_normalised = normalise(self.name)
         super().save(*args, **kwargs)
+
+
+class EmployerLogo(models.Model):
+    """The company's logo: one small image per employer, kept in the database so it is served only
+    to signed-in people (never as a public file). Resized and re-encoded on upload."""
+
+    employer = models.OneToOneField(Employer, on_delete=models.CASCADE, related_name="logo")
+    content = models.BinaryField()
+    content_type = models.CharField(max_length=20, default="image/png")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"logo:{self.employer_id}"
 
 
 class EmployerContact(models.Model):
