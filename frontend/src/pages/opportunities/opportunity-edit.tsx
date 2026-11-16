@@ -12,8 +12,11 @@ import { WhereWhatFields } from './opportunity-fields';
 interface Detail {
   title: string;
   kind: string;
-  sector_id: string | null;
-  county_id: string | null;
+  employer_id: string;
+  sector_ids: string[];
+  county_ids: string[];
+  sectors: { id: string; name: string }[];
+  counties: { id: string; name: string }[];
   location: string;
   positions: number;
   description: string;
@@ -51,8 +54,8 @@ export function EditOpportunity({
         body: JSON.stringify({
           title: b.title,
           kind: b.kind,
-          sector_id: b.sector_id,
-          county_id: b.county_id,
+          sector_ids: b.sector_ids,
+          county_ids: b.county_ids,
           location: b.location,
           positions: Number(b.positions),
           description: b.description,
@@ -130,7 +133,13 @@ export function EditOpportunity({
               />
             </div>
           </div>
-          <WhereWhatFields idPrefix="oe" value={v} onChange={patch} />
+          <WhereWhatFields
+            idPrefix="oe"
+            employerId={v.employer_id}
+            stored={{ sectors: v.sectors, counties: v.counties }}
+            value={v}
+            onChange={patch}
+          />
         </>
       )}
     </FormModal>

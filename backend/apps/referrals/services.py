@@ -343,7 +343,7 @@ def _learner_row(r, reached) -> dict:
         "opportunity": o.title,
         "employer": o.employer.name,
         "kind": o.kind,
-        "location": o.location or (o.county.name if o.county_id else ""),
+        "location": o.location or employers.county_names(o),
         "stage": stage,
         "stage_label": _LEARNER_LABEL.get(stage, "Closed"),
         "ended": stage not in Referral.ACTIVE and stage != Referral.PLACED,
@@ -358,7 +358,7 @@ def _learner_qs(participant_id):
     return (
         Referral.objects.filter(participant_id=participant_id)
         .exclude(stage=Referral.DRAFT)
-        .select_related("opportunity__employer", "opportunity__county")
+        .select_related("opportunity__employer")
         .prefetch_related("events")
         .order_by("-referred_at", "-created_at")
     )
@@ -456,7 +456,7 @@ def learner_placed(participant_id) -> list[dict]:
                     "employer": o.employer.name,
                     "designation": o.title,
                     "kind": o.kind,
-                    "location": o.location or (o.county.name if o.county_id else ""),
+                    "location": o.location or employers.county_names(o),
                     "start_date": o.start_date.isoformat() if o.start_date else None,
                     "placed_on": placed_at.date().isoformat() if placed_at else None,
                 }

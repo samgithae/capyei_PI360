@@ -61,13 +61,18 @@ class OpportunityRestoreView(OpportunityArchiveView):
     archive = False
 
 
+def _refs(rows):
+    """Linked reference rows as ``[{id, name}]``, by name."""
+    return [{"id": str(r.pk), "name": r.name} for r in sorted(rows, key=lambda r: r.name)]
+
+
 def _summary(e):
     return {
         "id": str(e.pk),
         "name": e.name,
         "status": e.status,
-        "sector": e.sector.name if e.sector_id else "",
-        "county": e.county.name if e.county_id else "",
+        "sectors": _refs(e.sectors.all()),
+        "counties": _refs(e.counties.all()),
         "archived": e.archived_at is not None,
     }
 
@@ -82,8 +87,8 @@ def _contact(c):
 def _detail(e):
     return {
         **_summary(e),
-        "sector_id": str(e.sector_id) if e.sector_id else None,
-        "county_id": str(e.county_id) if e.county_id else None,
+        "sector_ids": [s["id"] for s in _refs(e.sectors.all())],
+        "county_ids": [c["id"] for c in _refs(e.counties.all())],
         "sub_county": e.sub_county,
         "address": e.address,
         "website": e.website,
@@ -92,10 +97,18 @@ def _detail(e):
     }
 
 
+class IdList(serializers.ListField):
+    """A list of reference ids (counties, sectors). Duplicates are dropped by the services."""
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("required", False)
+        super().__init__(child=serializers.UUIDField(), allow_empty=True, max_length=100, **kwargs)
+
+
 class EmployerSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
-    sector_id = serializers.UUIDField(required=False, allow_null=True)
-    county_id = serializers.UUIDField(required=False, allow_null=True)
+    sector_ids = IdList()
+    county_ids = IdList()
     sub_county = serializers.CharField(max_length=100, required=False, allow_blank=True)
     address = serializers.CharField(max_length=200, required=False, allow_blank=True)
     website = serializers.CharField(max_length=200, required=False, allow_blank=True)
@@ -136,7 +149,7 @@ def _duplicate_response(exc):
 
 def _get(pk):
     try:
-        return Employer.objects.select_related("sector", "county").get(pk=pk)
+        return Employer.objects.prefetch_related("sectors", "counties").get(pk=pk)
     except Employer.DoesNotExist:
         raise NotFound from None
 
@@ -154,7 +167,7 @@ def _save(request, employer=None):
         return services.update_employer(
             actor=request.user, employer=employer, data=data, confirm_duplicate=confirm
         )
-    except services.DuplicateWarning as exc:
+    except (services.DuplicateWarning, services.RuleViolation) as exc:
         return exc
 
 
@@ -172,16 +185,16 @@ class EmployerListView(APIView):
     )
     def get(self, request):
         g = request.query_params
-        qs = archived_filter(Employer.objects.select_related("sector", "county"), g)
+        qs = archived_filter(Employer.objects.prefetch_related("sectors", "counties"), g)
         if q := g.get("q", "").strip():
             qs = qs.filter(name_normalised__contains=services.norm(q))
         if g.get("status") in {s for s, _ in Employer.STATUSES}:
             qs = qs.filter(status=g["status"])
         try:
             if g.get("sector"):
-                qs = qs.filter(sector_id=uuid.UUID(g["sector"]))
+                qs = qs.filter(sectors__id=uuid.UUID(g["sector"]))
             if g.get("county"):
-                qs = qs.filter(county_id=uuid.UUID(g["county"]))
+                qs = qs.filter(counties__id=uuid.UUID(g["county"]))
         except ValueError:
             raise serializers.ValidationError({"filter": ["Invalid filter value."]}) from None
         size = page_size_of(g)
@@ -203,6 +216,8 @@ class EmployerListView(APIView):
         result = _save(request)
         if isinstance(result, services.DuplicateWarning):
             return _duplicate_response(result)
+        if isinstance(result, services.RuleViolation):
+            return _violation(result)
         return Response(_detail(_get(result.pk)), status=status.HTTP_201_CREATED)
 
 
@@ -224,6 +239,8 @@ class EmployerDetailView(APIView):
         result = _save(request, _get(pk))
         if isinstance(result, services.DuplicateWarning):
             return _duplicate_response(result)
+        if isinstance(result, services.RuleViolation):
+            return _violation(result)
         return Response(_detail(_get(pk)))
 
 
@@ -343,7 +360,8 @@ def _opp_summary(o):
         "employer": o.employer.name,
         "kind": o.kind,
         "status": o.status,
-        "county": o.county.name if o.county_id else "",
+        "counties": _refs(o.counties.all()),
+        "sectors": _refs(o.sectors.all()),
         "positions": o.positions,
         "closing_date": o.closing_date.isoformat() if o.closing_date else None,
         "archived": o.archived_at is not None,
@@ -353,9 +371,8 @@ def _opp_summary(o):
 def _opp_detail(o):
     return {
         **_opp_summary(o),
-        "sector": o.sector.name if o.sector_id else "",
-        "sector_id": str(o.sector_id) if o.sector_id else None,
-        "county_id": str(o.county_id) if o.county_id else None,
+        "sector_ids": [s["id"] for s in _refs(o.sectors.all())],
+        "county_ids": [c["id"] for c in _refs(o.counties.all())],
         "location": o.location,
         "description": o.description,
         "start_date": o.start_date.isoformat() if o.start_date else None,
@@ -371,7 +388,11 @@ def _opp_detail(o):
 
 def _opp(pk):
     try:
-        return Opportunity.objects.select_related("employer", "sector", "county").get(pk=pk)
+        return (
+            Opportunity.objects.select_related("employer")
+            .prefetch_related("sectors", "counties")
+            .get(pk=pk)
+        )
     except Opportunity.DoesNotExist:
         raise NotFound from None
 
@@ -379,8 +400,8 @@ def _opp(pk):
 class OpportunitySerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     kind = serializers.ChoiceField(choices=Opportunity.TYPES, required=False)
-    sector_id = serializers.UUIDField(required=False, allow_null=True)
-    county_id = serializers.UUIDField(required=False, allow_null=True)
+    sector_ids = IdList()
+    county_ids = IdList()
     location = serializers.CharField(max_length=200, required=False, allow_blank=True)
     positions = serializers.IntegerField(min_value=1, max_value=10000, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
@@ -390,6 +411,12 @@ class OpportunitySerializer(serializers.Serializer):
 
 class OpportunityCreateSerializer(OpportunitySerializer):
     employer_id = serializers.UUIDField()
+
+
+class OpportunityUpdateSerializer(OpportunitySerializer):
+    """Moving a draft to another employer is allowed; the services re-check counties and sectors."""
+
+    employer_id = serializers.UUIDField(required=False)
 
 
 class TransitionSerializer(serializers.Serializer):
@@ -425,7 +452,10 @@ class OpportunityListView(APIView):
     )
     def get(self, request):
         g = request.query_params
-        qs = archived_filter(Opportunity.objects.select_related("employer", "county"), g)
+        qs = archived_filter(
+            Opportunity.objects.select_related("employer").prefetch_related("counties", "sectors"),
+            g,
+        )
         if g.get("archived") != "1":  # an archived employer takes its opportunities with it
             qs = qs.filter(employer__archived_at__isnull=True)
         if q := g.get("q", "").strip():
@@ -479,14 +509,15 @@ class OpportunityDetailView(APIView):
         """Archive (soft delete). Restore with POST /opportunities/restore."""
         return Response(_archive_one(request, Opportunity.objects.all(), pk, "opportunity"))
 
-    @extend_schema(request=OpportunitySerializer, responses={200: dict, 409: dict})
+    @extend_schema(request=OpportunityUpdateSerializer, responses={200: dict, 409: dict})
     def patch(self, request, pk):
-        s = OpportunitySerializer(data=request.data, partial=True)
+        s = OpportunityUpdateSerializer(data=request.data, partial=True)
         s.is_valid(raise_exception=True)
+        data = dict(s.validated_data)
+        if "employer_id" in data:
+            data["employer"] = _get(data.pop("employer_id"))
         try:
-            services.update_opportunity(
-                actor=request.user, opportunity=_opp(pk), data=dict(s.validated_data)
-            )
+            services.update_opportunity(actor=request.user, opportunity=_opp(pk), data=data)
         except services.RuleViolation as exc:
             return _violation(exc)
         return Response(_opp_detail(_opp(pk)))

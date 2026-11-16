@@ -1,8 +1,9 @@
 """Employer registry (T-044, FR-11): employers and their contacts.
 
-Sector and county are references to configuration ids, so renames never break links. Sub-county
-stays text (D-049). Employers are deactivated, never deleted (the one exception: reversing a
-steward's cluster decision removes the employers that decision created, if still unused)."""
+Counties and sectors ("Industry / Sector" on screen) are many-to-many links to configuration
+ids, so renames never break links and an employer can work in several counties and industries.
+Sub-county stays text (D-049). Employers are deactivated, never deleted (the one exception:
+reversing a steward's cluster decision removes the employers it created, if still unused)."""
 
 import uuid
 
@@ -19,11 +20,11 @@ class Employer(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200)
     name_normalised = models.CharField(max_length=200, editable=False, db_index=True)
-    sector = models.ForeignKey(
-        "configuration.Sector", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    sectors = models.ManyToManyField(
+        "configuration.Sector", through="EmployerSector", blank=True, related_name="+"
     )
-    county = models.ForeignKey(
-        "configuration.County", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    counties = models.ManyToManyField(
+        "configuration.County", through="EmployerCounty", blank=True, related_name="+"
     )
     sub_county = models.CharField(max_length=100, blank=True)
     address = models.CharField(max_length=200, blank=True)
@@ -89,11 +90,12 @@ class Opportunity(models.Model):
     employer = models.ForeignKey(Employer, on_delete=models.PROTECT, related_name="opportunities")
     title = models.CharField(max_length=200)
     kind = models.CharField(max_length=14, choices=TYPES, default="job")
-    sector = models.ForeignKey(
-        "configuration.Sector", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    # Subsets of the employer's counties and sectors, enforced in services (not only in the UI).
+    sectors = models.ManyToManyField(
+        "configuration.Sector", through="OpportunitySector", blank=True, related_name="+"
     )
-    county = models.ForeignKey(
-        "configuration.County", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    counties = models.ManyToManyField(
+        "configuration.County", through="OpportunityCounty", blank=True, related_name="+"
     )
     location = models.CharField(max_length=200, blank=True)
     positions = models.PositiveIntegerField(default=1)
@@ -110,6 +112,66 @@ class Opportunity(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class EmployerCounty(models.Model):
+    """One county an employer operates in. PROTECT keeps a county from vanishing under its links."""
+
+    employer = models.ForeignKey(Employer, on_delete=models.CASCADE, related_name="+")
+    county = models.ForeignKey("configuration.County", on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["employer", "county"], name="uniq_employer_county")
+        ]
+
+    def __str__(self):
+        return f"{self.employer_id} / {self.county_id}"
+
+
+class EmployerSector(models.Model):
+    """One industry / sector an employer works in."""
+
+    employer = models.ForeignKey(Employer, on_delete=models.CASCADE, related_name="+")
+    sector = models.ForeignKey("configuration.Sector", on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["employer", "sector"], name="uniq_employer_sector")
+        ]
+
+    def __str__(self):
+        return f"{self.employer_id} / {self.sector_id}"
+
+
+class OpportunityCounty(models.Model):
+    opportunity = models.ForeignKey("Opportunity", on_delete=models.CASCADE, related_name="+")
+    county = models.ForeignKey("configuration.County", on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["opportunity", "county"], name="uniq_opportunity_county"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.opportunity_id} / {self.county_id}"
+
+
+class OpportunitySector(models.Model):
+    opportunity = models.ForeignKey("Opportunity", on_delete=models.CASCADE, related_name="+")
+    sector = models.ForeignKey("configuration.Sector", on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["opportunity", "sector"], name="uniq_opportunity_sector"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.opportunity_id} / {self.sector_id}"
 
 
 class OpportunityRequirement(models.Model):

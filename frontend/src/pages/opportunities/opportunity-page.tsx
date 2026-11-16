@@ -54,8 +54,8 @@ interface Detail {
   employer: string;
   kind: string;
   status: string;
-  sector: string;
-  county: string;
+  sectors: { id: string; name: string }[];
+  counties: { id: string; name: string }[];
   location: string;
   positions: number;
   description: string;
@@ -322,8 +322,14 @@ export function OpportunityPage() {
                 { label: 'Positions', value: o.positions },
                 { label: 'Start date', value: o.start_date },
                 { label: 'Closing date', value: o.closing_date },
-                { label: 'Industry', value: o.sector },
-                { label: 'County', value: o.county },
+                {
+                  label: 'Industry / Sector',
+                  value: o.sectors.map((x) => x.name).join(', '),
+                },
+                {
+                  label: 'Counties',
+                  value: o.counties.map((x) => x.name).join(', '),
+                },
                 { label: 'Location', value: o.location },
                 { label: 'Description', value: o.description },
               ]}

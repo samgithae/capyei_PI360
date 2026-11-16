@@ -32,14 +32,21 @@ import {
 import { DialogShell } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
-import { EmployerForm, EmployerValues, EMPTY, Options } from './employer-form';
+import {
+  EmployerForm,
+  EmployerValues,
+  EMPTY,
+  names,
+  Option,
+  Options,
+} from './employer-form';
 
 interface Row {
   id: string;
   name: string;
   status: string;
-  sector: string;
-  county: string;
+  sectors: Option[];
+  counties: Option[];
   archived: boolean;
 }
 interface Page {
@@ -157,7 +164,7 @@ export function EmployersPage() {
               onSubmit={(v) => set('q', v)}
             />
             <FilterSelect
-              label="All sectors"
+              label="All industries / sectors"
               value={params.get('sector') ?? ''}
               options={options.data?.sectors ?? []}
               onChange={(v) => set('sector', v)}
@@ -214,8 +221,8 @@ export function EmployersPage() {
               <TableRow className="bg-muted/40">
                 {canArchive && <SelectAllHead selection={selection} />}
                 <TableHead>Name</TableHead>
-                <TableHead>Sector</TableHead>
-                <TableHead>County</TableHead>
+                <TableHead>Industry / Sector</TableHead>
+                <TableHead>Counties</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-12">
                   <span className="sr-only">Actions</span>
@@ -247,8 +254,8 @@ export function EmployersPage() {
                       {e.name}
                     </Link>
                   </TableCell>
-                  <TableCell>{e.sector}</TableCell>
-                  <TableCell>{e.county}</TableCell>
+                  <TableCell>{names(e.sectors)}</TableCell>
+                  <TableCell>{names(e.counties)}</TableCell>
                   <TableCell>
                     <ParticipantStatus status={e.status} />
                   </TableCell>

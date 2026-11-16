@@ -3,6 +3,7 @@ import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ManageLink } from '@/components/shared/manage-link';
+import { MultiSelectField } from '@/components/shared/multi-select-field';
 import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
 
@@ -10,14 +11,16 @@ export interface Option {
   id: string;
   name: string;
 }
+/** `names(refs)` → "Mombasa, Nairobi" for lists and headers. */
+export const names = (refs: Option[]) => refs.map((r) => r.name).join(', ');
 export interface Options {
   sectors: Option[];
   counties: Option[];
 }
 export interface EmployerValues {
   name: string;
-  sector_id: string | null;
-  county_id: string | null;
+  sector_ids: string[];
+  county_ids: string[];
   sub_county: string;
   address: string;
   website: string;
@@ -32,8 +35,8 @@ interface Match {
 
 export const EMPTY: EmployerValues = {
   name: '',
-  sector_id: null,
-  county_id: null,
+  sector_ids: [],
+  county_ids: [],
   sub_county: '',
   address: '',
   website: '',
@@ -60,7 +63,15 @@ export function EmployerForm({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k: keyof EmployerValues, val: string) =>
-    setV((p) => ({ ...p, [k]: val === '' && k.endsWith('_id') ? null : val }));
+    setV((p) => ({ ...p, [k]: val }));
+  // The sub-county is one place name, so it only makes sense for a single-county employer.
+  // Changing the set of counties clears it rather than leaving one that belongs elsewhere.
+  const setIds = (k: 'sector_ids' | 'county_ids', ids: string[]) =>
+    setV((p) => ({
+      ...p,
+      [k]: ids,
+      ...(k === 'county_ids' ? { sub_county: '' } : {}),
+    }));
 
   const submit = async (e: FormEvent, confirm = false) => {
     e.preventDefault();
@@ -86,24 +97,6 @@ export function EmployerForm({
     }
   };
 
-  const select = (
-    k: 'sector_id' | 'county_id' | 'status',
-    label: string,
-    items: Option[],
-  ) => (
-    <SelectField
-      label={label}
-      className="w-44"
-      value={v[k] ?? ''}
-      emptyLabel={k !== 'status' ? label : undefined}
-      options={items}
-      onChange={(x) => {
-        set(k, x);
-        if (k === 'county_id') set('sub_county', '');
-      }}
-    />
-  );
-
   return (
     <form onSubmit={submit} className="space-y-3">
       <Input
@@ -116,28 +109,59 @@ export function EmployerForm({
         }}
         required
       />
-      <div className="flex flex-wrap gap-2">
-        {select('sector_id', 'Sector', options?.sectors ?? [])}
-        {select('county_id', 'County', options?.counties ?? [])}
-        {select(
-          'status',
-          'Status',
-          ['active', 'inactive', 'prospect'].map((s) => ({ id: s, name: s })),
-        )}
+      <div className="space-y-1">
+        <span className="text-sm font-medium">Industry / Sector</span>
+        <MultiSelectField
+          label="Add an industry / sector"
+          options={options?.sectors ?? []}
+          loading={!options}
+          value={v.sector_ids}
+          onChange={(ids) => setIds('sector_ids', ids)}
+          emptyMessage="No industries / sectors are set up yet."
+        />
+        <ManageLink
+          missing="Industry / Sector"
+          to="/administration/sectors"
+          label="Add or manage sectors"
+        />
       </div>
-      <ManageLink
-        missing="Sector"
-        to="/administration/sectors"
-        label="Add or manage sectors"
+      <div className="space-y-1">
+        <span className="text-sm font-medium">Counties</span>
+        <MultiSelectField
+          label="Add a county"
+          options={options?.counties ?? []}
+          loading={!options}
+          value={v.county_ids}
+          onChange={(ids) => setIds('county_ids', ids)}
+          emptyMessage="No counties are set up yet."
+        />
+      </div>
+      <SelectField
+        label="Status"
+        className="w-44"
+        value={v.status}
+        options={['active', 'inactive', 'prospect'].map((s) => ({
+          id: s,
+          name: s,
+        }))}
+        onChange={(x) => set('status', x)}
       />
-      <PlaceFields
-        countyId={v.county_id ?? ''}
-        subCounty={v.sub_county}
-        showWard={false}
-        onChange={(p) =>
-          p.subCounty !== undefined && set('sub_county', p.subCounty)
-        }
-      />
+      {v.county_ids.length === 1 ? (
+        <PlaceFields
+          countyId={v.county_ids[0]}
+          subCounty={v.sub_county}
+          showWard={false}
+          onChange={(p) =>
+            p.subCounty !== undefined && set('sub_county', p.subCounty)
+          }
+        />
+      ) : (
+        v.county_ids.length > 1 && (
+          <p className="text-xs text-muted-foreground">
+            Sub-county is only recorded when the employer has one county.
+          </p>
+        )
+      )}
       <Input
         aria-label="Address"
         placeholder="Address"

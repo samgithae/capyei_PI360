@@ -17,14 +17,19 @@ from .models import (
     Employer,
     EmployerAlias,
     EmployerContact,
+    EmployerCounty,
     Opportunity,
+    OpportunityCounty,
     OpportunityRequirement,
 )
 
 SIMILAR = (
     0.88  # name similarity that triggers the duplicate warning; steward decides, never auto-merged
 )
-FIELDS = ("name", "sector_id", "county_id", "sub_county", "address", "website", "status", "notes")
+FIELDS = ("name", "sub_county", "address", "website", "status", "notes")
+# Many-to-many links, given as lists of reference ids: payload key -> (attribute, reference kind).
+LINKS = {"sector_ids": ("sectors", "sectors"), "county_ids": ("counties", "counties")}
+SINGULAR = {"sectors": "sector", "counties": "county"}
 
 
 class DuplicateWarning(Exception):
@@ -56,14 +61,86 @@ def find_similar(name, *, exclude=None):
 
 
 def _snapshot(e):
-    return {f: (str(getattr(e, f)) if getattr(e, f) is not None else None) for f in FIELDS}
+    out = {f: (str(getattr(e, f)) if getattr(e, f) is not None else None) for f in FIELDS}
+    for key, (attr, _kind) in LINKS.items():
+        out[key] = _link_ids(e, attr) if e.pk else []
+    return out
+
+
+def _link_ids(obj, attr):
+    """Ids of the linked reference rows, sorted so before/after audit snapshots compare."""
+    return sorted(str(i) for i in getattr(obj, attr).values_list("pk", flat=True))
+
+
+def _unique(ids):
+    """Duplicates are normalised away (first occurrence wins) rather than rejected."""
+    return list(dict.fromkeys(str(i) for i in ids))
+
+
+def _resolve(kind, ids, field, *, allowed=None, owner="", keep=()):
+    """Reference rows for ``ids``. Each must exist and be active (``keep`` ids may be retired:
+    they are links already stored, kept as history). When ``allowed`` is given, each must also be
+    one of those ids, else the error names what to do about it."""
+    ids = _unique(ids)
+    rows = configuration.references_by_id(kind, ids)
+    noun = SINGULAR[kind]
+    missing = [i for i in ids if i not in rows]
+    if missing:
+        raise RuleViolation(field, f"Unknown {noun}: {', '.join(missing)}.", "unknown")
+    retired = [rows[i].name for i in ids if not rows[i].active and i not in keep]
+    if retired:
+        raise RuleViolation(
+            field, f"{', '.join(retired)} is no longer in use; choose another {noun}.", "inactive"
+        )
+    if allowed is not None:
+        outside = [rows[i].name for i in ids if i not in allowed]
+        if outside:
+            raise RuleViolation(
+                field,
+                f"{', '.join(outside)} {'is' if len(outside) == 1 else 'are'} not among "
+                f"{owner}'s {kind}. Add {'it' if len(outside) == 1 else 'them'} to the employer "
+                f"profile first, or remove {'it' if len(outside) == 1 else 'them'} here.",
+                f"{noun}_not_in_employer",
+            )
+    return [rows[i] for i in ids]
+
+
+def _check_not_in_use(employer, key, rows):
+    """Refuse to drop a county or sector that a draft or open opportunity of this employer still
+    uses; closed, expired and archived ones keep it as history."""
+    attr, _kind = LINKS[key]
+    dropped = set(_link_ids(employer, attr)) - {str(r.pk) for r in rows}
+    if not dropped:
+        return
+    live = Opportunity.objects.filter(
+        employer=employer,
+        archived_at__isnull=True,
+        status__in=[Opportunity.DRAFT, Opportunity.OPEN],
+        **{f"{attr}__in": dropped},
+    ).distinct()
+    if (first := live.first()) is not None:
+        names = ", ".join(
+            getattr(employer, attr).filter(pk__in=dropped).values_list("name", flat=True)
+        )
+        raise RuleViolation(
+            key,
+            f"Cannot remove {names}: the opportunity \u201c{first.title}\u201d still uses it"
+            f"{'' if live.count() == 1 else f' (and {live.count() - 1} more)'}. "
+            f"Change those opportunities first.",
+            "in_use",
+        )
 
 
 @transaction.atomic
 def create_employer(*, actor, data, confirm_duplicate=False):
     if not confirm_duplicate and (matches := find_similar(data["name"])):
         raise DuplicateWarning(matches)
+    data = dict(data)
+    links = {k: data.pop(k) for k in LINKS if k in data}
+    resolved = {k: _resolve(LINKS[k][1], v, k) for k, v in links.items()}
     e = Employer.objects.create(**data)
+    for k, rows in resolved.items():
+        getattr(e, LINKS[k][0]).set(rows)
     audit.record(
         actor=actor, action="employer.created", object_type="employer", object_id=e.pk,
         after=_snapshot(e),
@@ -81,9 +158,16 @@ def update_employer(*, actor, employer, data, confirm_duplicate=False):
     ):
         raise DuplicateWarning(matches)
     before = _snapshot(employer)
+    data = dict(data)
+    links = {k: data.pop(k) for k in LINKS if k in data}
+    resolved = {k: _resolve(LINKS[k][1], v, k, keep=before[k]) for k, v in links.items()}
+    for k, rows in resolved.items():
+        _check_not_in_use(employer, k, rows)
     for k, v in data.items():
         setattr(employer, k, v)
     employer.save()
+    for k, rows in resolved.items():
+        getattr(employer, LINKS[k][0]).set(rows)
     after = _snapshot(employer)
     changed = [k for k in after if after[k] != before[k]]
     if changed:
@@ -132,8 +216,7 @@ def history(employer):
 # --- opportunities (T-045, FR-12..FR-15) -----------------------------------------------------
 
 OPP_FIELDS = (
-    "title", "kind", "sector_id", "county_id", "location", "positions", "description",
-    "start_date", "closing_date",
+    "title", "kind", "location", "positions", "description", "start_date", "closing_date",
 )  # fmt: skip
 
 
@@ -144,7 +227,11 @@ class RuleViolation(Exception):
 
 
 def _opp_snapshot(o):
-    return {f: (None if getattr(o, f) is None else str(getattr(o, f))) for f in OPP_FIELDS}
+    out = {f: (None if getattr(o, f) is None else str(getattr(o, f))) for f in OPP_FIELDS}
+    out["employer"] = str(o.employer_id)
+    for key, (attr, _kind) in LINKS.items():
+        out[key] = _link_ids(o, attr) if o.pk else []
+    return out
 
 
 def _check_dates(start, closing):
@@ -152,15 +239,40 @@ def _check_dates(start, closing):
         raise RuleViolation("closing_date", "Closing date is before the start date.", "bad_dates")
 
 
+def _opportunity_links(employer, data, opportunity=None, *, employer_changed=False):
+    """Resolve the counties and sectors an opportunity will have, each a subset of its employer's.
+
+    Links the opportunity already stores stay valid (older records may predate this rule and are
+    kept as history); anything newly added must belong to the employer. When the employer changes
+    nothing is carried over unchecked: the stored links are re-validated against the new one."""
+    out = {}
+    for key, (attr, kind) in LINKS.items():
+        stored = _link_ids(opportunity, attr) if opportunity else []
+        if key in data:
+            ids = data[key]
+        elif employer_changed:
+            ids = stored
+        else:
+            continue
+        keep = [] if employer_changed else stored
+        allowed = set(_link_ids(employer, attr)) | set(keep)
+        out[key] = _resolve(kind, ids, key, allowed=allowed, owner=employer.name, keep=keep)
+    return out
+
+
 @transaction.atomic
 def create_opportunity(*, actor, employer, data):
     if employer.status == Employer.INACTIVE:
         raise RuleViolation("employer", "Employer is inactive.", "employer_inactive")
+    data = dict(data)
     _check_dates(data.get("start_date"), data.get("closing_date"))
+    links = _opportunity_links(employer, {k: data.pop(k) for k in LINKS if k in data})
     o = Opportunity.objects.create(employer=employer, **data)
+    for key, rows in links.items():
+        getattr(o, LINKS[key][0]).set(rows)
     audit.record(
         actor=actor, action="opportunity.created", object_type="opportunity", object_id=o.pk,
-        after={"employer": str(employer.pk), **_opp_snapshot(o)},
+        after=_opp_snapshot(o),
     )  # fmt: skip
     return o
 
@@ -169,6 +281,18 @@ def create_opportunity(*, actor, employer, data):
 def update_opportunity(*, actor, opportunity, data):
     if opportunity.status in (Opportunity.CLOSED, Opportunity.EXPIRED):
         raise RuleViolation("status", "Reopen the opportunity before editing it.", "locked")
+    data = dict(data)
+    employer = data.pop("employer", None) or opportunity.employer
+    changed_employer = employer.pk != opportunity.employer_id
+    if changed_employer:
+        if opportunity.status != Opportunity.DRAFT:
+            raise RuleViolation(
+                "employer_id",
+                "The employer can only be changed while the opportunity is a draft.",
+                "employer_locked",
+            )
+        if employer.status == Employer.INACTIVE or employer.archived_at is not None:
+            raise RuleViolation("employer_id", "Choose an active employer.", "employer_inactive")
     merged = {**{f: getattr(opportunity, f) for f in ("start_date", "closing_date")}, **data}
     _check_dates(merged["start_date"], merged["closing_date"])
     if (
@@ -177,10 +301,17 @@ def update_opportunity(*, actor, opportunity, data):
         and merged["closing_date"] < date.today()
     ):
         raise RuleViolation("closing_date", "Closing date is in the past.", "past_closing")
+    links = _opportunity_links(
+        employer, {k: data.pop(k) for k in LINKS if k in data}, opportunity,
+        employer_changed=changed_employer,
+    )  # fmt: skip
     before = _opp_snapshot(opportunity)
     for k, v in data.items():
         setattr(opportunity, k, v)
+    opportunity.employer = employer
     opportunity.save()
+    for key, rows in links.items():
+        getattr(opportunity, LINKS[key][0]).set(rows)
     after = _opp_snapshot(opportunity)
     changed = [k for k in after if after[k] != before[k]]
     if changed:
@@ -559,7 +690,7 @@ def compatibility_inputs(opportunity_id):
         "id": str(o.pk),
         "title": o.title,
         "status": o.status,
-        "sector_id": str(o.sector_id) if o.sector_id else None,
+        "sector_ids": [str(i) for i in o.sectors.values_list("pk", flat=True)],
         "requirements": rows,
     }
 
@@ -568,26 +699,41 @@ def compatibility_inputs(opportunity_id):
 
 
 def report_facts() -> dict:
-    """Active employers and every live opportunity, as plain facts."""
+    """Active employers and every live opportunity, as plain facts. An employer or opportunity
+    in several counties lists all of them (``county_ids``; empty when none is recorded)."""
+    counties = {}
+    for owner, county in EmployerCounty.objects.values_list("employer_id", "county_id"):
+        counties.setdefault(owner, []).append(county)
+    opp_counties = {}
+    for owner, county in OpportunityCounty.objects.values_list("opportunity_id", "county_id"):
+        opp_counties.setdefault(owner, []).append(county)
     employers = [
-        {"id": i, "county_id": c, "county": cn}
-        for i, c, cn in Employer.objects.filter(
+        {"id": i, "county_ids": counties.get(i, [])}
+        for i in Employer.objects.filter(
             status=Employer.ACTIVE, archived_at__isnull=True
-        ).values_list("pk", "county_id", "county__name")
+        ).values_list("pk", flat=True)
     ]
     opportunities = [
-        {"id": i, "status": s, "closing": d, "employer_id": e, "county_id": c, "created_at": t}
-        for i, s, d, e, c, t in Opportunity.objects.filter(
+        {
+            "id": i, "status": s, "closing": d, "employer_id": e,
+            "county_ids": opp_counties.get(i, []), "created_at": t,
+        }
+        for i, s, d, e, t in Opportunity.objects.filter(
             archived_at__isnull=True, employer__archived_at__isnull=True
-        ).values_list("pk", "status", "closing_date", "employer_id", "county_id", "created_at")
-    ]
+        ).values_list("pk", "status", "closing_date", "employer_id", "created_at")
+    ]  # fmt: skip
     return {"employers": employers, "opportunities": opportunities}
+
+
+def county_names(opportunity) -> str:
+    """The opportunity's counties as one readable line (``""`` when none)."""
+    return ", ".join(opportunity.counties.order_by("name").values_list("name", flat=True))
 
 
 def brief_employers(ids) -> dict:
     return {
-        e.pk: {"name": e.name, "detail": e.county.name if e.county_id else ""}
-        for e in Employer.objects.filter(pk__in=list(ids)).select_related("county")
+        e.pk: {"name": e.name, "detail": ", ".join(c.name for c in e.counties.order_by("name"))}
+        for e in Employer.objects.filter(pk__in=list(ids)).prefetch_related("counties")
     }
 
 

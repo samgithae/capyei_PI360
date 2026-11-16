@@ -28,7 +28,13 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EmployerEvidence } from './employer-evidence';
-import { EmployerForm, EmployerValues, Options } from './employer-form';
+import {
+  EmployerForm,
+  EmployerValues,
+  names,
+  Option,
+  Options,
+} from './employer-form';
 
 interface Contact {
   id: string;
@@ -40,8 +46,8 @@ interface Contact {
 }
 interface Detail extends EmployerValues {
   id: string;
-  sector: string;
-  county: string;
+  sectors: Option[];
+  counties: Option[];
   contacts: Contact[];
 }
 interface Event {
@@ -169,8 +175,8 @@ export function EmployerPage() {
         badges={<StatusBadge status={e.status} />}
         meta={
           <>
-            {e.sector && <span>{e.sector}</span>}
-            {e.county && <span>{e.county}</span>}
+            {e.sectors.length > 0 && <span>{names(e.sectors)}</span>}
+            {e.counties.length > 0 && <span>{names(e.counties)}</span>}
           </>
         }
         actions={
@@ -191,8 +197,8 @@ export function EmployerPage() {
           <EmployerForm
             initial={{
               name: e.name,
-              sector_id: e.sector_id,
-              county_id: e.county_id,
+              sector_ids: e.sector_ids,
+              county_ids: e.county_ids,
               sub_county: e.sub_county,
               address: e.address,
               website: e.website,
@@ -215,8 +221,8 @@ export function EmployerPage() {
             <DetailList
               items={[
                 { label: 'Status', value: <StatusBadge status={e.status} /> },
-                { label: 'Industry', value: e.sector },
-                { label: 'County', value: e.county },
+                { label: 'Industry / Sector', value: names(e.sectors) },
+                { label: 'Counties', value: names(e.counties) },
                 { label: 'Sub-county', value: e.sub_county },
                 { label: 'Address', value: e.address },
                 {

@@ -63,16 +63,25 @@ def _jobs(definition, opp):
                         label,
                     )
                 )
-    if opp["sector_id"] and "interests" in factors:
+    if opp["sector_ids"] and "interests" in factors:
+        # An opportunity can span several sectors; the interests check holds when any of them is
+        # one the youth chose, so the sector handed to the rule is resolved per youth in assess().
         jobs.append(
             (
                 factors["interests"],
                 None,
-                {"opportunity.sector": opp["sector_id"]},
+                {"opportunity.sector": opp["sector_ids"][0]},
                 "Opportunity sector is one the youth is interested in",
             )
         )
     return jobs, skipped
+
+
+def _interest_sector(opp, snapshot):
+    """The opportunity sector to test against the youth's interests: the first one they chose,
+    else the first listed (so the check fails normally, with the usual note)."""
+    chosen = (snapshot.get("participant.interest_sectors") or {}).get("value") or []
+    return next((s for s in opp["sector_ids"] if s in chosen), opp["sector_ids"][0])
 
 
 def _weights(definition, jobs):
@@ -123,6 +132,8 @@ def assess(definition: dict, opp: dict, snapshot: dict, today) -> dict:
     checks = []
     for (factor, req, local, label), weight in zip(jobs, weights, strict=True):
         mandatory = bool(req and req["mandatory"])
+        if "opportunity.sector" in local:
+            local = {"opportunity.sector": _interest_sector(opp, snapshot)}
         c = check_factor(
             dict(factor, mandatory=mandatory), definition, {**snapshot, **local}, today
         )

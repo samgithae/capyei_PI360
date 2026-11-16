@@ -156,7 +156,10 @@ def _universe(user, days, today) -> dict:
         "opportunity",
         [o["id"] for o in open_opps if o["id"] not in referred_opps],
     )
-    emp_by_county = Counter(str(e["county_id"]) if e["county_id"] else "none" for e in emp["employers"])  # fmt: skip
+    # An employer working in several counties counts once in each of them.
+    emp_by_county = Counter(
+        k for e in emp["employers"] for k in ([str(c) for c in e["county_ids"]] or ["none"])
+    )
 
     facts.update(
         since=since,

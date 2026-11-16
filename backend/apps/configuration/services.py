@@ -784,6 +784,12 @@ def active_reference(key, pk):
         return None
 
 
+def references_by_id(key, ids):
+    """Rows of this kind for the given ids, active or not, keyed by id string. An unknown id is
+    simply absent, so callers can tell "does not exist" from "retired" (``row.active``)."""
+    return {str(r.pk): r for r in kind_of(key).model.objects.filter(pk__in=list(ids))}
+
+
 def active_grade(level_pk, grade_pk):
     """Active grade of this qualification level and id, or None (unknown, retired, other level)."""
     from .models import QualificationGrade

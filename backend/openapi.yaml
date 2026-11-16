@@ -2116,13 +2116,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedOpportunity'
+              $ref: '#/components/schemas/PatchedOpportunityUpdate'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedOpportunity'
+              $ref: '#/components/schemas/PatchedOpportunityUpdate'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedOpportunity'
+              $ref: '#/components/schemas/PatchedOpportunityUpdate'
       security:
       - cookieAuth: []
       responses:
@@ -4795,14 +4795,18 @@ components:
         name:
           type: string
           maxLength: 200
-        sector_id:
-          type: string
-          format: uuid
-          nullable: true
-        county_id:
-          type: string
-          format: uuid
-          nullable: true
+        sector_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+        county_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
         sub_county:
           type: string
           maxLength: 100
@@ -5036,14 +5040,18 @@ components:
           maxLength: 200
         kind:
           $ref: '#/components/schemas/OpportunityKindEnum'
-        sector_id:
-          type: string
-          format: uuid
-          nullable: true
-        county_id:
-          type: string
-          format: uuid
-          nullable: true
+        sector_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+        county_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
         location:
           type: string
           maxLength: 200
@@ -5241,14 +5249,18 @@ components:
         name:
           type: string
           maxLength: 200
-        sector_id:
-          type: string
-          format: uuid
-          nullable: true
-        county_id:
-          type: string
-          format: uuid
-          nullable: true
+        sector_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+        county_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
         sub_county:
           type: string
           maxLength: 100
@@ -5308,22 +5320,28 @@ components:
         reason:
           type: string
           writeOnly: true
-    PatchedOpportunity:
+    PatchedOpportunityUpdate:
       type: object
+      description: Moving a draft to another employer is allowed; the services re-check
+        counties and sectors.
       properties:
         title:
           type: string
           maxLength: 200
         kind:
           $ref: '#/components/schemas/OpportunityKindEnum'
-        sector_id:
-          type: string
-          format: uuid
-          nullable: true
-        county_id:
-          type: string
-          format: uuid
-          nullable: true
+        sector_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+        county_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
         location:
           type: string
           maxLength: 200
@@ -5341,6 +5359,9 @@ components:
           type: string
           format: date
           nullable: true
+        employer_id:
+          type: string
+          format: uuid
     PatchedParticipantEdit:
       type: object
       properties:

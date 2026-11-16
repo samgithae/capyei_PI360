@@ -45,7 +45,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EditOpportunity } from './opportunity-edit';
-import { WhereWhatFields } from './opportunity-fields';
+import { switchEmployer, WhereWhatFields } from './opportunity-fields';
 
 interface Row {
   id: string;
@@ -53,7 +53,7 @@ interface Row {
   employer: string;
   kind: string;
   status: string;
-  county: string;
+  counties: { id: string; name: string }[];
   positions: number;
   closing_date: string | null;
   archived: boolean;
@@ -91,8 +91,8 @@ function AddOpportunity({
     kind: 'job',
     positions: '1',
     closing_date: '',
-    sector_id: null as string | null,
-    county_id: null as string | null,
+    sector_ids: [] as string[],
+    county_ids: [] as string[],
     location: '',
     description: '',
     start_date: null as string | null,
@@ -149,7 +149,15 @@ function AddOpportunity({
         />
         <Select
           value={v.employer_id}
-          onValueChange={(x) => setV({ ...v, employer_id: x })}
+          onValueChange={(x) => {
+            const { next, cleared } = switchEmployer(v, x);
+            if (cleared) {
+              toast.info(
+                'Counties and industries were cleared: choose them from the new employer.',
+              );
+            }
+            setV(next);
+          }}
         >
           <SelectTrigger aria-label="Employer">
             <SelectValue placeholder="Choose employer" />
@@ -212,6 +220,7 @@ function AddOpportunity({
       </div>
       <WhereWhatFields
         idPrefix="opp"
+        employerId={v.employer_id}
         value={v}
         onChange={(p) => setV((x) => ({ ...x, ...p }))}
       />

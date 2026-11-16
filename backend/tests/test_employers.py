@@ -24,11 +24,12 @@ def post(c, **body):
 
 def test_create_validates_and_audits(steward, db):
     sector = Sector.objects.create(code="S1", name="Retail")
-    r = post(steward, name="  Acme Traders  ", sector_id=str(sector.pk),
-             county_id=str(County.objects.get(code="01").pk))  # fmt: skip
+    r = post(steward, name="  Acme Traders  ", sector_ids=[str(sector.pk)],
+             county_ids=[str(County.objects.get(code="01").pk)])  # fmt: skip
     assert r.status_code == 201
     body = r.json()
-    assert body["name"] == "Acme Traders" and body["sector"] == "Retail" and body["county"]
+    assert body["name"] == "Acme Traders"
+    assert [s["name"] for s in body["sectors"]] == ["Retail"] and len(body["counties"]) == 1
     assert AuditEvent.objects.filter(action="employer.created", object_id=body["id"]).exists()
     assert post(steward, name="   ").status_code == 400
     assert post(steward, name="X", status="bogus").status_code == 400
@@ -81,7 +82,7 @@ def test_contacts_one_primary_and_removal(steward, db):
 
 def test_list_filters(steward, db):
     sector = Sector.objects.create(code="S1", name="Retail")
-    post(steward, name="Shop One", sector_id=str(sector.pk))
+    post(steward, name="Shop One", sector_ids=[str(sector.pk)])
     post(steward, name="Farm Two")
     assert steward.get(URL).json()["total"] == 2
     assert steward.get(URL, {"q": "shop"}).json()["total"] == 1

@@ -1,69 +1,178 @@
+import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router';
 import { api } from '@/lib/api';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { SelectField } from '@/components/shared/select-field';
+import {
+  MultiSelectField,
+  type MultiOption,
+} from '@/components/shared/multi-select-field';
 
 export interface WhereWhat {
-  sector_id: string | null;
-  county_id: string | null;
+  sector_ids: string[];
+  county_ids: string[];
   location: string;
   description: string;
   start_date: string | null;
 }
 
-interface Options {
-  sectors: { id: string; name: string }[];
-  counties: { id: string; name: string }[];
+/**
+ * Choosing another employer drops the picked counties and industries: they belong to the old
+ * employer, so none may carry over. `cleared` says whether anything was dropped (to tell the user).
+ */
+export function switchEmployer<
+  T extends { employer_id: string; county_ids: string[]; sector_ids: string[] },
+>(v: T, employerId: string): { next: T; cleared: boolean } {
+  if (employerId === v.employer_id) return { next: v, cleared: false };
+  return {
+    next: { ...v, employer_id: employerId, county_ids: [], sector_ids: [] },
+    cleared: v.county_ids.length > 0 || v.sector_ids.length > 0,
+  };
 }
 
-/** Industry, county, location and description: shared by Add and Edit so they cannot drift apart. */
+interface EmployerPlaces {
+  counties: MultiOption[];
+  sectors: MultiOption[];
+}
+
+/**
+ * The counties and industries / sectors one employer works in. An opportunity may only use these,
+ * so they are the only choices offered. Reloads whenever the employer changes.
+ */
+export function useEmployerPlaces(employerId: string) {
+  return useQuery({
+    queryKey: ['employer', employerId, 'places'],
+    queryFn: () => api<EmployerPlaces>(`/employers/${employerId}`),
+    enabled: !!employerId,
+  });
+}
+
+function EmptyForEmployer({
+  what,
+  employerId,
+}: {
+  what: string;
+  employerId: string;
+}) {
+  return (
+    <>
+      This employer has no {what} yet.{' '}
+      <Link to={`/employers/${employerId}`} className="text-primary underline">
+        Add them on the employer profile
+      </Link>{' '}
+      first.
+    </>
+  );
+}
+
+function Outside({ names, noun }: { names: string[]; noun: string }) {
+  if (names.length === 0) return null;
+  return (
+    <p role="alert" className="text-xs text-destructive">
+      {names.join(', ')} {names.length === 1 ? 'is' : 'are'} not among this
+      employer&rsquo;s {noun}. Remove {names.length === 1 ? 'it' : 'them'}, or
+      add {names.length === 1 ? 'it' : 'them'} to the employer profile.
+    </p>
+  );
+}
+
+/**
+ * Start date, industry / sector, counties, location and description, shared by Add and Edit so
+ * they cannot drift apart. Employer → available counties → industry / sector: with no employer
+ * chosen both pickers are disabled and say why; with one chosen they list only its own.
+ * `stored` names values the opportunity already holds, so an older one that the employer no
+ * longer lists still shows by name (and is flagged) instead of vanishing.
+ */
 export function WhereWhatFields({
   value,
   onChange,
   idPrefix,
+  employerId,
+  stored,
 }: {
   value: WhereWhat;
   onChange: (p: Partial<WhereWhat>) => void;
   idPrefix: string;
+  employerId: string;
+  stored?: EmployerPlaces;
 }) {
-  const opts = useQuery({
-    queryKey: ['employer-filters'],
-    queryFn: () => api<Options>('/employers/filters'),
-  });
+  const places = useEmployerPlaces(employerId);
+  const counties = places.data?.counties ?? [];
+  const sectors = places.data?.sectors ?? [];
+  const nameOf = (rows: MultiOption[], extra: MultiOption[], id: string) =>
+    rows.find((r) => r.id === id)?.name ??
+    extra.find((r) => r.id === id)?.name ??
+    id;
+  const outside = (
+    chosen: string[],
+    allowed: MultiOption[],
+    extra: MultiOption[] | undefined,
+  ) =>
+    places.data
+      ? chosen
+          .filter((id) => !allowed.some((a) => a.id === id))
+          .map((id) => nameOf(allowed, extra ?? [], id))
+      : [];
+  const pick = (what: string, noun: string): ReactNode =>
+    !employerId ? (
+      `Choose an employer first to pick its ${noun}.`
+    ) : (
+      <EmptyForEmployer what={what} employerId={employerId} />
+    );
   return (
     <>
+      {!employerId && (
+        <p className="text-xs text-muted-foreground">
+          Industry / Sector and Counties come from the employer you choose.
+        </p>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor={`${idPrefix}-start`}>Start date</Label>
           <Input
             id={`${idPrefix}-start`}
             type="date"
+            className="sm:w-60"
             value={value.start_date ?? ''}
             onChange={(e) => onChange({ start_date: e.target.value || null })}
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Industry</Label>
-          <SelectField
-            label="Industry"
+          <Label>Industry / Sector</Label>
+          <MultiSelectField
+            label="Add an industry / sector"
             className="w-full"
-            emptyLabel="Not set"
-            value={value.sector_id ?? ''}
-            options={opts.data?.sectors ?? []}
-            onChange={(x) => onChange({ sector_id: x || null })}
+            options={sectors}
+            labels={stored?.sectors}
+            value={value.sector_ids}
+            loading={!!employerId && places.isPending}
+            disabled={!employerId}
+            emptyMessage={pick('industries / sectors', 'industries / sectors')}
+            onChange={(ids) => onChange({ sector_ids: ids })}
+          />
+          <Outside
+            names={outside(value.sector_ids, sectors, stored?.sectors)}
+            noun="industries / sectors"
           />
         </div>
         <div className="space-y-1.5">
-          <Label>County</Label>
-          <SelectField
-            label="County"
+          <Label>Counties</Label>
+          <MultiSelectField
+            label="Add a county"
             className="w-full"
-            emptyLabel="Not set"
-            value={value.county_id ?? ''}
-            options={opts.data?.counties ?? []}
-            onChange={(x) => onChange({ county_id: x || null })}
+            options={counties}
+            labels={stored?.counties}
+            value={value.county_ids}
+            loading={!!employerId && places.isPending}
+            disabled={!employerId}
+            emptyMessage={pick('counties', 'counties')}
+            onChange={(ids) => onChange({ county_ids: ids })}
+          />
+          <Outside
+            names={outside(value.county_ids, counties, stored?.counties)}
+            noun="counties"
           />
         </div>
       </div>
