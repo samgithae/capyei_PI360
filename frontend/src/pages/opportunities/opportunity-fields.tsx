@@ -16,6 +16,7 @@ export interface WhereWhat {
   location: string;
   description: string;
   start_date: string | null;
+  closing_date: string | null;
 }
 
 /**
@@ -79,7 +80,7 @@ function Outside({ names, noun }: { names: string[]; noun: string }) {
 }
 
 /**
- * Start date, industry / sector, counties, location and description, shared by Add and Edit so
+ * Start date, closing date, industry / sector, counties, location and description, shared by Add and Edit so
  * they cannot drift apart. Employer → available counties → industry / sector: with no employer
  * chosen both pickers are disabled and say why; with one chosen they list only its own.
  * `stored` names values the opportunity already holds, so an older one that the employer no
@@ -129,14 +130,22 @@ export function WhereWhatFields({
         </p>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5 sm:col-span-2">
+        <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-start`}>Start date</Label>
           <Input
             id={`${idPrefix}-start`}
             type="date"
-            className="sm:w-60"
             value={value.start_date ?? ''}
             onChange={(e) => onChange({ start_date: e.target.value || null })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-closing`}>Closing date</Label>
+          <Input
+            id={`${idPrefix}-closing`}
+            type="date"
+            value={value.closing_date ?? ''}
+            onChange={(e) => onChange({ closing_date: e.target.value || null })}
           />
         </div>
         <div className="space-y-1.5">

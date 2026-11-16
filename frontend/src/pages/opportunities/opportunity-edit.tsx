@@ -102,7 +102,7 @@ export function EditOpportunity({
               onChange={(e) => patch({ title: e.target.value })}
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Type</Label>
               <SelectField
@@ -121,15 +121,6 @@ export function EditOpportunity({
                 min={1}
                 value={v.positions}
                 onChange={(e) => patch({ positions: Number(e.target.value) })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="oe-closing">Closing date</Label>
-              <Input
-                id="oe-closing"
-                type="date"
-                value={v.closing_date ?? ''}
-                onChange={(e) => patch({ closing_date: e.target.value })}
               />
             </div>
           </div>

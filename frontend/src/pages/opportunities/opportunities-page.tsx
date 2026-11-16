@@ -90,7 +90,7 @@ function AddOpportunity({
     title: '',
     kind: 'job',
     positions: '1',
-    closing_date: '',
+    closing_date: null as string | null,
     sector_ids: [] as string[],
     county_ids: [] as string[],
     location: '',
@@ -182,7 +182,7 @@ function AddOpportunity({
           onChange={(e) => setV({ ...v, title: e.target.value })}
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label>Type</Label>
           <Select value={v.kind} onValueChange={(x) => setV({ ...v, kind: x })}>
@@ -206,15 +206,6 @@ function AddOpportunity({
             min={1}
             value={v.positions}
             onChange={(e) => setV({ ...v, positions: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="opp-closing">Closing date</Label>
-          <Input
-            id="opp-closing"
-            type="date"
-            value={v.closing_date}
-            onChange={(e) => setV({ ...v, closing_date: e.target.value })}
           />
         </div>
       </div>

@@ -65,6 +65,7 @@ const BLANK: WhereWhat = {
   location: '',
   description: '',
   start_date: null,
+  closing_date: null,
 };
 
 function show(
