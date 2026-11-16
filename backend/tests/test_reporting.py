@@ -93,7 +93,8 @@ def test_sections_follow_the_viewers_permissions(opp, make_user):
     d = api(make_user("youth", "Youth")).get(DASH).json()
     assert d["can"] == {"youth": False, "referrals": False, "employers": False}
     assert d["tiles"]["registered"] == 0 and d["tiles"]["open_opportunities"] == 0
-    assert api(make_user("youth2", "Youth")).get(DRILL, {"key": "youth.registered"}).json()["total"] == 0  # fmt: skip
+    drill = api(make_user("youth2", "Youth")).get(DRILL, {"key": "youth.registered"})
+    assert drill.json()["total"] == 0
 
 
 def test_period_limits_submitted_referrals_only(opp, make_user):

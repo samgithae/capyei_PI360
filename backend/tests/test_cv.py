@@ -26,7 +26,7 @@ from apps.participants.models import (
 from apps.portal import services as portal
 
 PASSWORD = "a-much-longer-passphrase-9"  # noqa: S105 (test value)
-SECRET_ID = "12345678"  # stands for a national id; it is never stored in a CV field
+SECRET_ID = "12345678"  # noqa: S105 (stands for a national id; it is never stored in a CV field)
 PHONE, EMAIL = "0712345678", "samuel.kamau@example.org"
 
 
