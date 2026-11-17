@@ -18,8 +18,22 @@ class Placement(models.Model):
         (WBL, "Work-based learning"),
         (TRAINING, "Further training"),
     ]
+    # How an episode was confirmed (FR-23). Working list, D-011.
+    SOURCES = [
+        ("employer_confirmation", "Employer confirmation"),
+        ("document", "Document (contract, letter, licence)"),
+        ("phone_call", "Phone call with the youth or employer"),
+        ("site_visit", "Site visit"),
+        ("other", "Other"),
+    ]
     # The only fields a review may change; everything else is the record of what was reported.
-    REVIEWABLE = {"employer", "pathway", "status", "verified_by", "verified_on"}
+    # ``start_date`` and ``designation`` may be corrected only on an episode a staff member
+    # entered by hand (see services.update_episode); an imported one stays as reported.
+    REVIEWABLE = {
+        "employer", "pathway", "status", "verified_by", "verified_on",
+        "end_date", "exit_reason", "verification_source",
+        "start_date", "designation", "employer_name_source", "benefits",
+    }  # fmt: skip
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     enrollment = models.ForeignKey(
@@ -37,6 +51,10 @@ class Placement(models.Model):
     pathway = models.CharField(max_length=25, choices=PATHWAYS, blank=True)  # blank = unmapped
     status = models.CharField(max_length=30, blank=True)  # mapped by stage C; blank = unmapped
     start_date = models.DateField(null=True, blank=True)
+    # FR-24: an episode ends; a later one is added beside it, never over it.
+    end_date = models.DateField(null=True, blank=True)
+    exit_reason = models.CharField(max_length=200, blank=True)
+    verification_source = models.CharField(max_length=25, choices=SOURCES, blank=True)
     benefits = models.TextField(blank=True)
     source_row = models.ForeignKey(
         "imports.ImportRow", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"

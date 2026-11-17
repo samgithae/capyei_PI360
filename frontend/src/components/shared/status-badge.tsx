@@ -27,6 +27,10 @@ const TONE: Record<string, Tone> = {
   selected: 'success',
   placed: 'success',
   no_response: 'warning',
+  // Interventions (T-064); open and closed are above
+  in_progress: 'info',
+  awaiting_verification: 'warning',
+  cancelled: 'secondary',
   // Rule versions (T-047)
   in_review: 'info',
   retired: 'secondary',

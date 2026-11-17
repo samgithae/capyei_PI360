@@ -425,6 +425,18 @@ def is_visible(user, participant_id) -> bool:
     return Participant.objects.visible_to(user).filter(pk=participant_id).exists()
 
 
+def matching_ids(user, text) -> set:
+    """Ids of visible youth whose name contains ``text`` (for list searches in other modules)."""
+    text = (text or "").strip()
+    if not text:
+        return set()
+    return set(
+        Participant.objects.visible_to(user)
+        .filter(full_name_source__icontains=text)
+        .values_list("pk", flat=True)
+    )
+
+
 class CreateError(ValueError):
     def __init__(self, field: str, message: str):
         super().__init__(message)

@@ -151,6 +151,13 @@ forbidden_modules = ["apps.employers", "apps.intelligence", "apps.imports", "app
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
+name = "Case management coordinates identity, participants, referrals, placements, employers, intelligence and audit only"
+type = "forbidden"
+source_modules = ["apps.casework"]
+forbidden_modules = ["apps.imports", "apps.dataquality", "apps.reporting", "apps.platform", "apps.configuration", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
 name = "Employer portal coordinates identity, employers, referrals, participants, placements and configuration only"
 type = "forbidden"
 source_modules = ["apps.employer_portal"]

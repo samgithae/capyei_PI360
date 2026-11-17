@@ -1,4 +1,5 @@
 import { useAuth } from '@/auth/auth-context';
+import { YouthCasework } from '@/pages/cases/youth-casework';
 import { Send } from 'lucide-react';
 import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
@@ -129,6 +130,7 @@ export function ReferralsTab({
           </Table>
         )}
       </DataCard>
+      <YouthCasework id={p.id} name={p.name} archived={p.archived} />
     </div>
   );
 }

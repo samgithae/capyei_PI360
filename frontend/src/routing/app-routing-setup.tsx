@@ -4,6 +4,9 @@ import { AccountPage } from '@/pages/account/account-page';
 import { PortalSettingsPage } from '@/pages/admin/portal-settings-page';
 import { REFERENCE_KINDS, ReferencePage } from '@/pages/admin/reference-page';
 import { UsersPage } from '@/pages/admin/users-page';
+import { CasePage } from '@/pages/cases/case-page';
+import { CasesPage } from '@/pages/cases/cases-page';
+import { PlacementsPage } from '@/pages/cases/placements-page';
 import { DashboardListPage } from '@/pages/dashboard/dashboard-list-page';
 import { EmployerCompanyPage } from '@/pages/employer/employer-company';
 import { EmployerDashboardPage } from '@/pages/employer/employer-dashboard';
@@ -177,6 +180,11 @@ export function AppRoutingSetup() {
           <Route element={<RequirePermission permission="referrals.view" />}>
             <Route path="/referrals" element={<ReferralsPage />} />
             <Route path="/referrals/:id" element={<ReferralPage />} />
+            <Route path="/cases" element={<CasesPage />} />
+            <Route path="/cases/:id" element={<CasePage />} />
+          </Route>
+          <Route element={<RequirePermission permission="placements.view" />}>
+            <Route path="/placements" element={<PlacementsPage />} />
           </Route>
           <Route element={<RequirePermission permission="intelligence.view" />}>
             <Route path="/rules" element={<RulesPage />} />

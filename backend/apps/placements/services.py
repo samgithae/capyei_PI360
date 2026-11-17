@@ -10,6 +10,7 @@ import html
 from collections import Counter
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.audit import services as audit
@@ -31,7 +32,25 @@ def _snapshot(p: Placement) -> dict:
         "pathway": p.pathway,
         "status": p.status,
         "source_status": p.source_status,
+        "start_date": p.start_date.isoformat() if p.start_date else None,
+        "end_date": p.end_date.isoformat() if p.end_date else None,
+        "exit_reason": p.exit_reason,
+        "verification_source": p.verification_source,
+        "verified": p.verified_on is not None,
     }
+
+
+SOURCES = {code for code, _ in Placement.SOURCES}
+PLACED = "placed"
+# Wording for an episode a staff member enters by hand (no source file said anything).
+MANUAL_SOURCE_STATUS = "Entered by staff"
+
+
+def _check_dates(start_date, end_date):
+    if end_date and not start_date:
+        raise PlacementError("Give the start date before the end date.")
+    if start_date and end_date and end_date < start_date:
+        raise PlacementError("The end date cannot be before the start date.")
 
 
 @transaction.atomic
@@ -43,6 +62,8 @@ def record(
     employer_name_source: str = "",
     designation: str = "",
     start_date=None,
+    end_date=None,
+    exit_reason: str = "",
     benefits: str = "",
     pathway: str = "",
     status: str = "",
@@ -54,6 +75,7 @@ def record(
         raise PlacementError("A placement needs the status as reported by the source.")
     if pathway and pathway not in PATHWAYS:
         raise PlacementError(f"Unknown pathway '{pathway}'.")
+    _check_dates(start_date, end_date)
     if not pathway and not status and (m := resolve_status(source_status)) and m.is_placement:
         pathway, status = m.pathway, m.status  # unmapped values stay blank: held for a steward
     enrollment_model = Placement._meta.get_field("enrollment").related_model
@@ -68,6 +90,8 @@ def record(
         pathway=pathway,
         status=status,
         start_date=start_date,
+        end_date=end_date,
+        exit_reason=exit_reason.strip(),
         benefits=benefits.strip(),
         source_row_id=source_row_id,
     )
@@ -114,6 +138,170 @@ def review(
 def for_enrollment(enrollment_id) -> list[Placement]:
     """Newest first."""
     return list(Placement.objects.filter(enrollment_id=enrollment_id))
+
+
+# --- Episodes entered and kept by staff (T-065, FR-23/FR-24) -----------------------------------
+
+EDITABLE_BY_STAFF = ("employer_id", "employer_name_source", "designation", "start_date", "benefits")
+
+
+def get(placement_id) -> Placement:
+    try:
+        return Placement.objects.select_related("employer").get(pk=placement_id)
+    except (Placement.DoesNotExist, ValueError, TypeError):  # ValueError: not a UUID
+        raise PlacementError("That placement does not exist.") from None
+
+
+def list_for(enrollment_ids, *, pathway="", state="", employer_id=None, q="", q_enrollment_ids=()):
+    """Episodes for the given enrollments, newest first (a queryset). ``state``: current, ended
+    or unverified. ``q`` matches employer or designation; ``q_enrollment_ids`` adds enrollments
+    whose youth matched the same search by name."""
+    rows = Placement.objects.filter(enrollment_id__in=list(enrollment_ids)).select_related(
+        "employer"
+    )
+    if pathway:
+        rows = rows.filter(pathway=pathway)
+    if employer_id:
+        rows = rows.filter(employer_id=employer_id)
+    if q:
+        rows = rows.filter(
+            Q(employer_name_source__icontains=q)
+            | Q(employer__name__icontains=q)
+            | Q(designation__icontains=q)
+            | Q(enrollment_id__in=list(q_enrollment_ids))
+        )
+    if state == "current":
+        rows = rows.filter(status=PLACED, end_date__isnull=True)
+    elif state == "ended":
+        rows = rows.filter(end_date__isnull=False)
+    elif state == "unverified":
+        rows = rows.filter(verified_on__isnull=True)
+    return rows
+
+
+def unverified_count(enrollment_ids) -> int:
+    """Placed episodes nobody has verified yet, for the work queue."""
+    return Placement.objects.filter(
+        enrollment_id__in=list(enrollment_ids), status=PLACED, verified_on__isnull=True
+    ).count()
+
+
+def is_current(p: Placement) -> bool:
+    return p.status == PLACED and p.end_date is None
+
+
+def current_by_enrollment(enrollment_ids) -> dict:
+    """The newest running placed episode for each enrollment that has one."""
+    out: dict = {}
+    rows = Placement.objects.filter(
+        enrollment_id__in=list(enrollment_ids), status=PLACED, end_date__isnull=True
+    ).select_related("employer")
+    for p in rows:  # the model orders newest first, so the first one seen wins
+        out.setdefault(p.enrollment_id, p)
+    return out
+
+
+@transaction.atomic
+def record_manual(
+    *,
+    actor,
+    enrollment_id,
+    pathway: str,
+    start_date,
+    employer_id=None,
+    employer_name_source: str = "",
+    designation: str = "",
+    end_date=None,
+    exit_reason: str = "",
+    benefits: str = "",
+) -> Placement:
+    """A placement a staff member observed and entered (a call, a visit). Always a real
+    placement: the pathway is required and the status is 'placed'."""
+    if not pathway:
+        raise PlacementError("Choose the pathway.")
+    if start_date is None:
+        raise PlacementError("Give the date it started.")
+    if not employer_id and not employer_name_source.strip() and pathway in (Placement.WAGE,):
+        raise PlacementError("Say who the employer is.")
+    return record(
+        actor=actor, enrollment_id=enrollment_id, source_status=MANUAL_SOURCE_STATUS,
+        pathway=pathway, status=PLACED, employer_id=employer_id,
+        employer_name_source=employer_name_source, designation=designation,
+        start_date=start_date, end_date=end_date, exit_reason=exit_reason, benefits=benefits,
+    )  # fmt: skip
+
+
+def _save_reviewed(p: Placement, *, actor, action: str, before: dict, reset_verification: bool):
+    if reset_verification and p.verified_on:
+        p.verified_by, p.verified_on, p.verification_source = None, None, ""
+    p.save(update_fields=sorted(Placement.REVIEWABLE))
+    audit.record(
+        actor=actor, action=action, object_type="placement", object_id=p.pk,
+        before=before, after=_snapshot(p),
+    )  # fmt: skip
+    return p
+
+
+@transaction.atomic
+def update_episode(*, actor, placement_id, **changes) -> Placement:
+    """Correct the facts of an episode staff entered. An imported episode stays as reported (its
+    employer link is a steward's review). Changing a verified episode clears its verification."""
+    p = Placement.objects.select_for_update().get(pk=placement_id)
+    if p.source_row_id is not None:
+        raise PlacementError("An imported placement stays as reported; use review to link it.")
+    unknown = set(changes) - set(EDITABLE_BY_STAFF) - {"pathway"}
+    if unknown:
+        raise PlacementError(f"Cannot change: {', '.join(sorted(unknown))}.")
+    before = _snapshot(p)
+    if "pathway" in changes:
+        if changes["pathway"] not in PATHWAYS:
+            raise PlacementError("Choose the pathway.")
+        p.pathway = changes["pathway"]
+    for field in ("employer_name_source", "designation", "benefits"):
+        if field in changes:
+            setattr(p, field, (changes[field] or "").strip())
+    if "employer_id" in changes:
+        p.employer_id = changes["employer_id"] or None
+    if "start_date" in changes:
+        if changes["start_date"] is None:
+            raise PlacementError("Give the date it started.")
+        p.start_date = changes["start_date"]
+    _check_dates(p.start_date, p.end_date)
+    return _save_reviewed(
+        p, actor=actor, action="placement.updated", before=before, reset_verification=True
+    )
+
+
+@transaction.atomic
+def end_episode(*, actor, placement_id, end_date, exit_reason: str = "") -> Placement:
+    """Close a running episode (FR-24). A later job is a new episode beside it. Ending is allowed
+    on an imported episode too: it adds the end the source never said."""
+    p = Placement.objects.select_for_update().get(pk=placement_id)
+    if p.end_date is not None:
+        raise PlacementError("This placement has already ended.")
+    if end_date is None:
+        raise PlacementError("Give the date it ended.")
+    before = _snapshot(p)
+    p.end_date, p.exit_reason = end_date, exit_reason.strip()
+    _check_dates(p.start_date, p.end_date)
+    return _save_reviewed(
+        p, actor=actor, action="placement.ended", before=before, reset_verification=False
+    )
+
+
+@transaction.atomic
+def verify_episode(*, actor, placement_id, source: str) -> Placement:
+    """Record that staff confirmed the episode and how (FR-23)."""
+    if source not in SOURCES:
+        raise PlacementError("Say how it was confirmed.")
+    p = Placement.objects.select_for_update().get(pk=placement_id)
+    if not p.pathway or not p.status:
+        raise PlacementError("Set the pathway and status before verifying.")
+    before = _snapshot(p)
+    p.verified_by, p.verified_on, p.verification_source = actor, timezone.now(), source
+    return _save_reviewed(
+        p, actor=actor, action="placement.verified", before=before, reset_verification=False
+    )
 
 
 # --- Status mapping (T-087 stage C, D-061) -----------------------------------------------------

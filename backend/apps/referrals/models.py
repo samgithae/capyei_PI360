@@ -174,3 +174,82 @@ class StageEvent(models.Model):
 
     def delete(self, *args, **kwargs):
         raise AppendOnly("Stage history is append-only; add a correction instead.")
+
+
+class Intervention(models.Model):
+    """A piece of support for one youth (T-064, FR-21): what they need, what will be done, who
+    owns it and by when. The case-management work queue is built from these.
+
+    Statuses follow the TOR. Closing needs a verification source (D-026, working decision), so a
+    closed intervention always says how staff know the support happened. A cancelled intervention
+    is kept, never deleted. A follow-up is a new intervention that points at the one it follows."""
+
+    OPEN, IN_PROGRESS, AWAITING, CLOSED, CANCELLED = (
+        "open", "in_progress", "awaiting_verification", "closed", "cancelled"
+    )  # fmt: skip
+    STATUSES = [
+        (OPEN, "Open"),
+        (IN_PROGRESS, "In progress"),
+        (AWAITING, "Awaiting verification"),
+        (CLOSED, "Closed"),
+        (CANCELLED, "Cancelled"),
+    ]
+    LIVE = frozenset({OPEN, IN_PROGRESS, AWAITING})
+    TRANSITIONS = {
+        OPEN: {IN_PROGRESS, CANCELLED},
+        IN_PROGRESS: {OPEN, AWAITING, CANCELLED},
+        AWAITING: {IN_PROGRESS, CLOSED, CANCELLED},
+        CLOSED: set(),
+        CANCELLED: set(),
+    }
+    # Working list of support needs (D-026). Replace with the CAP-YEI list when it is confirmed.
+    NEEDS = [
+        ("cv_documents", "CV and documents"),
+        ("job_search", "Job search support"),
+        ("interview_prep", "Interview preparation"),
+        ("skills_training", "Further skills training"),
+        ("start_up", "Start-up or business support"),
+        ("mentoring", "Mentoring or coaching"),
+        ("costs", "Transport or other costs"),
+        ("wellbeing", "Wellbeing or personal circumstances"),
+        ("other", "Other"),
+    ]
+    SOURCES = [
+        ("youth_confirmation", "Youth confirmed"),
+        ("document", "Document or evidence seen"),
+        ("third_party", "Employer or partner confirmed"),
+        ("site_visit", "Site visit or home visit"),
+        ("phone_call", "Phone call"),
+        ("other", "Other"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    participant = models.ForeignKey(
+        "participants.Participant", on_delete=models.PROTECT, related_name="+"
+    )
+    need = models.CharField(max_length=20, choices=NEEDS)
+    title = models.CharField(max_length=200)  # the action: what will be done
+    detail = models.TextField(blank=True)
+    status = models.CharField(max_length=22, choices=STATUSES, default=OPEN, db_index=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    due_date = models.DateField(null=True, blank=True, db_index=True)
+    follow_up_of = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="follow_ups"
+    )
+    verification_source = models.CharField(max_length=20, choices=SOURCES, blank=True)
+    outcome_note = models.TextField(blank=True)  # what happened; asked for on close or cancel
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["due_date", "-created_at"]
+        indexes = [models.Index(fields=["owner", "status", "due_date"])]
+
+    def __str__(self):
+        return f"{self.get_need_display()}: {self.title} ({self.status})"

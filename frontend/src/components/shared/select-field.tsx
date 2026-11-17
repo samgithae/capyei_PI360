@@ -79,7 +79,9 @@ export function SelectField({
           }
         >
           {items.length > SEARCH_FROM && (
-            <CommandInput placeholder={`Search ${label.toLowerCase()}…`} />
+            <CommandInput
+              placeholder={`Search ${label.replace(/^choose\s+/i, '').toLowerCase()}…`}
+            />
           )}
           <CommandList>
             <CommandEmpty>Nothing found.</CommandEmpty>

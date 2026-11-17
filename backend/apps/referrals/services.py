@@ -598,3 +598,18 @@ own_referrals = _own.own_referrals
 pair_of = _own.pair_of
 own_reasons = _own.own_reasons
 set_own_interview = _own.set_own_interview
+
+# ---- support interventions and the work queue (T-064) ----------------------------------------
+from . import cases as _cases  # noqa: E402
+
+DUE_SOON_DAYS = _cases.DUE_SOON_DAYS
+assign_intervention = _cases.assign_intervention
+counts_for = _cases.counts_for
+create_intervention = _cases.create_intervention
+is_overdue = _cases.is_overdue
+move_intervention = _cases.move_intervention
+next_statuses = _cases.next_statuses
+update_intervention = _cases.update_intervention
+visible_interventions = _cases.visible_interventions
+queue_interventions = _cases.queue_interventions
+queue_referrals = _cases.queue_referrals

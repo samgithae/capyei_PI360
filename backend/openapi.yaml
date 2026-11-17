@@ -231,6 +231,28 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/cases/queue:
+    get:
+      operationId: cases_queue
+      description: 'The officer''s work queue: interventions (overdue first), referrals
+        waiting, flags.'
+      parameters:
+      - in: query
+        name: mine
+        schema:
+          type: string
+      tags:
+      - cases
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/config/flags:
     get:
       operationId: config_flags_list
@@ -3224,6 +3246,269 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/interventions:
+    get:
+      operationId: interventions_list
+      parameters:
+      - in: query
+        name: mine
+        schema:
+          type: string
+      - in: query
+        name: need
+        schema:
+          type: string
+      - in: query
+        name: offset
+        schema:
+          type: string
+      - in: query
+        name: overdue
+        schema:
+          type: string
+      - in: query
+        name: page_size
+        schema:
+          type: string
+      - in: query
+        name: participant
+        schema:
+          type: string
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+      tags:
+      - interventions
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: interventions_create
+      tags:
+      - interventions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterventionCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterventionCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterventionCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/interventions/{id}:
+    get:
+      operationId: interventions_detail
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - interventions
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: interventions_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - interventions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedInterventionUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedInterventionUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedInterventionUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/interventions/{id}/assign:
+    post:
+      operationId: interventions_assign
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - interventions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterventionAssign'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterventionAssign'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterventionAssign'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/interventions/{id}/history:
+    get:
+      operationId: interventions_history
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - interventions
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+  /api/v1/interventions/{id}/move:
+    post:
+      operationId: interventions_move
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - interventions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterventionMove'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InterventionMove'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InterventionMove'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/interventions/options:
+    get:
+      operationId: interventions_options
+      description: 'The controlled lists the forms use: kinds of support and verification
+        sources.'
+      tags:
+      - interventions
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/me:
     get:
       operationId: me_retrieve
@@ -4823,6 +5108,278 @@ paths:
       operationId: staff_skills_popular
       tags:
       - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/placements:
+    get:
+      operationId: placements_list
+      parameters:
+      - in: query
+        name: employer
+        schema:
+          type: string
+      - in: query
+        name: offset
+        schema:
+          type: string
+      - in: query
+        name: page_size
+        schema:
+          type: string
+      - in: query
+        name: participant
+        schema:
+          type: string
+      - in: query
+        name: pathway
+        schema:
+          type: string
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: state
+        schema:
+          type: string
+      tags:
+      - placements
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: placements_create
+      tags:
+      - placements
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlacementCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlacementCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlacementCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/placements/{id}:
+    get:
+      operationId: placements_detail
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - placements
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: placements_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - placements
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPlacementUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPlacementUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPlacementUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/placements/{id}/end:
+    post:
+      operationId: placements_end
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - placements
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlacementEnd'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlacementEnd'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlacementEnd'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/placements/{id}/history:
+    get:
+      operationId: placements_history
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - placements
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+  /api/v1/placements/{id}/verify:
+    post:
+      operationId: placements_verify
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - placements
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlacementVerify'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlacementVerify'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlacementVerify'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/placements/options:
+    get:
+      operationId: placements_options
+      tags:
+      - placements
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/placements/summary:
+    get:
+      operationId: placements_summary
+      tags:
+      - placements
       security:
       - cookieAuth: []
       responses:
@@ -6710,6 +7267,74 @@ components:
           default: participants
       required:
       - file
+    InterventionAssign:
+      type: object
+      properties:
+        owner_id:
+          type: integer
+        note:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - owner_id
+    InterventionCreate:
+      type: object
+      properties:
+        participant_id:
+          type: string
+          format: uuid
+        follow_up_of_id:
+          type: string
+          format: uuid
+        need:
+          $ref: '#/components/schemas/NeedEnum'
+        title:
+          type: string
+          maxLength: 200
+        detail:
+          type: string
+          default: ''
+          maxLength: 4000
+        owner_id:
+          type: integer
+          nullable: true
+        due_date:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - need
+      - title
+    InterventionMove:
+      type: object
+      properties:
+        to:
+          $ref: '#/components/schemas/InterventionMoveToEnum'
+        verification_source:
+          allOf:
+          - $ref: '#/components/schemas/VerificationSourceEnum'
+          default: ''
+        note:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - to
+    InterventionMoveToEnum:
+      enum:
+      - open
+      - in_progress
+      - awaiting_verification
+      - closed
+      - cancelled
+      type: string
+      description: |-
+        * `open` - open
+        * `in_progress` - in_progress
+        * `awaiting_verification` - awaiting_verification
+        * `closed` - closed
+        * `cancelled` - cancelled
     Invite:
       type: object
       properties:
@@ -6824,6 +7449,28 @@ components:
         * `A` - A
         * `B` - B
         * `C` - C
+    NeedEnum:
+      enum:
+      - cv_documents
+      - job_search
+      - interview_prep
+      - skills_training
+      - start_up
+      - mentoring
+      - costs
+      - wellbeing
+      - other
+      type: string
+      description: |-
+        * `cv_documents` - cv_documents
+        * `job_search` - job_search
+        * `interview_prep` - interview_prep
+        * `skills_training` - skills_training
+        * `start_up` - start_up
+        * `mentoring` - mentoring
+        * `costs` - costs
+        * `wellbeing` - wellbeing
+        * `other` - other
     Note:
       type: object
       properties:
@@ -7314,6 +7961,21 @@ components:
         reason:
           type: string
           writeOnly: true
+    PatchedInterventionUpdate:
+      type: object
+      properties:
+        need:
+          $ref: '#/components/schemas/NeedEnum'
+        title:
+          type: string
+          maxLength: 200
+        detail:
+          type: string
+          maxLength: 4000
+        due_date:
+          type: string
+          format: date
+          nullable: true
     PatchedMemberPatch:
       type: object
       properties:
@@ -7521,6 +8183,27 @@ components:
           $ref: '#/components/schemas/GenderEnum'
         status:
           $ref: '#/components/schemas/ParticipantStatusEnum'
+    PatchedPlacementUpdate:
+      type: object
+      properties:
+        pathway:
+          $ref: '#/components/schemas/PathwayEnum'
+        start_date:
+          type: string
+          format: date
+        employer_id:
+          type: string
+          format: uuid
+          nullable: true
+        employer_name_source:
+          type: string
+          maxLength: 255
+        designation:
+          type: string
+          maxLength: 255
+        benefits:
+          type: string
+          maxLength: 2000
     PatchedRequirement:
       type: object
       properties:
@@ -7601,6 +8284,18 @@ components:
         change_notes:
           type: string
           maxLength: 4000
+    PathwayEnum:
+      enum:
+      - wage
+      - self_employment
+      - work_based_learning
+      - further_training
+      type: string
+      description: |-
+        * `wage` - wage
+        * `self_employment` - self_employment
+        * `work_based_learning` - work_based_learning
+        * `further_training` - further_training
     Permission:
       type: object
       properties:
@@ -7631,6 +8326,67 @@ components:
       - active
       - id
       - name
+    PlacementCreate:
+      type: object
+      properties:
+        participant_id:
+          type: string
+          format: uuid
+        enrollment_id:
+          type: string
+          format: uuid
+        pathway:
+          $ref: '#/components/schemas/PathwayEnum'
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        exit_reason:
+          type: string
+          default: ''
+          maxLength: 200
+        employer_id:
+          type: string
+          format: uuid
+          nullable: true
+        employer_name_source:
+          type: string
+          default: ''
+          maxLength: 255
+        designation:
+          type: string
+          default: ''
+          maxLength: 255
+        benefits:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - participant_id
+      - pathway
+      - start_date
+    PlacementEnd:
+      type: object
+      properties:
+        end_date:
+          type: string
+          format: date
+        exit_reason:
+          type: string
+          default: ''
+          maxLength: 200
+      required:
+      - end_date
+    PlacementVerify:
+      type: object
+      properties:
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+      required:
+      - source
     ProficiencyEnum:
       enum:
       - 1
@@ -8070,6 +8826,20 @@ components:
             $ref: '#/components/schemas/SkillItem'
       required:
       - skills
+    SourceEnum:
+      enum:
+      - employer_confirmation
+      - document
+      - phone_call
+      - site_visit
+      - other
+      type: string
+      description: |-
+        * `employer_confirmation` - employer_confirmation
+        * `document` - document
+        * `phone_call` - phone_call
+        * `site_visit` - site_visit
+        * `other` - other
     StatusMap:
       type: object
       properties:
@@ -8287,6 +9057,22 @@ components:
       - id
       - kind
       - status
+    VerificationSourceEnum:
+      enum:
+      - youth_confirmation
+      - document
+      - third_party
+      - site_visit
+      - phone_call
+      - other
+      type: string
+      description: |-
+        * `youth_confirmation` - youth_confirmation
+        * `document` - document
+        * `third_party` - third_party
+        * `site_visit` - site_visit
+        * `phone_call` - phone_call
+        * `other` - other
     VerificationStatusEnum:
       enum:
       - needs_reassessment
