@@ -12,7 +12,7 @@ const dialogContentVariants = cva(
     variants: {
       variant: {
         default:
-          'left-[50%] top-[50%] max-w-lg translate-x-[-50%] translate-y-[-50%] w-full',
+          'left-[50%] top-[50%] max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-y-auto translate-x-[-50%] translate-y-[-50%] w-full sm:max-w-lg',
         fullscreen: 'inset-5',
       },
     },
@@ -84,7 +84,7 @@ function DialogContent({
       >
         {children}
         {showCloseButton && (
-          <DialogClose className="cursor-pointer outline-0 absolute end-5 top-5 rounded-sm opacity-60 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+          <DialogClose className="cursor-pointer outline-0 absolute end-1 top-1 rounded-sm p-3.5 sm:end-5 sm:top-5 sm:p-0 opacity-60 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
             <X className="size-4" />
             <span className="sr-only">Close</span>
           </DialogClose>

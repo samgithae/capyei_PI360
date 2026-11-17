@@ -303,7 +303,7 @@ export function SkillsCard({
                 <span className="font-medium">{s.skill}</span>
                 <select
                   aria-label={`Level of ${s.skill}`}
-                  className="rounded bg-transparent text-xs"
+                  className="rounded bg-transparent text-xs max-sm:text-base"
                   value={String(s.proficiency)}
                   onChange={(e) =>
                     rows((all) =>
@@ -324,7 +324,7 @@ export function SkillsCard({
                 <button
                   type="button"
                   aria-label={`Remove ${s.skill}`}
-                  className="rounded-full p-1 hover:text-destructive"
+                  className="relative rounded-full p-1 hover:text-destructive after:absolute after:-inset-x-3 after:-inset-y-2 after:content-[''] sm:after:hidden"
                   onClick={() =>
                     rows((all) =>
                       all

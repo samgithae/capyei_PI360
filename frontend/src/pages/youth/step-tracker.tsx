@@ -12,7 +12,7 @@ export function StepTracker({
   item: JourneyItem;
 }) {
   return (
-    <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+    <ol className="flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1">
       {steps.map((s, i) => {
         const done = item.reached.includes(s.key);
         const current = !item.ended && item.stage === s.key;
@@ -37,7 +37,10 @@ export function StepTracker({
               {s.label}
             </span>
             {i < steps.length - 1 && (
-              <span className="text-muted-foreground" aria-hidden>
+              <span
+                className="hidden text-muted-foreground sm:inline"
+                aria-hidden
+              >
                 ›
               </span>
             )}

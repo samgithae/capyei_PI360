@@ -7,6 +7,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound
 from rest_framework.parsers import MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -91,6 +92,33 @@ class ReferenceListView(APIView):
         _kind(kind)
         obj = _run(services.create_reference, actor=request.user, key=kind, data=request.data)
         return Response(_out(kind, obj), status=status.HTTP_201_CREATED)
+
+
+class PlacesView(APIView):
+    """Active sub-counties of a county, or wards of a sub-county, for the place pickers.
+
+    Geography is public reference data, so any signed-in user may read it (the youth and
+    employer portals have no ``configuration.view`` permission). Names only, nothing editable.
+    """
+
+    permission_classes = [IsAuthenticated]
+    PARENT = {"sub-counties": "county", "wards": "sub_county"}
+
+    @extend_schema(operation_id="config_places", request=None, responses={200: list})
+    def get(self, request, kind):
+        parent = self.PARENT.get(kind)
+        if parent is None:
+            raise NotFound()
+        try:
+            parent_id = uuid.UUID(request.query_params.get(parent, ""))
+        except ValueError:
+            return Response([])
+        rows = (
+            KINDS[kind]
+            .model.objects.filter(**{parent + "_id": parent_id, "active": True})
+            .order_by("name")
+        )
+        return Response([{"id": str(o.pk), "name": o.name, "active": True} for o in rows[:3000]])
 
 
 class CohortCoursesBulkSerializer(serializers.Serializer):

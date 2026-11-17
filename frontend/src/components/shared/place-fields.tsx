@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { SelectField } from '@/components/shared/select-field';
 
@@ -10,7 +11,7 @@ interface Row {
 }
 
 const list = (kind: string, param: string, parent: string) =>
-  api<Row[]>(`/config/reference/${kind}?${param}=${parent}`);
+  api<Row[]>(`/config/places/${kind}?${param}=${parent}`);
 
 /**
  * Sub-county and ward pickers that follow the chosen county. Values are stored as names
@@ -22,12 +23,14 @@ export function PlaceFields({
   ward,
   onChange,
   showWard = true,
+  className,
 }: {
   countyId: string;
   subCounty: string;
   ward?: string;
   onChange: (patch: { subCounty?: string; ward?: string }) => void;
   showWard?: boolean;
+  className?: string;
 }) {
   const subs = useQuery({
     queryKey: ['reference', 'sub-counties', 'of', countyId],
@@ -52,7 +55,7 @@ export function PlaceFields({
   };
 
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className={cn('grid grid-cols-2 gap-2', className)}>
       {!countyId ? (
         <SelectField
           label="Sub-county"

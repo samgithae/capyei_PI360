@@ -1,75 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, FileText, Pencil } from 'lucide-react';
+import { FileText, Pencil } from 'lucide-react';
+import { useSearchParams } from 'react-router';
 import { api, apiUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ErrorState, LoadingState } from '@/components/states';
+import { CvCompletion } from './cv-completion';
 import { CvDocument } from './cv-document';
 import { CvEditor } from './cv-editor';
 import { cvPaths, type CvDoc, type CvProfileData } from './cv-types';
 import { DownloadCvButton } from './download-cv-button';
 
 type Mode = 'view' | 'edit';
-
-/** "CV Profile Completion: 75%": what is missing from the CV, separate from placement readiness. */
-function Completion({
-  cv,
-  canEdit,
-  onEdit,
-}: {
-  cv: CvDoc;
-  canEdit: boolean;
-  onEdit: () => void;
-}) {
-  const { percent, missing } = cv.completeness;
-  return (
-    <section
-      aria-label="CV profile completion"
-      className="space-y-3 rounded-lg border border-border bg-card p-5"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-semibold">CV Profile Completion: {percent}%</h3>
-        {percent === 100 && (
-          <CheckCircle2 className="size-5 text-success" aria-hidden />
-        )}
-      </div>
-      <div
-        role="progressbar"
-        aria-valuenow={percent}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label="CV profile completion"
-        className="h-2 overflow-hidden rounded-full bg-muted"
-      >
-        <div
-          className="h-full rounded-full bg-primary transition-all"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-      {missing.length > 0 ? (
-        <ul className="space-y-1 text-sm">
-          {missing.map((m) => (
-            <li key={m.key}>
-              <span className="font-medium">{m.label}:</span>{' '}
-              <span className="text-muted-foreground">{m.hint}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          The essentials are in place. Adding more makes the CV stronger.
-        </p>
-      )}
-      {missing.length > 0 && canEdit && (
-        <Button size="sm" variant="outline" onClick={onEdit}>
-          <Pencil /> Complete my CV
-        </Button>
-      )}
-    </section>
-  );
-}
 
 /**
  * The CV of one youth, in three clearly separate modes: read it (View), change what is on it
@@ -85,7 +29,9 @@ export function CvProfile({
 }) {
   const { can } = useAuth();
   const qc = useQueryClient();
-  const [mode, setMode] = useState<Mode>('view');
+  const [params, setParams] = useSearchParams();
+  const asked = self && params.get('cv') === 'edit';
+  const [mode, setMode] = useState<Mode>(asked ? 'edit' : 'view');
   const [photoVersion, setPhotoVersion] = useState(() => Date.now());
   const paths = cvPaths(id, self);
   const canEdit = self || can('participants.edit');
@@ -108,6 +54,33 @@ export function CvProfile({
     retry: false,
     enabled: mode === 'edit' && canEdit,
   });
+
+  // "Complete my CV" (here or on the dashboard) arrives as ?cv=edit: open the editor, and once
+  // it has loaded (before that the page is too short to scroll that far) bring it into view.
+  const scrollPending = useRef(false);
+  useEffect(() => {
+    if (!asked || !cv.data) return;
+    scrollPending.current = true;
+    setMode('edit');
+    setParams(
+      (old) => {
+        const n = new URLSearchParams(old);
+        n.delete('cv');
+        return n;
+      },
+      { replace: true },
+    );
+  }, [asked, cv.data, setParams]);
+  useEffect(() => {
+    if (!scrollPending.current || mode !== 'edit' || !profile.data) return;
+    scrollPending.current = false;
+    const top = document.getElementById('my-cv')?.getBoundingClientRect().top;
+    if (top !== undefined)
+      window.scrollTo({
+        top: Math.max(0, top + window.scrollY - 76),
+        behavior: 'smooth',
+      });
+  }, [mode, profile.data]);
 
   const changed = () => {
     setPhotoVersion(Date.now());
@@ -133,7 +106,7 @@ export function CvProfile({
   );
 
   return (
-    <div className={cn('space-y-5', 'pb-20 sm:pb-0')}>
+    <div id="my-cv" className={cn('scroll-mt-20 space-y-5', 'pb-20 sm:pb-0')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">
           {self ? 'My CV' : 'Curriculum Vitae'}
@@ -147,7 +120,14 @@ export function CvProfile({
         </div>
       </div>
 
-      <Completion cv={doc} canEdit={canEdit} onEdit={() => setMode('edit')} />
+      {/* A youth's own completion card sits at the top of their profile page instead. */}
+      {!self && (
+        <CvCompletion
+          cv={doc}
+          self={false}
+          onEdit={canEdit ? () => setMode('edit') : undefined}
+        />
+      )}
 
       {mode === 'view' && (
         <CvDocument

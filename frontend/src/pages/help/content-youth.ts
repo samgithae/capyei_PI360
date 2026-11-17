@@ -66,7 +66,8 @@ export const YOUTH_GUIDES: Guide[] = [
       'On My profile, choose View CV to see your CV as an employer reads it. Choose Edit details to change it.',
       'Choose Download CV (PDF). On a phone the button stays at the bottom of the screen.',
       'The file is named after you, for example Samuel_Kamau_CV.pdf, and always uses what you have saved. Save your changes first.',
-      'CV Profile Completion shows what is still missing: contact details, a summary, education and skills. Having no work experience does not lower it.',
+      'At the top of My profile (and on My dashboard) a card says how complete your CV is, for example "Your CV is 70% complete", and lists exactly what is missing. Choose Complete my CV and the editor opens ready for you to fill it in.',
+      'Fill in the items on the card until it reaches 100%. Having no work experience does not lower the figure.',
       'Add a photo under Edit details if you want one. It is optional.',
     ],
     why: 'Your CV never includes your National ID, date of birth, scores or anything staff keep about you. It is only given to you and to staff who work on your placement.',
@@ -83,7 +84,7 @@ export const YOUTH_GUIDES: Guide[] = [
     steps: [
       'On My profile, find the My details card.',
       'Change your names (first, middle and last), gender, date of birth and home county.',
-      'Under Where you live now, set your county, sub-county and ward. Your old address is kept in the history.',
+      'Under Where you live now, choose your county, then your sub-county and ward from the lists. Tap the box and type a few letters to find yours quickly. Your old address is kept in the history.',
       'Under How to reach you, change or add phone numbers and e-mails, and tick Main on the one to use first.',
       'Choose Save my details.',
     ],

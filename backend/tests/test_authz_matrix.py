@@ -51,6 +51,7 @@ MATRIX = {
     "config/reference/<str:kind>/<uuid:pk>/deactivate": {"POST": "reference.manage"},
     "config/reference/<str:kind>/<uuid:pk>/reactivate": {"POST": "reference.manage"},
     "config/reference/<str:kind>/<uuid:pk>/aliases": {"POST": "reference.manage"},
+    "config/places/<str:kind>": {"GET": SIGNED_IN},
     "config/flags": {"GET": "config.view"},
     "config/flags/<str:key>": {"PATCH": "config.manage"},
     "config/settings": {"GET": "config.view", "POST": "config.manage_protected"},

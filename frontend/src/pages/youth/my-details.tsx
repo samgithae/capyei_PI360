@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DataCard } from '@/components/data-card';
+import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
 
 export interface Contact {
@@ -157,30 +158,30 @@ export function MyDetailsCard({ details }: { details: MyDetails }) {
                     residence: {
                       ...d.residence,
                       county_id: x === NONE ? '' : x,
+                      sub_county: '',
+                      ward: '',
                     },
                   })
                 }
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="my-sub">Sub-county</Label>
-              <Input
-                id="my-sub"
-                value={d.residence.sub_county}
-                onChange={(e) =>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Sub-county and ward</Label>
+              <PlaceFields
+                className="grid-cols-1 sm:grid-cols-2"
+                countyId={d.residence.county_id}
+                subCounty={d.residence.sub_county}
+                ward={d.residence.ward}
+                onChange={(p) =>
                   set({
-                    residence: { ...d.residence, sub_county: e.target.value },
+                    residence: {
+                      ...d.residence,
+                      ...(p.subCounty !== undefined && {
+                        sub_county: p.subCounty,
+                      }),
+                      ...(p.ward !== undefined && { ward: p.ward }),
+                    },
                   })
-                }
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="my-ward">Ward</Label>
-              <Input
-                id="my-ward"
-                value={d.residence.ward}
-                onChange={(e) =>
-                  set({ residence: { ...d.residence, ward: e.target.value } })
                 }
               />
             </div>
@@ -210,9 +211,10 @@ export function MyDetailsCard({ details }: { details: MyDetails }) {
                 value={c.value}
                 onChange={(e) => setContact(i, { value: e.target.value })}
               />
-              <label className="flex items-center gap-1.5 text-sm">
+              <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-0 sm:gap-1.5">
                 <input
                   type="checkbox"
+                  className="size-5 sm:size-4"
                   checked={c.primary}
                   onChange={(e) =>
                     set({

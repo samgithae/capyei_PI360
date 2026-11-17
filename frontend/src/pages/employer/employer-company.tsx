@@ -14,6 +14,7 @@ import { DetailList, Section } from '@/components/shared/info-card';
 import { FormModal } from '@/components/shared/modals';
 import { MultiSelectField } from '@/components/shared/multi-select-field';
 import { PageHeader } from '@/components/shared/page-header';
+import { PlaceFields } from '@/components/shared/place-fields';
 import { ErrorState, LoadingState } from '@/components/states';
 import { CompanyLogo } from './company-logo';
 import type { Ref } from './employer-types';
@@ -207,11 +208,16 @@ export function EmployerCompanyPage() {
         </div>
         {v.county_ids.length === 1 && (
           <div className="space-y-1.5">
-            <Label htmlFor="ec-sub">Sub-county</Label>
-            <Input
-              id="ec-sub"
-              value={v.sub_county}
-              onChange={(e) => setV({ ...v, sub_county: e.target.value })}
+            <Label>Sub-county</Label>
+            <PlaceFields
+              className="grid-cols-1"
+              countyId={v.county_ids[0]}
+              subCounty={v.sub_county}
+              showWard={false}
+              onChange={(p) =>
+                p.subCounty !== undefined &&
+                setV({ ...v, sub_county: p.subCounty })
+              }
             />
           </div>
         )}

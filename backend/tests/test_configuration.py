@@ -13,6 +13,7 @@ from apps.configuration.models import (
     Programme,
     ReferenceAlias,
     ReferenceLabel,
+    SubCounty,
     TrainingInstitution,
     Ward,
 )
@@ -369,3 +370,22 @@ def test_many_courses_can_be_linked_to_a_cohort_at_once(admin):
     bad = post(client, url, {"cohort": str(cohort.pk), "courses": [str(cohort.pk)]})
     assert bad.status_code == 400
     assert post(client, url, {"cohort": str(cohort.pk), "courses": []}).status_code == 400
+
+
+@pytest.mark.django_db
+def test_places_readable_by_any_signed_in_user_active_only(make_user):
+    county = County.objects.get(code="01")
+    live = SubCounty.objects.create(county=county, code="PL1", name="Live sub")
+    SubCounty.objects.create(county=county, code="PL2", name="Gone sub", active=False)
+    Ward.objects.create(sub_county=live, code="PW1", name="Live ward")
+    anon = Client()
+    assert anon.get(f"/api/v1/config/places/sub-counties?county={county.pk}").status_code == 401
+    youth = Client()
+    youth.force_login(make_user("portal.person"))  # no role: like a youth or employer login
+    subs = youth.get(f"/api/v1/config/places/sub-counties?county={county.pk}").json()
+    names = [s["name"] for s in subs]
+    assert "Live sub" in names and "Gone sub" not in names
+    wards = youth.get(f"/api/v1/config/places/wards?sub_county={live.pk}").json()
+    assert [w["name"] for w in wards] == ["Live ward"]
+    assert youth.get("/api/v1/config/places/wards?sub_county=nope").json() == []
+    assert youth.get("/api/v1/config/places/counties").status_code == 404

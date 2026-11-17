@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CvCompletion } from './cv-completion';
 import { CvDocument } from './cv-document';
 import { CvProfile } from './cv-profile';
 import type { CvDoc } from './cv-types';
@@ -46,7 +48,9 @@ const base: CvDoc = {
 
 const wrap = (ui: React.ReactNode) =>
   render(
-    <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
   );
 
 describe('CvDocument', () => {
@@ -116,10 +120,17 @@ describe('CvProfile', () => {
         suggestions: [],
       },
     });
-    wrap(<CvProfile id="me" self />);
-    expect(await screen.findByText('CV Profile Completion: 50%')).toBeTruthy();
+    wrap(<CvProfile id="abc" />);
+    expect(await screen.findByText('This CV is 50% complete')).toBeTruthy();
     expect(screen.getByText('Add one record.')).toBeTruthy();
-    expect(api).toHaveBeenCalledWith('/youth/cv');
+    expect(api).toHaveBeenCalledWith('/participants/abc/cv');
+  });
+
+  it("leaves a youth's own completion card to the profile page", async () => {
+    api.mockResolvedValue(base);
+    wrap(<CvProfile id="me" self />);
+    await screen.findByText('My CV');
+    expect(screen.queryByText(/complete/i)).toBeNull();
   });
 
   it('downloads the saved CV under the name the server gives', async () => {
@@ -129,7 +140,7 @@ describe('CvProfile', () => {
       filename: 'Samuel_Kamau_CV.pdf',
     });
     wrap(<CvProfile id="me" self />);
-    await screen.findByText('CV Profile Completion: 50%');
+    await screen.findByText('My CV');
     fireEvent.click(screen.getAllByText('Download CV (PDF)')[0]);
     await waitFor(() => expect(clicked).toHaveLength(1));
     expect(apiFile).toHaveBeenCalledWith('/youth/cv.pdf');
@@ -141,5 +152,48 @@ describe('CvProfile', () => {
     wrap(<CvProfile id="abc" />);
     await screen.findByText('Samuel Kamau');
     expect(api).toHaveBeenCalledWith('/participants/abc/cv');
+  });
+});
+
+describe('CvCompletion', () => {
+  const doc = (percent: number) =>
+    ({
+      ...base,
+      completeness: {
+        percent,
+        missing:
+          percent < 100
+            ? [{ key: 'skills', label: 'Skills', hint: 'Add three skills.' }]
+            : [],
+        suggestions: [],
+      },
+    }) as CvDoc;
+
+  it('tells the youth how complete the CV is and what to add', () => {
+    wrap(<CvCompletion cv={doc(70)} onEdit={() => undefined} />);
+    expect(screen.getByText('Your CV is 70% complete')).toBeTruthy();
+    expect(screen.getByText('Add three skills.')).toBeTruthy();
+    expect(screen.getByText('Complete my CV')).toBeTruthy();
+  });
+
+  it('opens the editor from the button', () => {
+    const onEdit = vi.fn();
+    wrap(<CvCompletion cv={doc(40)} onEdit={onEdit} />);
+    fireEvent.click(screen.getByText('Complete my CV'));
+    expect(onEdit).toHaveBeenCalled();
+  });
+
+  it('the compact dashboard card links to the editor and hides at 100%', () => {
+    wrap(<CvCompletion cv={doc(70)} linkToProfile compact />);
+    expect(screen.getByText(/Still to add: skills/)).toBeTruthy();
+    expect(
+      screen.getByText('Complete my CV').closest('a')?.getAttribute('href'),
+    ).toBe('/me/profile?cv=edit#my-cv');
+  });
+
+  it('is only a congratulation at 100%, with no button', () => {
+    wrap(<CvCompletion cv={doc(100)} />);
+    expect(screen.getByText(/Your CV is complete/)).toBeTruthy();
+    expect(screen.queryByText('Complete my CV')).toBeNull();
   });
 });

@@ -26,6 +26,31 @@ import {
 } from '@/components/ui/sheet';
 import { SidebarMenu } from './sidebar-menu';
 
+/** The CAP-YEI mark with the product name: "PI 360" in the bar, the full name in the menu. */
+function Brand({ full = false }: { full?: boolean }) {
+  return (
+    <Link
+      to="/"
+      aria-label={`${generalSettings.appName}, home`}
+      className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-md pe-1 font-semibold text-mono"
+    >
+      <img
+        src="/media/app/cap-mark.png"
+        alt=""
+        aria-hidden
+        className="size-8 shrink-0 object-contain"
+      />
+      {full ? (
+        <span className="text-sm leading-tight">{generalSettings.appName}</span>
+      ) : (
+        <span className="text-base tracking-tight">
+          PI <span className="text-primary">360</span>
+        </span>
+      )}
+    </Link>
+  );
+}
+
 // The kit's search, notifications, chat, apps and user menus are not shipped
 // in v9.5.0 and are not in the PI 360 design. The user menu arrives with the
 // auth adapter (T-143).
@@ -45,22 +70,25 @@ export function Header() {
     <header
       className={cn(
         'header fixed top-0 z-10 start-0 flex items-stretch shrink-0 border-b border-transparent bg-background end-0 pe-[var(--removed-body-scroll-bar-size,0px)]',
+        'max-lg:border-border max-lg:shadow-xs',
         headerSticky && 'border-b border-border',
       )}
     >
       <div className="container-fluid flex justify-between items-center lg:gap-4">
-        <div className="flex lg:hidden items-center gap-2.5">
-          <Link to="/" className="shrink-0 font-semibold text-mono">
-            {generalSettings.shortName}
-          </Link>
+        <div className="flex lg:hidden items-center gap-1.5">
           {mobileMode && (
             <Sheet
               open={isSidebarSheetOpen}
               onOpenChange={setIsSidebarSheetOpen}
             >
               <SheetTrigger asChild>
-                <Button variant="ghost" mode="icon" aria-label="Open menu">
-                  <Menu className="text-muted-foreground/70" />
+                <Button
+                  variant="outline"
+                  mode="icon"
+                  aria-label="Open menu"
+                  className="-ms-1 text-foreground"
+                >
+                  <Menu className="size-5" />
                 </Button>
               </SheetTrigger>
               <SheetContent
@@ -68,8 +96,9 @@ export function Header() {
                 side="left"
                 close={false}
               >
-                <SheetHeader className="p-0 space-y-0">
+                <SheetHeader className="space-y-0 border-b border-border p-4">
                   <SheetTitle className="sr-only">Menu</SheetTitle>
+                  <Brand full />
                 </SheetHeader>
                 <SheetBody className="p-0 overflow-y-auto">
                   <SidebarMenu />
@@ -77,6 +106,7 @@ export function Header() {
               </SheetContent>
             </Sheet>
           )}
+          <Brand />
         </div>
 
         <div className="ms-auto flex items-center gap-3 text-sm">
@@ -84,10 +114,10 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="gap-2 px-2"
+                className="gap-2 px-2 max-sm:min-w-11"
                 aria-label="Account menu"
               >
-                <Avatar className="size-7">
+                <Avatar className="size-8 ring-2 ring-primary/15">
                   <AvatarFallback className="bg-primary/10 text-xs font-medium uppercase text-primary">
                     {me?.username?.slice(0, 2)}
                   </AvatarFallback>

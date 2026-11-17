@@ -160,7 +160,7 @@ export function EducationDialog(p: DialogProps<Qualification>) {
           )}
         </Field>
       </div>
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-0">
         <Checkbox
           checked={studying}
           onCheckedChange={(v) => setStudying(v === true)}
@@ -262,7 +262,7 @@ export function ExperienceDialog(p: DialogProps<Experience>) {
           )}
         </Field>
       </div>
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-0">
         <Checkbox
           checked={current}
           onCheckedChange={(v) => setCurrent(v === true)}
@@ -621,7 +621,10 @@ export function AboutDialog({
         <legend className="text-sm font-medium">Work pattern</legend>
         <div className="flex flex-wrap gap-4 text-sm">
           {o.work_patterns.map((w) => (
-            <label key={w.id} className="flex items-center gap-2">
+            <label
+              key={w.id}
+              className="flex min-h-11 items-center gap-2 sm:min-h-0"
+            >
               <Checkbox
                 checked={patterns.includes(w.id)}
                 onCheckedChange={() => toggle(w.id)}

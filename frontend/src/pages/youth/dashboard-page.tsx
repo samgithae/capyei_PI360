@@ -1,3 +1,4 @@
+import { CvCompletion, useMyCv } from '@/pages/participants/cv/cv-completion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { Link, Navigate } from 'react-router';
@@ -42,6 +43,7 @@ export function DashboardPage() {
     retry: false,
   });
 
+  const cv = useMyCv(given);
   const qc = useQueryClient();
   const notices = useQuery({
     queryKey: ['youth-notices'],
@@ -73,6 +75,7 @@ export function DashboardPage() {
         crumbs={[{ label: 'My dashboard' }]}
         title={`Hello, ${me.data.name}`}
       />
+      {cv.data && <CvCompletion cv={cv.data} linkToProfile compact />}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Counter label="Referred" value={counts.referred} />
         <Counter label="Interview" value={counts.interview} />
@@ -115,7 +118,7 @@ export function DashboardPage() {
           <div className="space-y-3 p-5">
             <div className="flex flex-wrap items-center gap-2">
               <Link
-                className="font-medium text-foreground hover:text-primary"
+                className="inline-flex min-h-11 items-center font-medium text-foreground hover:text-primary sm:min-h-0"
                 to={`/me/opportunities/${latest.id}`}
               >
                 {latest.opportunity}
@@ -126,7 +129,10 @@ export function DashboardPage() {
               <StatusBadge status={latest.stage} label={latest.stage_label} />
             </div>
             <StepTracker steps={steps} item={latest} />
-            <Link className="text-sm text-primary" to="/me/opportunities">
+            <Link
+              className="inline-flex min-h-11 items-center text-sm text-primary sm:min-h-0"
+              to="/me/opportunities"
+            >
               See all my opportunities
             </Link>
           </div>
@@ -134,7 +140,10 @@ export function DashboardPage() {
           <p className="p-5 text-sm text-muted-foreground">
             You have not been referred to an opportunity yet. Keep your profile
             up to date so your officer can find the right fit.{' '}
-            <Link className="text-primary" to="/me/profile">
+            <Link
+              className="inline-flex min-h-11 items-center text-primary sm:min-h-0"
+              to="/me/profile"
+            >
               Update my profile
             </Link>
           </p>

@@ -39,10 +39,10 @@ const buttonVariants = cva(
         dashed: '',
       },
       size: {
-        lg: 'h-10 rounded-md px-4 text-sm gap-1.5 [&_svg:not([class*=size-])]:size-4',
-        md: 'h-8.5 rounded-md px-3 gap-1.5 text-[0.8125rem] leading-(--text-sm--line-height) [&_svg:not([class*=size-])]:size-4',
-        sm: 'h-7 rounded-md px-2.5 gap-1.25 text-xs [&_svg:not([class*=size-])]:size-3.5',
-        icon: 'size-8.5 rounded-md [&_svg:not([class*=size-])]:size-4 shrink-0',
+        lg: 'h-10 max-sm:h-11 rounded-md px-4 text-sm gap-1.5 [&_svg:not([class*=size-])]:size-4',
+        md: 'h-8.5 max-sm:h-11 rounded-md px-3 gap-1.5 text-[0.8125rem] leading-(--text-sm--line-height) [&_svg:not([class*=size-])]:size-4',
+        sm: 'h-7 max-sm:h-11 max-sm:min-w-11 rounded-md px-2.5 gap-1.25 text-xs [&_svg:not([class*=size-])]:size-3.5',
+        icon: 'size-8.5 max-sm:size-11 rounded-md [&_svg:not([class*=size-])]:size-4 shrink-0',
       },
       autoHeight: {
         true: '',
@@ -316,21 +316,25 @@ const buttonVariants = cva(
       {
         size: 'sm',
         mode: 'icon',
-        className: 'w-7 h-7 p-0 [[&_svg:not([class*=size-])]:size-3.5',
+        className:
+          'w-7 h-7 max-sm:size-11 p-0 [[&_svg:not([class*=size-])]:size-3.5',
       },
       {
         size: 'md',
         mode: 'icon',
-        className: 'w-8.5 h-8.5 p-0 [&_svg:not([class*=size-])]:size-4',
+        className:
+          'w-8.5 h-8.5 max-sm:size-11 p-0 [&_svg:not([class*=size-])]:size-4',
       },
       {
         size: 'icon',
-        className: 'w-8.5 h-8.5 p-0 [&_svg:not([class*=size-])]:size-4',
+        className:
+          'w-8.5 h-8.5 max-sm:size-11 p-0 [&_svg:not([class*=size-])]:size-4',
       },
       {
         size: 'lg',
         mode: 'icon',
-        className: 'w-10 h-10 p-0 [&_svg:not([class*=size-])]:size-4',
+        className:
+          'w-10 h-10 max-sm:size-11 p-0 [&_svg:not([class*=size-])]:size-4',
       },
 
       // Input mode

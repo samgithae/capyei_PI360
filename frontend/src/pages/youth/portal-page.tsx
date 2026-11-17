@@ -1,6 +1,8 @@
+import { CvCompletion, useMyCv } from '@/pages/participants/cv/cv-completion';
 import { CvProfile } from '@/pages/participants/cv/cv-profile';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
+import { useSearchParams } from 'react-router';
 import { api, ApiError, post } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { DataCard } from '@/components/data-card';
@@ -29,6 +31,18 @@ export function PortalPage() {
       void qc.invalidateQueries({ queryKey: ['participant-profile', 'self'] });
     },
   });
+
+  const cv = useMyCv();
+  const [, setParams] = useSearchParams();
+  const openEditor = () =>
+    setParams(
+      (old) => {
+        const n = new URLSearchParams(old);
+        n.set('cv', 'edit');
+        return n;
+      },
+      { replace: true },
+    );
 
   if (q.isLoading) return <LoadingState />;
   if (q.isError || !q.data)
@@ -65,6 +79,7 @@ export function PortalPage() {
         </DataCard>
       ) : (
         <>
+          {cv.data && <CvCompletion cv={cv.data} onEdit={openEditor} />}
           {me.details && (
             <MyDetailsCard
               key={JSON.stringify(me.details)}

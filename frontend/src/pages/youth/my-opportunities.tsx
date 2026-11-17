@@ -44,7 +44,30 @@ export function MyOpportunitiesPage() {
         />
       ) : (
         <DataCard title="Referred to">
-          <Table>
+          {/* On a phone each opportunity is a card; a five-column table would scroll sideways. */}
+          <ul className="divide-y divide-border sm:hidden">
+            {q.data.items.map((r) => (
+              <li key={r.id}>
+                <Link
+                  to={`/me/opportunities/${r.id}`}
+                  className="flex min-h-11 flex-col gap-1.5 p-4 active:bg-muted/50"
+                >
+                  <span className="break-words font-medium text-foreground">
+                    {r.opportunity}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {r.employer}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <StatusBadge status={r.stage} label={r.stage_label} />
+                    {r.referred_at && <span>Referred {r.referred_at}</span>}
+                    <span>Updated {r.updated_at}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <Table className="max-sm:hidden">
             <TableHeader>
               <TableRow className="bg-muted/40">
                 <TableHead>Opportunity</TableHead>
@@ -98,7 +121,10 @@ export function MyOpportunityPage() {
     return (
       <div className="container-fluid space-y-3">
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-        <Link className="text-sm text-primary" to="/me/opportunities">
+        <Link
+          className="inline-flex min-h-11 items-center text-sm text-primary sm:min-h-0"
+          to="/me/opportunities"
+        >
           Back to my opportunities
         </Link>
       </div>
@@ -160,7 +186,10 @@ export function MyOpportunityPage() {
           {o.closing_date && <p>Applications close: {o.closing_date}</p>}
         </div>
       </DataCard>
-      <Link className="text-sm text-primary" to="/me/opportunities">
+      <Link
+        className="inline-flex min-h-11 items-center text-sm text-primary sm:min-h-0"
+        to="/me/opportunities"
+      >
         Back to my opportunities
       </Link>
     </div>

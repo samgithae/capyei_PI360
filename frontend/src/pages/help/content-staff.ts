@@ -189,7 +189,7 @@ export const STAFF_GUIDES: Guide[] = [
     steps: [
       'Open Employers and choose Add employer.',
       'Enter the name. Under Industry / Sector, search and choose every industry the employer works in; under Counties, choose every county it works in. Each choice appears as a chip; tap the x on a chip to remove it. If the list you need is empty, ask someone who manages reference data to add it first.',
-      'Then enter the address, website, status and notes. The sub-county is only asked for when the employer has exactly one county.',
+      'Then enter the address, website, status and notes. The sub-county is only asked for when the employer has exactly one county, and is chosen from a searchable list.',
       'On save the system looks for similar names. Choose Save anyway only if it really is a different employer.',
       'To change them later, open the employer and choose Edit employer. The employer page and the Employers list show every county and every industry. You cannot remove a county or industry that a draft or open opportunity of this employer still uses: change those opportunities first.',
     ],

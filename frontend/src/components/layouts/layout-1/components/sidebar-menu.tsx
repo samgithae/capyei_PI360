@@ -40,10 +40,10 @@ export function SidebarMenu() {
     label:
       'uppercase text-[11px] tracking-wide font-semibold text-muted-foreground/70 pt-3 pb-1',
     separator: '',
-    item: 'h-9 rounded-md text-accent-foreground hover:bg-muted hover:text-foreground data-[selected=true]:text-primary data-[selected=true]:bg-primary/10 data-[selected=true]:font-medium',
+    item: 'h-9 max-lg:h-11 rounded-md text-accent-foreground hover:bg-muted hover:text-foreground data-[selected=true]:text-primary data-[selected=true]:bg-primary/10 data-[selected=true]:font-medium',
     sub: '',
     subTrigger:
-      'h-9 rounded-md text-accent-foreground hover:bg-muted hover:text-foreground data-[selected=true]:text-primary data-[selected=true]:bg-primary/10 data-[selected=true]:font-medium',
+      'h-9 max-lg:h-11 rounded-md text-accent-foreground hover:bg-muted hover:text-foreground data-[selected=true]:text-primary data-[selected=true]:bg-primary/10 data-[selected=true]:font-medium',
     subContent: 'py-0',
     indicator: '',
   };
