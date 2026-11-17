@@ -278,6 +278,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/Flag'
           description: ''
+  /api/v1/config/places/{kind}:
+    get:
+      operationId: config_places
+      description: |-
+        Active sub-counties of a county, or wards of a sub-county, for the place pickers.
+
+        Geography is public reference data, so any signed-in user may read it (the youth and
+        employer portals have no ``configuration.view`` permission). Names only, nothing editable.
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - config
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Place'
+          description: ''
   /api/v1/config/reference/{kind}:
     get:
       operationId: config_reference_list
@@ -7565,6 +7592,20 @@ components:
       - grant_only
       - group
       - label
+    Place:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        active:
+          type: boolean
+      required:
+      - active
+      - id
+      - name
     ProficiencyEnum:
       enum:
       - 1

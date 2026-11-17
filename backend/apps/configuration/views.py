@@ -94,6 +94,12 @@ class ReferenceListView(APIView):
         return Response(_out(kind, obj), status=status.HTTP_201_CREATED)
 
 
+class PlaceSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    active = serializers.BooleanField()
+
+
 class PlacesView(APIView):
     """Active sub-counties of a county, or wards of a sub-county, for the place pickers.
 
@@ -104,7 +110,7 @@ class PlacesView(APIView):
     permission_classes = [IsAuthenticated]
     PARENT = {"sub-counties": "county", "wards": "sub_county"}
 
-    @extend_schema(operation_id="config_places", request=None, responses={200: list})
+    @extend_schema(operation_id="config_places", request=None, responses=PlaceSerializer(many=True))
     def get(self, request, kind):
         parent = self.PARENT.get(kind)
         if parent is None:
