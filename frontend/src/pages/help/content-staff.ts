@@ -145,6 +145,23 @@ export const STAFF_GUIDES: Guide[] = [
     updated: '2026-11',
   },
   {
+    slug: 'import-youth-from-sheet',
+    title: 'Import youth from a spreadsheet',
+    summary: 'Download a sample, fill it in, and load many youth at once.',
+    group: 'Youth',
+    needs: ['imports.run'],
+    to: { path: '/imports/new', label: 'Start a new import' },
+    steps: [
+      'Open New import. Under "Choose the file", choose Download sample (.xlsx).',
+      'Fill the Data sheet, one youth per row, keeping the column names. The Instructions sheet explains each column and the Codes sheet lists the programme, cohort and course codes to use. Replace or delete the example row.',
+      'Back in PI 360, choose the file. The columns match on their own; check them and pick any cohort defaults.',
+      'Choose Validate the file. It is a dry run: nothing is saved. Fix rows listed with errors, then approve to load the valid ones.',
+    ],
+    why: 'Rows with a missing name, enrollment number or unknown programme, cohort or course are held, never loaded half-complete.',
+    related: ['import-youth-skills'],
+    updated: '2026-11',
+  },
+  {
     slug: 'import-youth-skills',
     title: 'Import youth skills from a spreadsheet',
     summary: 'Load many skills and qualifications at once.',

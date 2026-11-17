@@ -593,3 +593,41 @@ def test_unparseable_cohort_still_blocks(steward):
         data=b"n,p,c,k,e\nAmina,GB,Some odd label,003-Carpentry,E1\n",
     )  # fmt: skip
     assert b.counts["held"] == 1 and b.reference_plan == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("target", ["participants", "placements"])
+def test_sample_workbook_downloads_and_maps_itself(world, steward, target):
+    from apps.imports.parsing import read_rows
+    from apps.imports.sample import build_xlsx
+
+    c = Client()
+    c.force_login(steward)
+    r = c.get(f"/api/v1/imports/sample?target={target}")
+    assert r.status_code == 200
+    assert f"import-sample-{target}.xlsx" in r["Content-Disposition"]
+    data = r.content
+    assert data == build_xlsx(target)
+
+    headers, rows = read_rows("sample.xlsx", data)  # the Data sheet is the first one
+    seen = services.inspect(file_name="sample.xlsx", data=data, target=target)
+    # every column is recognised on its own: the wizard needs no manual mapping
+    assert seen["suggested"] == {h: h for h in headers}
+    assert {f["field"] for f in seen["fields"]} == set(headers)
+    assert len(rows) == 1
+
+
+@pytest.mark.django_db
+def test_sample_lists_live_codes_and_rejects_unknown_target(world, steward):
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    c = Client()
+    c.force_login(steward)
+    assert c.get("/api/v1/imports/sample?target=nope").status_code == 400
+    wb = load_workbook(BytesIO(c.get("/api/v1/imports/sample").content))
+    assert wb.sheetnames == ["Data", "Instructions", "Codes"]
+    codes = {row[1] for row in wb["Codes"].iter_rows(min_row=2, values_only=True)}
+    assert {"P1", "K1", "C1"} <= codes
+    assert Client().get("/api/v1/imports/sample").status_code == 401

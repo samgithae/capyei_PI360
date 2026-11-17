@@ -3136,6 +3136,31 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/imports/sample:
+    get:
+      operationId: imports_sample
+      description: A fill-in workbook for one kind of import, with instructions and
+        the valid codes.
+      parameters:
+      - in: query
+        name: target
+        schema:
+          type: string
+          enum:
+          - participants
+          - placements
+      tags:
+      - imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/imports/templates:
     get:
       operationId: imports_templates_list

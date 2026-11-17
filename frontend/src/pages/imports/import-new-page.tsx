@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { Download } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router';
-import { api, ApiError, post, upload } from '@/lib/api';
+import { toast } from 'sonner';
+import { api, ApiError, apiUrl, post, upload } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -61,6 +63,23 @@ export function ImportNewPage() {
   const templates = useQuery({
     queryKey: ['import-templates'],
     queryFn: () => api<Template[]>('/imports/templates'),
+  });
+
+  // A fill-in workbook: Data sheet with the exact column names, instructions and valid codes.
+  const sample = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(apiUrl(`/imports/sample?target=${target}`), {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('download failed');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `import-sample-${target}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    onError: () => toast.error('Could not download the sample file.'),
   });
 
   const inspect = useMutation({
@@ -180,6 +199,21 @@ export function ImportNewPage() {
                 A .csv or .xlsx file (first sheet, headers in the first row).
                 Choosing it only reads the headers. Nothing is saved yet.
               </p>
+              <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-3 text-sm">
+                <span className="min-w-0 flex-1 text-muted-foreground">
+                  No file yet? Download a sample, fill it in and choose it
+                  below. It has instructions and the codes to use.
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={sample.isPending}
+                  onClick={() => sample.mutate()}
+                >
+                  <Download /> Download sample (.xlsx)
+                </Button>
+              </div>
               <Input
                 type="file"
                 accept=".csv,.xlsx"

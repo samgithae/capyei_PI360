@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 
 from apps.api.access import HasPermission
 
-from . import services
+from . import sample, services
 from .models import ImportBatch, MappingTemplate, ReconciliationSignoff
 
 RUN, COMMIT = "imports.run", "imports.commit"
@@ -134,6 +134,29 @@ class InspectView(APIView):
                 services.inspect, file_name=f.name, data=f.read(), target=s.validated_data["target"]
             )
         )
+
+
+class SampleView(APIView):
+    """A fill-in workbook for one kind of import, with instructions and the valid codes."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": RUN}
+
+    @extend_schema(
+        operation_id="imports_sample",
+        parameters=[OpenApiParameter("target", str, enum=["participants", "placements"])],
+        responses={200: bytes},
+    )
+    def get(self, request):
+        target = request.query_params.get("target", "participants")
+        if target not in ("participants", "placements"):
+            raise serializers.ValidationError({"target": ["Unknown import type."]})
+        resp = HttpResponse(
+            sample.build_xlsx(target),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        resp["Content-Disposition"] = f'attachment; filename="import-sample-{target}.xlsx"'
+        return resp
 
 
 class BatchListView(APIView):
