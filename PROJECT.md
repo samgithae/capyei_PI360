@@ -30,7 +30,9 @@ the import, directory and admin tooling. Pushed `main` is at `github.com/samgith
 | Module A support priority: /support queue (unsuccessful referrals, stalled referral, ready-but-never-referred) with "Mark reviewed" that pauses a flag | Built, uncommitted; documents and retention flags not captured yet | T-063 |
 | Rules > Settings: admin-editable numbers (defaults in code, changes audited) behind A and C | Built, uncommitted; values are placeholders until D-013, D-028 | T-063, T-067 |
 | **Programme dashboard** at `/`: KPI tiles, funnel, gender and placement, referral pipeline, monthly trend, age, county, needs-attention list, metric definitions; every number opens the list of records it counts (`/dashboard/list`) | Built, uncommitted; P0 and part of P1. Definitions marked "working" await CAP-YEI approval. Retention, training completion, skills demand, predictive, staff productivity not built | T-069, T-070 |
-| De-identified exports, case management, follow-up | Not started (M3) | T-064, T-065, T-071 |
+| Case management (`/cases`) and placements (`/placements`): interventions, queues, verification, placement episodes | Committed locally (542a16a, not pushed) | T-064, T-065 |
+| Follow-up scheduling (`/followups`, Administration > Follow-up schedule): configurable steps, check-ins made when a placement with a start date is recorded or verified, attempts, response and evidence, next action. A schedule change affects new placements only | Built, uncommitted. Default intervals (30 d, 90 d, 6/12/24 months) await D-012; early window awaits D-028 | T-066 |
+| De-identified exports | Not started (M3) | T-071 |
 
 **Built, not yet committed (working tree, 2026-11-12):** the Module A/B/C rows above; the rules
 engine no longer needs a "product owner confirmation" tick (a parameter is unapproved only when it

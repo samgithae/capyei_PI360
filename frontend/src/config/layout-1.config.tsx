@@ -2,6 +2,7 @@ import {
   BarChart3,
   Briefcase,
   Building2,
+  CalendarCheck,
   CircleHelp,
   ClipboardList,
   FileUp,
@@ -133,6 +134,12 @@ export const MENU_SIDEBAR: MenuConfig = [
     path: '/placements',
     permission: 'placements.view',
   },
+  {
+    title: 'Follow-ups',
+    icon: CalendarCheck,
+    path: '/followups',
+    permission: 'placements.view',
+  },
   { heading: 'Insight' },
   {
     title: 'Reports',
@@ -201,6 +208,11 @@ export const MENU_SIDEBAR: MenuConfig = [
       {
         title: 'Qualification grades',
         path: '/administration/qualification-grades',
+        permission: 'config.view',
+      },
+      {
+        title: 'Follow-up schedule',
+        path: '/administration/followup-schedule',
         permission: 'config.view',
       },
       {

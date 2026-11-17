@@ -31,6 +31,9 @@ const TONE: Record<string, Tone> = {
   in_progress: 'info',
   awaiting_verification: 'warning',
   cancelled: 'secondary',
+  // Follow-ups (T-066); open and cancelled are above
+  done: 'success',
+  unreachable: 'warning',
   // Rule versions (T-047)
   in_review: 'info',
   retired: 'secondary',

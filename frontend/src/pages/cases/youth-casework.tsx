@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
+import type { FollowUpPage } from '@/pages/followups/followup-shared';
+import { FollowUpTable } from '@/pages/followups/followup-table';
 import { useQuery } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { Link } from 'react-router';
@@ -46,6 +48,11 @@ export function YouthCasework({
   const placements = useQuery({
     queryKey: ['placements', 'participant', id],
     queryFn: () => api<PlacementPage>(`/placements?participant=${id}`),
+    enabled: can('placements.view'),
+  });
+  const followups = useQuery({
+    queryKey: ['followups', 'participant', id],
+    queryFn: () => api<FollowUpPage>(`/followups?participant=${id}&state=all`),
     enabled: can('placements.view'),
   });
 
@@ -160,6 +167,38 @@ export function YouthCasework({
           )}
           {placements.data && placements.data.results.length > 0 && (
             <PlacementTable rows={placements.data.results} showYouth={false} />
+          )}
+        </DataCard>
+      )}
+
+      {can('placements.view') && (
+        <DataCard
+          title="Follow-ups"
+          description="Check-ins after a placement starts. Each one records the attempts and the youth's answer."
+        >
+          {followups.isError && (
+            <div className="p-5">
+              <ErrorState
+                error={followups.error}
+                onRetry={() => followups.refetch()}
+              />
+            </div>
+          )}
+          {followups.isPending && (
+            <div className="p-5">
+              <LoadingState rows={2} />
+            </div>
+          )}
+          {followups.data && followups.data.results.length === 0 && (
+            <div className="p-5">
+              <EmptyState
+                title="No follow-ups yet"
+                hint="They are scheduled when a placement with a start date is recorded or verified."
+              />
+            </div>
+          )}
+          {followups.data && followups.data.results.length > 0 && (
+            <FollowUpTable rows={followups.data.results} showYouth={false} />
           )}
         </DataCard>
       )}

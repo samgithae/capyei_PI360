@@ -21,6 +21,9 @@ import {
 } from '@/pages/employer/employer-referrals';
 import { EmployerPage } from '@/pages/employers/employer-page';
 import { EmployersPage } from '@/pages/employers/employers-page';
+import { FollowUpPage } from '@/pages/followups/followup-page';
+import { FollowUpsPage } from '@/pages/followups/followups-page';
+import { FollowUpSchedulePage } from '@/pages/followups/schedule-page';
 import { GuidePage } from '@/pages/help/guide-page';
 import { HelpPage } from '@/pages/help/help-page';
 import { ImportBatchPage } from '@/pages/imports/import-batch-page';
@@ -185,6 +188,8 @@ export function AppRoutingSetup() {
           </Route>
           <Route element={<RequirePermission permission="placements.view" />}>
             <Route path="/placements" element={<PlacementsPage />} />
+            <Route path="/followups" element={<FollowUpsPage />} />
+            <Route path="/followups/:id" element={<FollowUpPage />} />
           </Route>
           <Route element={<RequirePermission permission="intelligence.view" />}>
             <Route path="/rules" element={<RulesPage />} />
@@ -200,6 +205,10 @@ export function AppRoutingSetup() {
                 element={<ReferencePage key={k} kind={k} />}
               />
             ))}
+            <Route
+              path="/administration/followup-schedule"
+              element={<FollowUpSchedulePage />}
+            />
             <Route
               path="/administration/employer-portal"
               element={<PortalSettingsPage />}

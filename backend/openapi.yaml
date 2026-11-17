@@ -2241,6 +2241,429 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/followups:
+    get:
+      operationId: followups_list
+      parameters:
+      - in: query
+        name: kind
+        schema:
+          type: string
+      - in: query
+        name: mine
+        schema:
+          type: string
+      - in: query
+        name: offset
+        schema:
+          type: string
+      - in: query
+        name: page_size
+        schema:
+          type: string
+      - in: query
+        name: participant
+        schema:
+          type: string
+      - in: query
+        name: placement
+        schema:
+          type: string
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: state
+        schema:
+          type: string
+      tags:
+      - followups
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/followups/{id}:
+    get:
+      operationId: followups_detail
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - followups
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/followups/{id}/assign:
+    post:
+      operationId: followups_assign
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - followups
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowUpAssign'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FollowUpAssign'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FollowUpAssign'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/followups/{id}/attempts:
+    post:
+      operationId: followups_attempt
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - followups
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowUpAttempt'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FollowUpAttempt'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FollowUpAttempt'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/followups/{id}/cancel:
+    post:
+      operationId: followups_cancel
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - followups
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowUpCancel'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FollowUpCancel'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FollowUpCancel'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/followups/{id}/complete:
+    post:
+      operationId: followups_complete
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - followups
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowUpComplete'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FollowUpComplete'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FollowUpComplete'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/followups/{id}/history:
+    get:
+      operationId: followups_history
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - followups
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+          description: ''
+  /api/v1/followups/{id}/unreachable:
+    post:
+      operationId: followups_unreachable
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - followups
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowUpUnreachable'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FollowUpUnreachable'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FollowUpUnreachable'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/followups/options:
+    get:
+      operationId: followups_options
+      tags:
+      - followups
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/followups/steps:
+    get:
+      operationId: followup_steps_list
+      description: The schedule the check-ins are generated from. A change affects
+        new placements only.
+      tags:
+      - followups
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: followup_steps_create
+      description: The schedule the check-ins are generated from. A change affects
+        new placements only.
+      tags:
+      - followups
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowUpStepCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FollowUpStepCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FollowUpStepCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/followups/steps/{id}:
+    patch:
+      operationId: followup_steps_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - followups
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFollowUpStepUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFollowUpStepUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFollowUpStepUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/followups/summary:
+    get:
+      operationId: followups_summary
+      parameters:
+      - in: query
+        name: mine
+        schema:
+          type: string
+      tags:
+      - followups
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/health:
     get:
       operationId: health_retrieve
@@ -7183,6 +7606,20 @@ components:
         * `completed` - completed
         * `withdrawn` - withdrawn
         * `unknown` - unknown
+    EvidenceSourceEnum:
+      enum:
+      - employer_confirmation
+      - document
+      - phone_call
+      - site_visit
+      - other
+      type: string
+      description: |-
+        * `employer_confirmation` - employer_confirmation
+        * `document` - document
+        * `phone_call` - phone_call
+        * `site_visit` - site_visit
+        * `other` - other
     FactorEnum:
       enum:
       - skill
@@ -7222,6 +7659,114 @@ components:
           writeOnly: true
       required:
       - key
+    FollowUpAssign:
+      type: object
+      properties:
+        owner_id:
+          type: integer
+        note:
+          type: string
+          default: ''
+          maxLength: 500
+      required:
+      - owner_id
+    FollowUpAttempt:
+      type: object
+      properties:
+        method:
+          $ref: '#/components/schemas/FollowUpAttemptMethodEnum'
+        reached:
+          type: boolean
+        made_on:
+          type: string
+          format: date
+        note:
+          type: string
+          default: ''
+          maxLength: 2000
+        next_action:
+          type: string
+          default: ''
+          maxLength: 200
+        next_action_date:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - method
+      - reached
+    FollowUpAttemptMethodEnum:
+      enum:
+      - phone
+      - sms
+      - whatsapp
+      - email
+      - visit
+      - other
+      type: string
+      description: |-
+        * `phone` - phone
+        * `sms` - sms
+        * `whatsapp` - whatsapp
+        * `email` - email
+        * `visit` - visit
+        * `other` - other
+    FollowUpCancel:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+      required:
+      - reason
+    FollowUpComplete:
+      type: object
+      properties:
+        still_employed:
+          type: boolean
+        evidence_source:
+          $ref: '#/components/schemas/EvidenceSourceEnum'
+        note:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - evidence_source
+      - still_employed
+    FollowUpKindEnum:
+      enum:
+      - early
+      - tracer
+      type: string
+      description: |-
+        * `early` - early
+        * `tracer` - tracer
+    FollowUpStepCreate:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/FollowUpKindEnum'
+        label:
+          type: string
+          maxLength: 60
+        offset_days:
+          type: integer
+          maximum: 732
+          minimum: 1
+        active:
+          type: boolean
+          default: true
+      required:
+      - kind
+      - label
+      - offset_days
+    FollowUpUnreachable:
+      type: object
+      properties:
+        note:
+          type: string
+          default: ''
+          maxLength: 2000
     GenderEnum:
       enum:
       - female
@@ -7408,22 +7953,6 @@ components:
       required:
       - reason
       - survivor
-    MethodEnum:
-      enum:
-      - assessment
-      - document
-      - institution
-      - interview
-      - other
-      - reference
-      type: string
-      description: |-
-        * `assessment` - assessment
-        * `document` - document
-        * `institution` - institution
-        * `interview` - interview
-        * `other` - other
-        * `reference` - reference
     MfaCode:
       type: object
       properties:
@@ -7961,6 +8490,20 @@ components:
         reason:
           type: string
           writeOnly: true
+    PatchedFollowUpStepUpdate:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/FollowUpKindEnum'
+        label:
+          type: string
+          maxLength: 60
+        offset_days:
+          type: integer
+          maximum: 732
+          minimum: 1
+        active:
+          type: boolean
     PatchedInterventionUpdate:
       type: object
       properties:
@@ -8384,7 +8927,7 @@ components:
       type: object
       properties:
         source:
-          $ref: '#/components/schemas/SourceEnum'
+          $ref: '#/components/schemas/EvidenceSourceEnum'
       required:
       - source
     ProficiencyEnum:
@@ -8826,20 +9369,6 @@ components:
             $ref: '#/components/schemas/SkillItem'
       required:
       - skills
-    SourceEnum:
-      enum:
-      - employer_confirmation
-      - document
-      - phone_call
-      - site_visit
-      - other
-      type: string
-      description: |-
-        * `employer_confirmation` - employer_confirmation
-        * `document` - document
-        * `phone_call` - phone_call
-        * `site_visit` - site_visit
-        * `other` - other
     StatusMap:
       type: object
       properties:
@@ -9048,7 +9577,7 @@ components:
           $ref: '#/components/schemas/VerificationStatusEnum'
         method:
           oneOf:
-          - $ref: '#/components/schemas/MethodEnum'
+          - $ref: '#/components/schemas/VerificationMethodEnum'
           - $ref: '#/components/schemas/BlankEnum'
         notes:
           type: string
@@ -9057,6 +9586,22 @@ components:
       - id
       - kind
       - status
+    VerificationMethodEnum:
+      enum:
+      - assessment
+      - document
+      - institution
+      - interview
+      - other
+      - reference
+      type: string
+      description: |-
+        * `assessment` - assessment
+        * `document` - document
+        * `institution` - institution
+        * `interview` - interview
+        * `other` - other
+        * `reference` - reference
     VerificationSourceEnum:
       enum:
       - youth_confirmation

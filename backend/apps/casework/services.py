@@ -18,8 +18,12 @@ from apps.placements import services as placements
 from apps.referrals import services as referrals
 
 PATHWAY_NAMES = dict(placements.Placement.PATHWAYS)
+FOLLOWUP_KINDS = dict(placements.FollowUpStep.KINDS)
+FOLLOWUP_STATUSES = dict(placements.FollowUp.STATUSES)
+FOLLOWUP_METHODS = dict(placements.FollowUpAttempt.METHODS)
 SOURCE_NAMES = dict(placements.Placement.SOURCES)
 FLAG_LIMIT = 10
+FOLLOWUP_LIMIT = 50
 
 
 class NotFound(Exception):
@@ -140,6 +144,8 @@ def history(placement) -> list[dict]:
 def _wrap(call, **kwargs):
     try:
         return call(**kwargs)
+    except placements.FollowUpError as exc:
+        raise Violation(exc.field, exc.message, exc.code) from exc
     except placements.PlacementError as exc:
         raise Violation("", str(exc)) from exc
 
@@ -200,6 +206,159 @@ def verify_placement(*, actor, placement, source):
     return _wrap(placements.verify_episode, actor=actor, placement_id=placement.pk, source=source)
 
 
+# --- follow-ups (T-066, FR-25/FR-26) -------------------------------------------------------------
+
+
+def _person(u) -> str:
+    return (u.get_full_name() or u.get_username()) if u else ""
+
+
+def _followup_row(f, names: dict, owners: dict, today: date) -> dict:
+    p = f.placement
+    pid = owners.get(p.enrollment_id)
+    return {
+        "id": str(f.pk),
+        "participant_id": str(pid) if pid else None,
+        "participant": names.get(pid, ""),
+        "placement_id": str(p.pk),
+        "employer": p.employer.name if p.employer_id else p.employer_name_source,
+        "designation": p.designation,
+        "placement_start": p.start_date.isoformat() if p.start_date else None,
+        "placement_ended": p.end_date is not None,
+        "kind": f.kind,
+        "kind_label": FOLLOWUP_KINDS[f.kind],
+        "label": f.label,
+        "due_date": f.due_date.isoformat(),
+        "status": f.status,
+        "status_label": FOLLOWUP_STATUSES[f.status],
+        "overdue": placements.followup_is_overdue(f, today),
+        "assigned_to_id": f.assigned_to_id,
+        "assigned_to": _person(f.assigned_to),
+        "next_action": f.next_action,
+        "next_action_date": f.next_action_date.isoformat() if f.next_action_date else None,
+        "attempts": getattr(f, "attempt_count", None),
+    }
+
+
+def followup_rows(user, rows, owners=None, today=None) -> list[dict]:
+    owners = _owners(user) if owners is None else owners
+    today = today or timezone.localdate()
+    pids = {owners.get(f.placement.enrollment_id) for f in rows} - {None}
+    names = participants.names(pids)
+    return [_followup_row(f, names, owners, today) for f in rows]
+
+
+def list_followups(user, *, state="open", kind="", mine=False, q="", participant_id=None,
+                   placement_id=None, offset=0, size=25):  # fmt: skip
+    owners = _owners(user)
+    today = timezone.localdate()
+    if participant_id:
+        enrollments = [e for e, pid in owners.items() if str(pid) == str(participant_id)]
+    else:
+        enrollments = list(owners)
+    narrowed = None
+    if q:
+        hits = participants.matching_ids(user, q)
+        narrowed = [e for e, pid in owners.items() if pid in hits]
+    qs = placements.followup_list(
+        enrollments, state=state, kind=kind, assigned_to=user.pk if mine else None,
+        placement_id=placement_id, q_enrollment_ids=narrowed, today=today,
+    )  # fmt: skip
+    total = qs.count()
+    return total, followup_rows(user, list(qs[offset : offset + size]), owners, today)
+
+
+def followup_summary(user, *, mine: bool = False) -> dict:
+    return placements.followup_counts(list(_owners(user)), assigned_to=user.pk if mine else None)
+
+
+def get_followup(user, followup_id):
+    """The follow-up, if its youth is inside the user's scope; otherwise NotFound."""
+    try:
+        f = placements.followup_get(followup_id)
+    except placements.PlacementError:
+        raise NotFound from None
+    if f.placement.enrollment_id not in _owners(user):
+        raise NotFound
+    return f
+
+
+def followup_detail(user, f, *, can_edit: bool, can_assign: bool) -> dict:
+    row = followup_rows(user, [f])[0]
+    live = f.status == placements.FollowUp.OPEN
+    return {
+        **row,
+        "response_note": f.response_note,
+        "still_employed": f.still_employed,
+        "evidence_source": f.evidence_source,
+        "evidence_source_label": SOURCE_NAMES.get(f.evidence_source, ""),
+        "closed_at": f.closed_at.isoformat() if f.closed_at else None,
+        "closed_by": _person(f.closed_by) if f.closed_by_id else "",
+        "attempt_list": [
+            {
+                "id": str(a.pk),
+                "method": a.method,
+                "method_label": FOLLOWUP_METHODS[a.method],
+                "reached": a.reached,
+                "made_on": a.made_on.isoformat(),
+                "note": a.note,
+                "made_by": _person(a.made_by),
+            }
+            for a in placements.followup_attempts(f)
+        ],
+        "can": {"work": can_edit and live, "assign": can_assign and live},
+    }
+
+
+def followup_history(f) -> list[dict]:
+    return placements.followup_history(f)
+
+
+def log_attempt(*, actor, followup, **fields):
+    return _wrap(placements.followup_log_attempt, actor=actor, followup_id=followup.pk, **fields)
+
+
+def complete_followup(*, actor, followup, **fields):
+    return _wrap(placements.followup_complete, actor=actor, followup_id=followup.pk, **fields)
+
+
+def unreachable_followup(*, actor, followup, note=""):
+    return _wrap(placements.followup_unreachable, actor=actor, followup_id=followup.pk, note=note)
+
+
+def cancel_followup(*, actor, followup, reason):
+    return _wrap(placements.followup_cancel, actor=actor, followup_id=followup.pk, reason=reason)
+
+
+def assign_followup(*, actor, followup, owner_id, note=""):
+    return _wrap(
+        placements.followup_assign, actor=actor, followup_id=followup.pk, owner_id=owner_id,
+        note=note,
+    )  # fmt: skip
+
+
+def schedule_steps() -> list[dict]:
+    return [
+        {
+            "id": str(s.pk),
+            "kind": s.kind,
+            "kind_label": FOLLOWUP_KINDS[s.kind],
+            "label": s.label,
+            "offset_days": s.offset_days,
+            "active": s.active,
+        }
+        for s in placements.followup_steps()
+    ]
+
+
+def create_schedule_step(*, actor, **fields):
+    return _wrap(placements.followup_create_step, actor=actor, **fields)
+
+
+def update_schedule_step(*, actor, step_id, **changes):
+    return _wrap(placements.followup_update_step, actor=actor, step_id=step_id, **changes)
+
+
 # --- the work queue (FR-22) ----------------------------------------------------------------------
 
 
@@ -219,6 +378,7 @@ def queue(user, *, mine: bool, today: date | None = None) -> dict:
         "referrals": waiting,
         "flags": None,
         "placements_to_verify": None,
+        "followups": None,
     }
     if has_permission(user, "intelligence.view"):
         ids = participants.visible_ids(user).values_list("pk", flat=True)
@@ -226,7 +386,18 @@ def queue(user, *, mine: bool, today: date | None = None) -> dict:
         out["flags"] = {"total": q["counts"]["flagged"], "items": q["items"]}
         out["counts"]["flagged"] = q["counts"]["flagged"]
     if has_permission(user, "placements.view"):
-        n = placements.unverified_count(list(_owners(user)))
+        owners = _owners(user)
+        n = placements.unverified_count(list(owners))
         out["placements_to_verify"] = n
         out["counts"]["placements_to_verify"] = n
+        due = placements.followup_list(
+            list(owners), state="open", assigned_to=user.pk if mine else None, today=today
+        )
+        due_rows = list(due[:FOLLOWUP_LIMIT])
+        out["followups"] = followup_rows(user, due_rows, owners, today)
+        fc = placements.followup_counts(list(owners), assigned_to=user.pk if mine else None,
+                                        today=today)  # fmt: skip
+        out["counts"]["followups_open"] = fc["open"]
+        out["counts"]["followups_overdue"] = fc["overdue"]
+        out["counts"]["followups_due_soon"] = fc["due_soon"]
     return out

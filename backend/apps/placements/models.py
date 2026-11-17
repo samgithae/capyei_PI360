@@ -107,3 +107,122 @@ class PlacementStatusMapping(models.Model):
 
     def __str__(self):
         return f"{self.source_value} -> {self.status}"
+
+
+class FollowUpStep(models.Model):
+    """One line of the follow-up schedule (T-066, FR-25, D-012/D-028): "check in N days after the
+    placement started". Data, not code: an administrator changes the schedule without a release.
+
+    A step is a template only. When a placement is confirmed each active step becomes a
+    ``FollowUp`` that carries its own copy of the label and due date, so changing or switching
+    off a step never moves, deletes or re-labels a task that already exists."""
+
+    EARLY, TRACER = "early", "tracer"
+    KINDS = [(EARLY, "Early follow-up"), (TRACER, "Tracer follow-up")]
+    MAX_DAYS = 732  # 24 months (BR-10)
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    kind = models.CharField(max_length=10, choices=KINDS)
+    label = models.CharField(max_length=60)
+    offset_days = models.PositiveIntegerField()
+    active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["offset_days", "label"]
+
+    def __str__(self):
+        return f"{self.label} ({self.offset_days} days)"
+
+
+class FollowUp(models.Model):
+    """A check-in with a placed youth, due on a date (T-066, FR-25/FR-26).
+
+    Never deleted: a task nobody will do is cancelled with a reason. ``due_date``, ``kind`` and
+    ``label`` are copied from the step when the task is generated. Every change is audited."""
+
+    OPEN, DONE, UNREACHABLE, CANCELLED = "open", "done", "unreachable", "cancelled"
+    STATUSES = [
+        (OPEN, "Open"),
+        (DONE, "Done"),
+        (UNREACHABLE, "Could not be reached"),
+        (CANCELLED, "Cancelled"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    placement = models.ForeignKey(Placement, on_delete=models.PROTECT, related_name="followups")
+    step = models.ForeignKey(
+        FollowUpStep, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    kind = models.CharField(max_length=10, choices=FollowUpStep.KINDS)
+    label = models.CharField(max_length=60)
+    due_date = models.DateField()
+    status = models.CharField(max_length=12, choices=STATUSES, default=OPEN)
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # What the check-in found, set when it is completed (FR-25: response, evidence).
+    still_employed = models.BooleanField(null=True, blank=True)
+    evidence_source = models.CharField(max_length=25, choices=Placement.SOURCES, blank=True)
+    response_note = models.TextField(blank=True)
+    # What happens next, if anything; the latest attempt sets it (FR-25: next action).
+    next_action = models.CharField(max_length=200, blank=True)
+    next_action_date = models.DateField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["due_date", "created_at"]
+        constraints = [
+            # One task per placement per step: generating twice never doubles the work.
+            models.UniqueConstraint(fields=["placement", "step"], name="one_followup_per_step")
+        ]
+        indexes = [models.Index(fields=["status", "due_date"])]
+
+    def __str__(self):
+        return f"{self.label} due {self.due_date}"
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A follow-up is never deleted; cancel it with a reason.")
+
+
+class FollowUpAttempt(models.Model):
+    """One try at reaching the youth (or employer) for a follow-up. Append-only."""
+
+    METHODS = [
+        ("phone", "Phone call"),
+        ("sms", "SMS"),
+        ("whatsapp", "WhatsApp"),
+        ("email", "Email"),
+        ("visit", "Visit"),
+        ("other", "Other"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    followup = models.ForeignKey(FollowUp, on_delete=models.PROTECT, related_name="attempts")
+    method = models.CharField(max_length=10, choices=METHODS)
+    reached = models.BooleanField()
+    made_on = models.DateField()
+    note = models.TextField(blank=True)
+    made_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-made_on", "-created_at"]
+
+    def __str__(self):
+        return f"{self.get_method_display()} on {self.made_on}"
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValueError("A follow-up attempt is append-only.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A follow-up attempt is append-only and cannot be deleted.")

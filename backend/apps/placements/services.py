@@ -223,12 +223,14 @@ def record_manual(
         raise PlacementError("Give the date it started.")
     if not employer_id and not employer_name_source.strip() and pathway in (Placement.WAGE,):
         raise PlacementError("Say who the employer is.")
-    return record(
+    p = record(
         actor=actor, enrollment_id=enrollment_id, source_status=MANUAL_SOURCE_STATUS,
         pathway=pathway, status=PLACED, employer_id=employer_id,
         employer_name_source=employer_name_source, designation=designation,
         start_date=start_date, end_date=end_date, exit_reason=exit_reason, benefits=benefits,
     )  # fmt: skip
+    _followups.generate_for(p, actor=actor)  # FR-25: the check-ins start with the placement
+    return p
 
 
 def _save_reviewed(p: Placement, *, actor, action: str, before: dict, reset_verification: bool):
@@ -299,9 +301,11 @@ def verify_episode(*, actor, placement_id, source: str) -> Placement:
         raise PlacementError("Set the pathway and status before verifying.")
     before = _snapshot(p)
     p.verified_by, p.verified_on, p.verification_source = actor, timezone.now(), source
-    return _save_reviewed(
+    _save_reviewed(
         p, actor=actor, action="placement.verified", before=before, reset_verification=False
     )
+    _followups.generate_for(p, actor=actor)  # confirmation also starts them (imported episodes)
+    return p
 
 
 # --- Status mapping (T-087 stage C, D-061) -----------------------------------------------------
@@ -446,3 +450,29 @@ def placed_facts() -> list[dict]:
             "enrollment_id", "start_date", "created_at"
         )
     ]
+
+
+# ---- follow-up scheduling (T-066) -------------------------------------------------------------
+# Imported last: followups.py imports names defined above, so this stays at the end of the file.
+from . import followups as _followups  # noqa: E402
+
+DUE_SOON_DAYS = _followups.DUE_SOON_DAYS
+FollowUpError = _followups.FollowUpError
+FollowUp = _followups.FollowUp
+FollowUpAttempt = _followups.FollowUpAttempt
+FollowUpStep = _followups.FollowUpStep
+followup_assign = _followups.assign
+followup_attempts = _followups.attempts_of
+followup_cancel = _followups.cancel
+followup_complete = _followups.complete
+followup_counts = _followups.counts
+followup_create_step = _followups.create_step
+followup_get = _followups.get
+followup_history = _followups.history
+followup_is_overdue = _followups.is_overdue
+followup_list = _followups.list_for
+followup_log_attempt = _followups.log_attempt
+followup_steps = _followups.steps
+followup_unreachable = _followups.mark_unreachable
+followup_update_step = _followups.update_step
+generate_followups = _followups.generate_for

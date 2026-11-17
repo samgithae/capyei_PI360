@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
+import { FollowUpTable } from '@/pages/followups/followup-table';
 import { useQuery } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
@@ -231,6 +232,26 @@ export function CasesPage() {
               </Table>
             )}
           </DataCard>
+
+          {q.followups && (
+            <DataCard
+              title={`Follow-ups (${q.counts.followups_open ?? 0} open, ${q.counts.followups_overdue ?? 0} overdue)`}
+              description="Check-ins after a placement, soonest due first."
+              toolbar={
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/followups">All follow-ups</Link>
+                </Button>
+              }
+            >
+              {q.followups.length === 0 ? (
+                <div className="p-5">
+                  <EmptyState title="No follow-ups to do" />
+                </div>
+              ) : (
+                <FollowUpTable rows={q.followups} />
+              )}
+            </DataCard>
+          )}
 
           {q.placements_to_verify !== null && (
             <DataCard title="Placements to verify">

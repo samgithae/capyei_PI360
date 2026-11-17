@@ -55,6 +55,7 @@ const queue: QueueData = {
   referrals: [],
   flags: null,
   placements_to_verify: null,
+  followups: null,
 };
 
 const renderPage = (url = '/cases') =>

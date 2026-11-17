@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { FollowUpRow } from '@/pages/followups/followup-shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api, ApiError, post } from '@/lib/api';
@@ -106,6 +107,9 @@ export interface QueueData {
     referrals_waiting: number;
     flagged?: number;
     placements_to_verify?: number;
+    followups_open?: number;
+    followups_overdue?: number;
+    followups_due_soon?: number;
   };
   interventions: {
     id: string;
@@ -139,9 +143,10 @@ export interface QueueData {
     }[];
   } | null;
   placements_to_verify: number | null;
+  followups: FollowUpRow[] | null;
 }
 
-const asOptions = (o: Option[] | undefined) =>
+export const asOptions = (o: Option[] | undefined) =>
   (o ?? []).map((x) => ({ id: x.value, name: x.label }));
 
 /** Kinds of support, statuses and verification sources for the intervention forms. */
@@ -176,15 +181,19 @@ export function useRefreshCases() {
       'placements',
       'placement-summary',
       'placement-history',
+      'followups',
+      'followup',
+      'followup-summary',
+      'followup-history',
     ])
       void qc.invalidateQueries({ queryKey: [key] });
   };
 }
 
-const errorText = (e: unknown) =>
+export const errorText = (e: unknown) =>
   e instanceof ApiError ? e.message : 'Could not save.';
 
-const Required = () => <span className="text-destructive"> *</span>;
+export const Required = () => <span className="text-destructive"> *</span>;
 
 /** Pick a youth by searching their name (the list is scoped by the server). */
 function YouthPicker({
@@ -267,7 +276,7 @@ function EmployerPicker({
 }
 
 /** Staff who work cases, for assigning an owner (needs caseload.reassign). */
-function useOwners(enabled: boolean) {
+export function useOwners(enabled: boolean) {
   return useQuery({
     queryKey: ['referral-assignees'],
     queryFn: () => api<{ id: number; name: string }[]>('/referrals/assignees'),

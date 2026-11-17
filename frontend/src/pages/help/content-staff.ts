@@ -338,7 +338,7 @@ export const STAFF_GUIDES: Guide[] = [
       'People with Reassign caseloads can hand an intervention to another officer with Reassign.',
     ],
     why: 'An intervention is never deleted: stopping one means cancelling it with a reason, so the history stays complete. Every change shows who made it and when. Closing needs a verification source so Closed means the support really happened.',
-    related: ['support-queue', 'placement-outcomes'],
+    related: ['support-queue', 'placement-outcomes', 'followups'],
     updated: '2026-11',
   },
   {
@@ -357,7 +357,27 @@ export const STAFF_GUIDES: Guide[] = [
       'Episodes that came from an import show Imported. They can be ended and verified here but not edited; correct them by importing again.',
     ],
     why: 'A youth’s current status is worked out from their episodes: they are placed while any episode has no end date. Counts show verified and unverified apart so a reported placement is never mistaken for a confirmed one.',
-    related: ['case-work'],
+    related: ['case-work', 'followups'],
+    updated: '2026-11',
+  },
+  {
+    slug: 'followups',
+    title: 'Follow up a youth after a placement',
+    summary:
+      'Work the check-ins that are scheduled when a placement starts: log attempts, record the answer and see what is overdue.',
+    group: 'Referrals',
+    needs: ['placements.view'],
+    to: { path: '/followups', label: 'Open Follow-ups' },
+    steps: [
+      'Check-ins are made for you. When a placement with a start date is recorded or verified, PI 360 schedules an early follow-up at 30 and 90 days and a tracer follow-up at 6, 12 and 24 months. Open Follow-ups to see them, soonest due first. Overdue ones are marked Overdue. Mine and Everyone switch whose work you see.',
+      'Open a check-in and choose Log an attempt each time you try to reach the youth: how (phone, SMS, visit and so on), the date, whether you reached them and what happened. You can add a next action and its date so the next step is not forgotten.',
+      'When you have the youth’s answer, choose Record the response. Say whether they are still in the placement, how it was confirmed (for example a call with the youth or the employer) and add a note. This closes the check-in as Done.',
+      'If you have tried and cannot reach the youth, choose Unreachable. If a check-in no longer applies, choose Cancel and give the reason. If the youth is no longer in the placement, end the placement on the Placements page or record the move there; a check-in does not change the placement.',
+      'People who may reassign caseloads can give a check-in to another officer with Reassign. The counts at the top show how many early and tracer check-ins are open and done.',
+      'Administrators open Administration, then Follow-up schedule, to change the days after the placement starts for each check-in, or to pause one. A change affects placements recorded after it. Check-ins already made keep their dates.',
+    ],
+    why: 'Attempts are never edited or deleted, so the record shows who tried to reach the youth and when. A check-in is never deleted either: stopping one means cancelling it with a reason. The schedule only shapes new placements, so changing it cannot rewrite work already planned.',
+    related: ['placement-outcomes', 'case-work'],
     updated: '2026-11',
   },
   {

@@ -197,6 +197,14 @@ SPECTACULAR_SETTINGS = {
         "ParticipantStatusEnum": ["active", "completed", "withdrawn", "unknown"],
         "EnrollmentStatusEnum": ["enrolled", "completed", "withdrawn", "unknown"],
         "ContactKindEnum": ["phone", "email"],
+        "FollowUpKindEnum": ["early", "tracer"],
+        "EvidenceSourceEnum": [
+            "employer_confirmation",
+            "document",
+            "phone_call",
+            "site_visit",
+            "other",
+        ],
         "ProfileEntryKindEnum": [
             "certification",
             "experience",
