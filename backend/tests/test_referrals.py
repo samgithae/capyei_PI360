@@ -297,3 +297,17 @@ def test_counts_by_opportunity_respect_scope(opp, officer, youth, stranger):
     # A referral for a youth outside the officer's scope is not counted for them.
     Referral.objects.create(participant=stranger, opportunity=opp, stage=Referral.PLACED)
     assert c.get(f"{URL}/by-opportunity").json()[str(opp.pk)]["referred"] == 1
+
+
+def test_referral_list_names_the_opportunity_counties_and_sectors(officer, youth, opp):
+    from apps.configuration.models import County, Sector
+
+    county = County.objects.create(name="Test County", code="TC1")
+    sector = Sector.objects.create(name="Test Sector")
+    opp.counties.add(county)
+    opp.sectors.add(sector)
+    c = client_for(officer)
+    assert refer(c, youth, opp).status_code == 201
+    row = c.get(f"{URL}?participant={youth.pk}").json()["results"][0]
+    assert row["opportunity_counties"] == ["Test County"]
+    assert row["opportunity_sectors"] == ["Test Sector"]

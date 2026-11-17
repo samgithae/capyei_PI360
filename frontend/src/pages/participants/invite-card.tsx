@@ -11,6 +11,8 @@ interface InviteState {
   expires_at?: string;
   expired?: boolean;
   consented_at?: string | null;
+  created_at?: string | null;
+  last_login?: string | null;
   emails: string[];
 }
 
@@ -56,6 +58,8 @@ export function InviteCard({ id }: { id: string }) {
             This youth has an account and can sign in to see and add to their
             own record.
             {s.consented_at ? ` Consent given ${day(s.consented_at)}.` : ''}
+            {s.created_at ? ` Account created ${day(s.created_at)}.` : ''}
+            {` ${s.last_login ? `Last sign-in ${day(s.last_login)}.` : 'Has not signed in yet.'}`}
           </p>
         )}
         {s.state === 'pending' && (

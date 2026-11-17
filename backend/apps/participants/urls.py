@@ -26,6 +26,8 @@ urlpatterns = [
     path("participants/profile-import-template", pv.ProfileImportTemplateView.as_view()),
     path("participants/<uuid:pk>/profile", pv.ProfileView.as_view()),
     path("participants/<uuid:pk>/profile/verify", pv.ProfileVerifyView.as_view()),
+    path("participants/<uuid:pk>/verification", pv.ProfileVerificationView.as_view()),
+    path("participants/<uuid:pk>/activity", pv.ActivityView.as_view()),
     path("participants/<uuid:pk>/cv", cv.CvView.as_view()),
     path("participants/<uuid:pk>/cv.pdf", cv.CvPdfView.as_view()),
     path("participants/<uuid:pk>/photo", cv.PhotoView.as_view()),

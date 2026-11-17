@@ -65,7 +65,12 @@ def invite_status(participant) -> dict:
     if account is None:
         return {"state": "none"}
     if account.user.is_active:
-        return {"state": "active", "consented_at": account.consented_at}
+        return {
+            "state": "active",
+            "consented_at": account.consented_at,
+            "created_at": account.created_at,
+            "last_login": account.user.last_login,
+        }
     last = account.invites.order_by("-created_at").first()
     return {
         "state": "pending",

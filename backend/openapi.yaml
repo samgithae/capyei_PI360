@@ -3850,6 +3850,30 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/{id}/activity:
+    get:
+      operationId: participants_activity
+      description: Recent changes to one youth's record, newest first, for staff who
+        may view the profile.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/{id}/contacts:
     put:
       operationId: participants_contacts_replace
@@ -4303,6 +4327,42 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/participants/{id}/verification:
+    post:
+      operationId: participants_profile_verification
+      description: 'Record how staff checked one entry: its status, the method and
+        a note.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Verification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Verification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Verification'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/archive:
     post:
       operationId: participants_archive_create
@@ -6292,6 +6352,9 @@ components:
       - object_type
       - reason
       - request_id
+    BlankEnum:
+      enum:
+      - ''
     Bulk:
       type: object
       properties:
@@ -6668,6 +6731,22 @@ components:
       required:
       - reason
       - survivor
+    MethodEnum:
+      enum:
+      - assessment
+      - document
+      - institution
+      - interview
+      - other
+      - reference
+      type: string
+      description: |-
+        * `assessment` - assessment
+        * `document` - document
+        * `institution` - institution
+        * `interview` - interview
+        * `other` - other
+        * `reference` - reference
     MfaCode:
       type: object
       properties:
@@ -7525,6 +7604,24 @@ components:
             $ref: '#/components/schemas/_Language'
         readiness:
           $ref: '#/components/schemas/_Readiness'
+    ProfileEntryKindEnum:
+      enum:
+      - certification
+      - experience
+      - language
+      - practical
+      - qualification
+      - readiness
+      - skill
+      type: string
+      description: |-
+        * `certification` - certification
+        * `experience` - experience
+        * `language` - language
+        * `practical` - practical
+        * `qualification` - qualification
+        * `readiness` - readiness
+        * `skill` - skill
     ProfileSkillAdd:
       type: object
       properties:
@@ -8103,11 +8200,44 @@ components:
             $ref: '#/components/schemas/ScopeItem'
       required:
       - scopes
+    Verification:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/ProfileEntryKindEnum'
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/VerificationStatusEnum'
+        method:
+          oneOf:
+          - $ref: '#/components/schemas/MethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        notes:
+          type: string
+          maxLength: 1000
+      required:
+      - id
+      - kind
+      - status
+    VerificationStatusEnum:
+      enum:
+      - needs_reassessment
+      - pending
+      - rejected
+      - verified
+      type: string
+      description: |-
+        * `needs_reassessment` - needs_reassessment
+        * `pending` - pending
+        * `rejected` - rejected
+        * `verified` - verified
     Verify:
       type: object
       properties:
         kind:
-          $ref: '#/components/schemas/VerifyKindEnum'
+          $ref: '#/components/schemas/ProfileEntryKindEnum'
         id:
           type: string
           format: uuid
@@ -8117,24 +8247,6 @@ components:
       required:
       - id
       - kind
-    VerifyKindEnum:
-      enum:
-      - certification
-      - experience
-      - language
-      - practical
-      - qualification
-      - readiness
-      - skill
-      type: string
-      description: |-
-        * `certification` - certification
-        * `experience` - experience
-        * `language` - language
-        * `practical` - practical
-        * `qualification` - qualification
-        * `readiness` - readiness
-        * `skill` - skill
     YouthDetails:
       type: object
       description: Only what a youth may change. Status, enrollment and the like are

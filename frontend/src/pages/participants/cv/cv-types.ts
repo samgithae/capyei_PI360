@@ -68,11 +68,21 @@ export interface CvDoc {
   };
 }
 
+/** How staff checked one entry. Absent for a youth's own view and for entries never reviewed. */
+export interface Verification {
+  status: 'pending' | 'verified' | 'rejected' | 'needs_reassessment';
+  method: string;
+  notes: string;
+  decided_by: string;
+  decided_at: string | null;
+}
 export interface Fact {
   id: string | null;
   source: 'staff' | 'youth' | 'import' | null;
   verified: boolean;
   verified_by: string;
+  verified_at?: string | null;
+  verification?: Verification | null;
 }
 export interface Qualification extends Fact {
   level_id: string;
@@ -145,6 +155,8 @@ export interface ProfileOptions {
   language_levels: Opt[];
   languages: string[];
   counties: Opt[];
+  verification_methods: Opt[];
+  verification_statuses: Opt[];
 }
 export interface CvProfileData {
   qualifications: Qualification[];
@@ -154,6 +166,11 @@ export interface CvProfileData {
   practical: Practical[];
   languages: LanguageRow[];
   readiness: Readiness;
+  summary?: {
+    highest_qualification: string;
+    experience_months: number;
+    skills: string[];
+  };
   options: ProfileOptions;
 }
 

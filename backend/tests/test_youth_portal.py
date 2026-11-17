@@ -384,3 +384,19 @@ def test_interview_details_notices_and_placement(steward, person):
     p = youth.get("/api/v1/youth/placement").json()
     assert [x["designation"] for x in p["referrals"]] == ["Cook"]
     assert str(done.pk) == p["referrals"][0]["id"]
+
+
+def test_account_status_shows_creation_and_last_sign_in(steward, person):
+    activate(person, steward)
+    url = f"/api/v1/participants/{person.pk}/invite"
+    first = api(steward).get(url).json()
+    assert first["state"] == "active"
+    assert first["created_at"]
+    assert first["last_login"] is None
+    r = api().post(
+        "/api/v1/auth/login",
+        {"username": EMAIL, "password": PASSWORD},
+        content_type="application/json",
+    )
+    assert r.json()["status"] == "ok"
+    assert api(steward).get(url).json()["last_login"]

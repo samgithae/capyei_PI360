@@ -153,6 +153,8 @@ MATRIX = {
         "PUT": "participants.edit",
     },
     "participants/<uuid:pk>/profile/verify": {"POST": "participants.edit"},
+    "participants/<uuid:pk>/verification": {"POST": "participants.edit"},
+    "participants/<uuid:pk>/activity": {"GET": "participants.view_profile"},
     "participants/<uuid:pk>/cv": {"GET": "participants.view_profile"},
     "participants/<uuid:pk>/cv.pdf": {"GET": "participants.view_profile"},
     "participants/<uuid:pk>/photo": {

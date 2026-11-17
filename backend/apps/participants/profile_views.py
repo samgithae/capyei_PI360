@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.api.access import HasPermission
+from apps.audit import services as audit
 from apps.configuration.services import ConfigError
 
 from . import capability_import, profile
@@ -117,6 +118,16 @@ class VerifySerializer(serializers.Serializer):
     verified = serializers.BooleanField(default=True)
 
 
+class VerificationSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=sorted(profile.KINDS))
+    id = serializers.UUIDField()
+    status = serializers.ChoiceField(choices=sorted(profile.STATUS_CODES))
+    method = serializers.ChoiceField(
+        choices=sorted(profile.METHOD_CODES), required=False, allow_blank=True
+    )
+    notes = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+
+
 def _participant(request, pk):
     try:
         return Participant.objects.visible_to(request.user, archived=None).get(pk=pk)
@@ -183,6 +194,74 @@ class ProfileVerifyView(APIView):
             )
         except profile.ProfileError as exc:
             _fail(exc)
+
+
+class ProfileVerificationView(APIView):
+    """Record how staff checked one entry: its status, the method and a note."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": EDIT}
+
+    @extend_schema(
+        operation_id="participants_profile_verification",
+        request=VerificationSerializer,
+        responses={200: dict},
+    )
+    def post(self, request, pk):
+        p = _participant(request, pk)
+        s = VerificationSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        try:
+            return Response(
+                profile.record_verification(
+                    actor=request.user,
+                    p=p,
+                    kind=d["kind"],
+                    fact_id=d["id"],
+                    status=d["status"],
+                    method=d.get("method", ""),
+                    notes=d.get("notes", ""),
+                )
+            )
+        except profile.ProfileError as exc:
+            _fail(exc)
+
+
+# What the staff activity feed may show of an audit row: never before/after text, only these keys.
+_SAFE_DETAIL = ("kind", "status", "method")
+
+
+def _who(label: str) -> str:
+    # A youth signs in with an e-mail address; never show it in a staff feed.
+    return "Account holder" if "@" in label else label
+
+
+class ActivityView(APIView):
+    """Recent changes to one youth's record, newest first, for staff who may view the profile."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": PROFILE}
+
+    @extend_schema(operation_id="participants_activity", responses={200: dict})
+    def get(self, request, pk):
+        p = _participant(request, pk)
+        events = audit.history("participant", p.pk, limit=100)
+        return Response(
+            {
+                "results": [
+                    {
+                        "at": e["at"],
+                        "actor": _who(e["actor"]),
+                        "action": e["action"],
+                        "detail": {
+                            k: v for k, v in (e["after"] or {}).items() if k in _SAFE_DETAIL
+                        },
+                    }
+                    for e in events
+                ]
+            }
+        )
 
 
 class ProfileImportView(APIView):

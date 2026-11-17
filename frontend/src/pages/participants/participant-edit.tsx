@@ -3,19 +3,22 @@ import { useAuth } from '@/auth/auth-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { api, ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PageHeader } from '@/components/shared/page-header';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlaceFields } from '@/components/shared/place-fields';
 import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
-import { CapabilityProfile } from './capability-profile';
 import { CvProfile } from './cv/cv-profile';
 import { splitName } from './split-name';
+import { IdentityHeader } from './workspace/header';
+import type { Detail as WorkspaceDetail } from './workspace/types';
+import { VerificationTab } from './workspace/verification-tab';
 
 interface Enrollment {
   id: string;
@@ -38,12 +41,13 @@ interface Contact {
   primary: boolean;
 }
 interface Residence {
+  county: string;
   county_id: string;
   sub_county: string;
   ward: string;
   current: boolean;
 }
-interface Detail {
+interface Detail extends WorkspaceDetail {
   contacts?: Contact[];
   residences: Residence[];
   name: string;
@@ -96,6 +100,24 @@ type EnrollmentDraft = Record<
   string,
   Partial<Enrollment> & { cohort_course_id?: string }
 >;
+
+/** One titled block of the form, in the same card style as the profile tabs. */
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card role="group" aria-label={title}>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">{children}</CardContent>
+    </Card>
+  );
+}
 
 /** Cohort and course pickers for one enrollment. The programme and institution belong to the
  * cohort, so they are shown but follow the cohort choice rather than being typed. */
@@ -196,6 +218,7 @@ export function EditParticipant() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const { can } = useAuth();
+  const [params, setParams] = useSearchParams();
   const onClose = () => navigate(`/youth/${id}`);
   const qc = useQueryClient();
   const detail = useQuery({
@@ -327,422 +350,501 @@ export function EditParticipant() {
     save.mutate();
   };
 
+  const tabs = [
+    { id: 'details', label: 'Personal & Programme' },
+    ...(can('participants.view_profile')
+      ? [
+          { id: 'cv', label: 'CV Profile' },
+          { id: 'skills', label: 'Skills & Verification' },
+        ]
+      : []),
+  ];
+  const asked = params.get('tab');
+  const tab = tabs.some((t) => t.id === asked) ? (asked as string) : 'details';
+  const go = (next: string) =>
+    setParams(
+      (old) => {
+        const n = new URLSearchParams(old);
+        if (next === 'details') n.delete('tab');
+        else n.set('tab', next);
+        return n;
+      },
+      { replace: true },
+    );
+
   return (
-    <div className="container-fluid space-y-6">
+    <div className="container-fluid space-y-5">
       <Helmet>
         <title>Edit {d?.name ?? 'youth'} | PI 360</title>
       </Helmet>
-      <PageHeader
-        crumbs={[
-          { label: 'Youth', to: '/youth' },
-          { label: d?.name ?? '...', to: `/youth/${id}` },
-          { label: 'Edit' },
-        ]}
-        title={`Edit ${d?.name ?? 'youth'}`}
-        description="Only the fields you change are saved, and each change is recorded in the audit log."
-      />
+      <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
+        <Link className="hover:text-primary" to="/youth">
+          Youth
+        </Link>{' '}
+        /{' '}
+        <Link className="hover:text-primary" to={`/youth/${id}`}>
+          {d?.name ?? '...'}
+        </Link>{' '}
+        / <span className="text-foreground">Edit</span>
+      </nav>
       {detail.isPending && <LoadingState />}
       {detail.isError && (
         <ErrorState error={detail.error} onRetry={() => detail.refetch()} />
       )}
-      {v && (
-        <form
-          className="space-y-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit();
-          }}
-        >
-          {text('name', 'Full name (as shown in lists)')}
-          <div className="grid gap-4 sm:grid-cols-3">
-            {text('given_name', 'First name')}
-            {text('family_name', 'Middle name')}
-            {text('other_names', 'Last name')}
-          </div>
-          {!v.given_name.trim() && !v.family_name.trim() && v.name.trim() && (
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setCore((c) => ({ ...c, ...splitName(v.name) }))}
+      {v && d && (
+        <>
+          <IdentityHeader p={d} editing />
+          <Tabs value={tab} onValueChange={go} className="space-y-5">
+            <div className="overflow-x-auto">
+              <TabsList
+                variant="line"
+                className="w-max min-w-full flex-nowrap"
+                aria-label="Edit youth profile sections"
               >
-                Suggest from full name
-              </Button>
-              <span className="text-muted-foreground">
-                Fills the three boxes above as a guess. Check them, then save.
-              </span>
-            </div>
-          )}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>Gender</Label>
-              <SelectField
-                label="Gender"
-                value={v.gender}
-                options={opts(GENDERS)}
-                onChange={(x) => setCore((c) => ({ ...c, gender: x }))}
-                className="capitalize"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <SelectField
-                label="Status"
-                value={v.status}
-                options={opts(STATUSES)}
-                onChange={(x) => setCore((c) => ({ ...c, status: x }))}
-                className="capitalize"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pe-dob">Date of birth</Label>
-              <Input
-                id="pe-dob"
-                type="date"
-                value={v.date_of_birth ?? ''}
-                onChange={(e) =>
-                  setCore((c) => ({
-                    ...c,
-                    date_of_birth: e.target.value || null,
-                  }))
-                }
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pe-age">
-                {v.date_of_birth ? 'Age' : 'Age (as recorded at source)'}
-              </Label>
-              {v.date_of_birth ? (
-                <>
-                  <Input
-                    id="pe-age"
-                    readOnly
-                    value={ageOn(v.date_of_birth) ?? ''}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Worked out from the date of birth.
-                  </p>
-                </>
-              ) : (
-                <Input
-                  id="pe-age"
-                  type="number"
-                  min={0}
-                  max={120}
-                  value={v.age_at_source ?? ''}
-                  onChange={(e) =>
-                    setCore((c) => ({
-                      ...c,
-                      age_at_source: e.target.value
-                        ? Number(e.target.value)
-                        : null,
-                    }))
-                  }
-                />
-              )}
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>Home county</Label>
-              <SelectField
-                label="Home county"
-                value={v.county_id || NO_COUNTY}
-                options={[
-                  { id: NO_COUNTY, name: 'Not recorded' },
-                  ...(filters.data?.counties ?? []),
-                ]}
-                onChange={(x) =>
-                  setCore((c) => ({
-                    ...c,
-                    county_id: x === NO_COUNTY ? '' : x,
-                  }))
-                }
-              />
-            </div>
-          </div>
-
-          <fieldset className="space-y-3 rounded-lg border border-border p-3">
-            <legend className="px-1 text-sm font-medium">
-              Current residence
-            </legend>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <Label>County</Label>
-                <SelectField
-                  label="Residence county"
-                  value={res.county_id || NO_COUNTY}
-                  options={[
-                    { id: NO_COUNTY, name: 'Not recorded' },
-                    ...(filters.data?.counties ?? []),
-                  ]}
-                  onChange={(x) =>
-                    setHome((h) => ({
-                      ...h,
-                      county_id: x === NO_COUNTY ? '' : x,
-                      sub_county: '',
-                      ward: '',
-                    }))
-                  }
-                />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Sub-county and ward</Label>
-                <PlaceFields
-                  countyId={res.county_id}
-                  subCounty={res.sub_county}
-                  ward={res.ward}
-                  onChange={(p) =>
-                    setHome((h) => ({
-                      ...h,
-                      ...(p.subCounty !== undefined && {
-                        sub_county: p.subCounty,
-                      }),
-                      ...(p.ward !== undefined && { ward: p.ward }),
-                    }))
-                  }
-                />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              A change closes the old address and keeps it in the history.
-            </p>
-          </fieldset>
-
-          {d!.contacts && (
-            <fieldset className="space-y-3 rounded-lg border border-border p-3">
-              <legend className="px-1 text-sm font-medium">Contacts</legend>
-              {list.map((c, i) => (
-                <div key={i} className="flex flex-wrap items-center gap-2">
-                  <div className="w-28">
-                    <SelectField
-                      label="Contact type"
-                      value={c.kind}
-                      options={opts(['phone', 'email'])}
-                      onChange={(x) => setContact(i, { kind: x })}
-                      className="capitalize"
-                    />
-                  </div>
-                  <Input
-                    aria-label="Contact value"
-                    className="min-w-48 flex-1"
-                    value={c.value}
-                    onChange={(e) => setContact(i, { value: e.target.value })}
-                  />
-                  <label className="flex items-center gap-1.5 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={c.primary}
-                      onChange={(e) =>
-                        setContact(i, { primary: e.target.checked })
-                      }
-                    />
-                    Primary
-                  </label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    mode="icon"
-                    size="sm"
-                    aria-label="Remove contact"
-                    onClick={() => setContacts(list.filter((_, j) => j !== i))}
+                {tabs.map((t) => (
+                  <TabsTrigger
+                    key={t.id}
+                    value={t.id}
+                    className="whitespace-nowrap"
                   >
-                    <Trash2 />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setContacts([
-                    ...list,
-                    { kind: 'phone', value: '', primary: false },
-                  ])
-                }
+                    {t.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+            <TabsContent value="details">
+              <p className="mb-4 text-sm text-muted-foreground">
+                Only the fields you change are saved, and each change is
+                recorded in the audit log.
+              </p>
+              <form
+                className="space-y-6"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submit();
+                }}
               >
-                <Plus /> Add contact
-              </Button>
-            </fieldset>
-          )}
+                <Section title="Personal details">
+                  {text('name', 'Full name (as shown in lists)')}
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {text('given_name', 'First name')}
+                    {text('family_name', 'Middle name')}
+                    {text('other_names', 'Last name')}
+                  </div>
+                  {!v.given_name.trim() &&
+                    !v.family_name.trim() &&
+                    v.name.trim() && (
+                      <div className="flex flex-wrap items-center gap-3 text-sm">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setCore((c) => ({ ...c, ...splitName(v.name) }))
+                          }
+                        >
+                          Suggest from full name
+                        </Button>
+                        <span className="text-muted-foreground">
+                          Fills the three boxes above as a guess. Check them,
+                          then save.
+                        </span>
+                      </div>
+                    )}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Gender</Label>
+                      <SelectField
+                        label="Gender"
+                        value={v.gender}
+                        options={opts(GENDERS)}
+                        onChange={(x) => setCore((c) => ({ ...c, gender: x }))}
+                        className="capitalize"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Status</Label>
+                      <SelectField
+                        label="Status"
+                        value={v.status}
+                        options={opts(STATUSES)}
+                        onChange={(x) => setCore((c) => ({ ...c, status: x }))}
+                        className="capitalize"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="pe-dob">Date of birth</Label>
+                      <Input
+                        id="pe-dob"
+                        type="date"
+                        value={v.date_of_birth ?? ''}
+                        onChange={(e) =>
+                          setCore((c) => ({
+                            ...c,
+                            date_of_birth: e.target.value || null,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="pe-age">
+                        {v.date_of_birth
+                          ? 'Age'
+                          : 'Age (as recorded at source)'}
+                      </Label>
+                      {v.date_of_birth ? (
+                        <>
+                          <Input
+                            id="pe-age"
+                            readOnly
+                            value={ageOn(v.date_of_birth) ?? ''}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Worked out from the date of birth.
+                          </p>
+                        </>
+                      ) : (
+                        <Input
+                          id="pe-age"
+                          type="number"
+                          min={0}
+                          max={120}
+                          value={v.age_at_source ?? ''}
+                          onChange={(e) =>
+                            setCore((c) => ({
+                              ...c,
+                              age_at_source: e.target.value
+                                ? Number(e.target.value)
+                                : null,
+                            }))
+                          }
+                        />
+                      )}
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label>Home county</Label>
+                      <SelectField
+                        label="Home county"
+                        value={v.county_id || NO_COUNTY}
+                        options={[
+                          { id: NO_COUNTY, name: 'Not recorded' },
+                          ...(filters.data?.counties ?? []),
+                        ]}
+                        onChange={(x) =>
+                          setCore((c) => ({
+                            ...c,
+                            county_id: x === NO_COUNTY ? '' : x,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </Section>
 
-          {d!.enrollments.map((e) => {
-            const m = { ...e, ...enr[e.id] };
-            return (
-              <fieldset
-                key={e.id}
-                className="space-y-3 rounded-lg border border-border p-3"
-              >
-                <legend className="px-1 text-sm font-medium">
-                  {e.programme}: {e.cohort}, {e.course}
-                </legend>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <OfferingFields
-                    cohortId={m.cohort_id}
-                    courseId={m.cohort_course_id}
-                    currentCourse={e.course}
-                    filters={filters.data}
-                    canPickCourse={can('config.view')}
-                    onChange={(cohort, course) =>
-                      patchEnr(e.id, {
-                        cohort_id: cohort,
-                        cohort_course_id: course,
-                      })
-                    }
-                  />
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`en-no-${e.id}`}>Enrollment no.</Label>
-                    <Input
-                      id={`en-no-${e.id}`}
-                      value={m.enrollment_no}
-                      onChange={(x) =>
-                        patchEnr(e.id, { enrollment_no: x.target.value })
+                <Section title="Current residence">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label>County</Label>
+                      <SelectField
+                        label="Residence county"
+                        value={res.county_id || NO_COUNTY}
+                        options={[
+                          { id: NO_COUNTY, name: 'Not recorded' },
+                          ...(filters.data?.counties ?? []),
+                        ]}
+                        onChange={(x) =>
+                          setHome((h) => ({
+                            ...h,
+                            county_id: x === NO_COUNTY ? '' : x,
+                            sub_county: '',
+                            ward: '',
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-1.5">
+                      <Label>Sub-county and ward</Label>
+                      <PlaceFields
+                        countyId={res.county_id}
+                        subCounty={res.sub_county}
+                        ward={res.ward}
+                        onChange={(p) =>
+                          setHome((h) => ({
+                            ...h,
+                            ...(p.subCounty !== undefined && {
+                              sub_county: p.subCounty,
+                            }),
+                            ...(p.ward !== undefined && { ward: p.ward }),
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    A change closes the old address and keeps it in the history.
+                  </p>
+                </Section>
+
+                {d!.contacts && (
+                  <Section title="Contacts">
+                    {list.map((c, i) => (
+                      <div
+                        key={i}
+                        className="flex flex-wrap items-center gap-2"
+                      >
+                        <div className="w-28">
+                          <SelectField
+                            label="Contact type"
+                            value={c.kind}
+                            options={opts(['phone', 'email'])}
+                            onChange={(x) => setContact(i, { kind: x })}
+                            className="capitalize"
+                          />
+                        </div>
+                        <Input
+                          aria-label="Contact value"
+                          className="min-w-48 flex-1"
+                          value={c.value}
+                          onChange={(e) =>
+                            setContact(i, { value: e.target.value })
+                          }
+                        />
+                        <label className="flex items-center gap-1.5 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={c.primary}
+                            onChange={(e) =>
+                              setContact(i, { primary: e.target.checked })
+                            }
+                          />
+                          Primary
+                        </label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          mode="icon"
+                          size="sm"
+                          aria-label="Remove contact"
+                          onClick={() =>
+                            setContacts(list.filter((_, j) => j !== i))
+                          }
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setContacts([
+                          ...list,
+                          { kind: 'phone', value: '', primary: false },
+                        ])
                       }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Enrollment status</Label>
-                    <SelectField
-                      label="Enrollment status"
-                      value={m.status}
-                      options={opts(ENROLLMENT)}
-                      onChange={(x) => patchEnr(e.id, { status: x })}
-                      className="capitalize"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`en-start-${e.id}`}>Enrolled on</Label>
-                    <Input
-                      id={`en-start-${e.id}`}
-                      type="date"
-                      value={m.enrolled_on ?? ''}
-                      onChange={(x) =>
-                        patchEnr(e.id, { enrolled_on: x.target.value || null })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`en-end-${e.id}`}>Completed on</Label>
-                    <Input
-                      id={`en-end-${e.id}`}
-                      type="date"
-                      value={m.completed_on ?? ''}
-                      onChange={(x) =>
-                        patchEnr(e.id, { completed_on: x.target.value || null })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label htmlFor={`en-exit-${e.id}`}>Exit reason</Label>
-                    <Input
-                      id={`en-exit-${e.id}`}
-                      value={m.exit_reason}
-                      onChange={(x) =>
-                        patchEnr(e.id, { exit_reason: x.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-              </fieldset>
-            );
-          })}
-          {added.map((n, i) => {
-            const set = (p: Partial<NewEnrollment>) =>
-              setAdded(added.map((x, j) => (j === i ? { ...x, ...p } : x)));
-            return (
-              <fieldset
-                key={i}
-                className="space-y-3 rounded-lg border border-border p-3"
-              >
-                <legend className="px-1 text-sm font-medium">
-                  New enrollment
-                </legend>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <OfferingFields
-                    cohortId={n.cohort_id}
-                    courseId={n.cohort_course_id}
-                    currentCourse=""
-                    filters={filters.data}
-                    canPickCourse={can('config.view')}
-                    onChange={(cohort, course) =>
-                      set({ cohort_id: cohort, cohort_course_id: course })
-                    }
-                  />
-                  <div className="space-y-1.5">
-                    <Label>Enrollment status</Label>
-                    <SelectField
-                      label="New enrollment status"
-                      value={n.status}
-                      options={opts(ENROLLMENT)}
-                      onChange={(x) => set({ status: x })}
-                      className="capitalize"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`new-no-${i}`}>Enrollment no.</Label>
-                    <Input
-                      id={`new-no-${i}`}
-                      value={n.enrollment_no}
-                      onChange={(e) => set({ enrollment_no: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`new-start-${i}`}>Enrolled on</Label>
-                    <Input
-                      id={`new-start-${i}`}
-                      type="date"
-                      value={n.enrolled_on}
-                      onChange={(e) => set({ enrolled_on: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`new-end-${i}`}>Completed on</Label>
-                    <Input
-                      id={`new-end-${i}`}
-                      type="date"
-                      value={n.completed_on}
-                      onChange={(e) => set({ completed_on: e.target.value })}
-                    />
-                  </div>
-                </div>
+                    >
+                      <Plus /> Add contact
+                    </Button>
+                  </Section>
+                )}
+
+                {d!.enrollments.map((e) => {
+                  const m = { ...e, ...enr[e.id] };
+                  return (
+                    <Section
+                      key={e.id}
+                      title={`${e.programme}: ${e.cohort}, ${e.course}`}
+                    >
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <OfferingFields
+                          cohortId={m.cohort_id}
+                          courseId={m.cohort_course_id}
+                          currentCourse={e.course}
+                          filters={filters.data}
+                          canPickCourse={can('config.view')}
+                          onChange={(cohort, course) =>
+                            patchEnr(e.id, {
+                              cohort_id: cohort,
+                              cohort_course_id: course,
+                            })
+                          }
+                        />
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`en-no-${e.id}`}>
+                            Enrollment no.
+                          </Label>
+                          <Input
+                            id={`en-no-${e.id}`}
+                            value={m.enrollment_no}
+                            onChange={(x) =>
+                              patchEnr(e.id, { enrollment_no: x.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Enrollment status</Label>
+                          <SelectField
+                            label="Enrollment status"
+                            value={m.status}
+                            options={opts(ENROLLMENT)}
+                            onChange={(x) => patchEnr(e.id, { status: x })}
+                            className="capitalize"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`en-start-${e.id}`}>
+                            Enrolled on
+                          </Label>
+                          <Input
+                            id={`en-start-${e.id}`}
+                            type="date"
+                            value={m.enrolled_on ?? ''}
+                            onChange={(x) =>
+                              patchEnr(e.id, {
+                                enrolled_on: x.target.value || null,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`en-end-${e.id}`}>Completed on</Label>
+                          <Input
+                            id={`en-end-${e.id}`}
+                            type="date"
+                            value={m.completed_on ?? ''}
+                            onChange={(x) =>
+                              patchEnr(e.id, {
+                                completed_on: x.target.value || null,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5 sm:col-span-2">
+                          <Label htmlFor={`en-exit-${e.id}`}>Exit reason</Label>
+                          <Input
+                            id={`en-exit-${e.id}`}
+                            value={m.exit_reason}
+                            onChange={(x) =>
+                              patchEnr(e.id, { exit_reason: x.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </Section>
+                  );
+                })}
+                {added.map((n, i) => {
+                  const set = (p: Partial<NewEnrollment>) =>
+                    setAdded(
+                      added.map((x, j) => (j === i ? { ...x, ...p } : x)),
+                    );
+                  return (
+                    <Section key={i} title="New enrollment">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <OfferingFields
+                          cohortId={n.cohort_id}
+                          courseId={n.cohort_course_id}
+                          currentCourse=""
+                          filters={filters.data}
+                          canPickCourse={can('config.view')}
+                          onChange={(cohort, course) =>
+                            set({ cohort_id: cohort, cohort_course_id: course })
+                          }
+                        />
+                        <div className="space-y-1.5">
+                          <Label>Enrollment status</Label>
+                          <SelectField
+                            label="New enrollment status"
+                            value={n.status}
+                            options={opts(ENROLLMENT)}
+                            onChange={(x) => set({ status: x })}
+                            className="capitalize"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`new-no-${i}`}>Enrollment no.</Label>
+                          <Input
+                            id={`new-no-${i}`}
+                            value={n.enrollment_no}
+                            onChange={(e) =>
+                              set({ enrollment_no: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`new-start-${i}`}>Enrolled on</Label>
+                          <Input
+                            id={`new-start-${i}`}
+                            type="date"
+                            value={n.enrolled_on}
+                            onChange={(e) =>
+                              set({ enrolled_on: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`new-end-${i}`}>Completed on</Label>
+                          <Input
+                            id={`new-end-${i}`}
+                            type="date"
+                            value={n.completed_on}
+                            onChange={(e) =>
+                              set({ completed_on: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setAdded(added.filter((_, j) => j !== i))
+                        }
+                      >
+                        <Trash2 /> Remove this enrollment
+                      </Button>
+                    </Section>
+                  );
+                })}
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setAdded(added.filter((_, j) => j !== i))}
+                  variant="outline"
+                  onClick={() => setAdded([...added, BLANK_NEW])}
                 >
-                  <Trash2 /> Remove this enrollment
+                  <Plus /> Add another enrollment or course
                 </Button>
-              </fieldset>
-            );
-          })}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setAdded([...added, BLANK_NEW])}
-          >
-            <Plus /> Add another enrollment or course
-          </Button>
 
-          <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-background py-3">
-            {error && (
-              <p role="alert" className="me-auto text-sm text-destructive">
-                {error}
-              </p>
+                <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-background py-3">
+                  {error && (
+                    <p
+                      role="alert"
+                      className="me-auto text-sm text-destructive"
+                    >
+                      {error}
+                    </p>
+                  )}
+                  <Button type="button" variant="outline" asChild>
+                    <Link to={`/youth/${id}`}>Cancel</Link>
+                  </Button>
+                  <Button type="submit" disabled={save.isPending}>
+                    {save.isPending ? 'Saving...' : 'Save changes'}
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
+            {can('participants.view_profile') && (
+              <>
+                <TabsContent value="cv">
+                  <CvProfile id={id} />
+                </TabsContent>
+                <TabsContent value="skills">
+                  <VerificationTab id={id} />
+                </TabsContent>
+              </>
             )}
-            <Button type="button" variant="outline" asChild>
-              <Link to={`/youth/${id}`}>Cancel</Link>
-            </Button>
-            <Button type="submit" disabled={save.isPending}>
-              {save.isPending ? 'Saving...' : 'Save changes'}
-            </Button>
-          </div>
-        </form>
-      )}
-      {v && can('participants.view_profile') && (
-        <>
-          <CvProfile id={id} />
-          <CapabilityProfile id={id} />
+          </Tabs>
         </>
       )}
     </div>

@@ -397,13 +397,18 @@ export function CvEditor({
   cv,
   photoVersion,
   onChanged,
+  sections = 'all',
 }: {
   paths: CvPaths;
   profile: CvProfileData;
   cv: CvDoc | undefined;
   photoVersion: number;
   onChanged: () => void;
+  /** "history" shows only education, work, practical experience, certifications and languages
+   * (the Education & Experience tab); "all" is the full CV editor. */
+  sections?: 'all' | 'history';
 }) {
+  const all = sections === 'all';
   const save = useProfileSave(paths, onChanged);
   const [about, setAbout] = useState(false);
   const o = profile.options;
@@ -413,69 +418,75 @@ export function CvEditor({
 
   return (
     <div className="space-y-5">
-      <DataCard title="Photo">
-        <Photo
-          paths={paths}
-          has={!!cv?.has_photo}
-          version={photoVersion}
-          onChanged={onChanged}
-        />
-      </DataCard>
+      {all && (
+        <>
+          <DataCard title="Photo">
+            <Photo
+              paths={paths}
+              has={!!cv?.has_photo}
+              version={photoVersion}
+              onChanged={onChanged}
+            />
+          </DataCard>
 
-      <DataCard
-        title="Summary and preferences"
-        toolbar={
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              save.reset();
-              setAbout(true);
-            }}
+          <DataCard
+            title="Summary and preferences"
+            toolbar={
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  save.reset();
+                  setAbout(true);
+                }}
+              >
+                <Pencil /> Edit
+              </Button>
+            }
           >
-            <Pencil /> Edit
-          </Button>
-        }
-      >
-        <div className="space-y-1 p-5 text-sm">
-          {r.summary ? (
-            <p className="whitespace-pre-line">{r.summary}</p>
-          ) : (
-            <p className="text-muted-foreground">
-              Write two to four sentences about you and the work you want.
-            </p>
+            <div className="space-y-1 p-5 text-sm">
+              {r.summary ? (
+                <p className="whitespace-pre-line">{r.summary}</p>
+              ) : (
+                <p className="text-muted-foreground">
+                  Write two to four sentences about you and the work you want.
+                </p>
+              )}
+              {r.preferred_roles.length > 0 && (
+                <p>
+                  <span className="text-muted-foreground">
+                    Preferred roles:{' '}
+                  </span>
+                  {r.preferred_roles.join(', ')}
+                </p>
+              )}
+              {r.interest_sectors.length > 0 && (
+                <p>
+                  <span className="text-muted-foreground">Sectors: </span>
+                  {r.interest_sectors.join(', ')}
+                </p>
+              )}
+              {r.preferred_counties.length > 0 && (
+                <p>
+                  <span className="text-muted-foreground">Locations: </span>
+                  {r.preferred_counties.join(', ')}
+                </p>
+              )}
+            </div>
+          </DataCard>
+          {about && (
+            <AboutDialog
+              readiness={r}
+              options={o}
+              pending={save.isPending}
+              error={save.isError ? message(save.error) : ''}
+              onClose={() => setAbout(false)}
+              onSubmit={(readiness) =>
+                save.mutate({ readiness }, { onSuccess: () => setAbout(false) })
+              }
+            />
           )}
-          {r.preferred_roles.length > 0 && (
-            <p>
-              <span className="text-muted-foreground">Preferred roles: </span>
-              {r.preferred_roles.join(', ')}
-            </p>
-          )}
-          {r.interest_sectors.length > 0 && (
-            <p>
-              <span className="text-muted-foreground">Sectors: </span>
-              {r.interest_sectors.join(', ')}
-            </p>
-          )}
-          {r.preferred_counties.length > 0 && (
-            <p>
-              <span className="text-muted-foreground">Locations: </span>
-              {r.preferred_counties.join(', ')}
-            </p>
-          )}
-        </div>
-      </DataCard>
-      {about && (
-        <AboutDialog
-          readiness={r}
-          options={o}
-          pending={save.isPending}
-          error={save.isError ? message(save.error) : ''}
-          onClose={() => setAbout(false)}
-          onSubmit={(readiness) =>
-            save.mutate({ readiness }, { onSuccess: () => setAbout(false) })
-          }
-        />
+        </>
       )}
 
       <Repeatable
@@ -553,7 +564,9 @@ export function CvEditor({
         options={o}
       />
 
-      <SkillsCard profile={profile} save={save} endpoint={paths.skills} />
+      {all && (
+        <SkillsCard profile={profile} save={save} endpoint={paths.skills} />
+      )}
 
       <Repeatable
         title="Certifications and training"

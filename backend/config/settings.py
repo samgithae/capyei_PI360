@@ -196,6 +196,15 @@ SPECTACULAR_SETTINGS = {
         "ParticipantStatusEnum": ["active", "completed", "withdrawn", "unknown"],
         "EnrollmentStatusEnum": ["enrolled", "completed", "withdrawn", "unknown"],
         "ContactKindEnum": ["phone", "email"],
+        "ProfileEntryKindEnum": [
+            "certification",
+            "experience",
+            "language",
+            "practical",
+            "qualification",
+            "readiness",
+            "skill",
+        ],  # fmt: skip
     },
 }
 

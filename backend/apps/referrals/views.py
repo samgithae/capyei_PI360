@@ -45,6 +45,8 @@ def _summary(r):
         "opportunity_id": str(r.opportunity_id),
         "opportunity": r.opportunity.title,
         "employer": r.opportunity.employer.name,
+        "opportunity_counties": sorted(c.name for c in r.opportunity.counties.all()),
+        "opportunity_sectors": sorted(s.name for s in r.opportunity.sectors.all()),
         "origin": r.origin,
         "stage": r.stage,
         "stage_label": STAGE_NAMES[r.stage],
@@ -81,8 +83,12 @@ def _detail(r, user):
 
 
 def _base(user):
-    return services.visible(user).select_related(
-        "participant", "opportunity__employer", "reason", "assigned_to", "created_by"
+    return (
+        services.visible(user)
+        .select_related(
+            "participant", "opportunity__employer", "reason", "assigned_to", "created_by"
+        )
+        .prefetch_related("opportunity__counties", "opportunity__sectors")
     )
 
 

@@ -29,6 +29,7 @@ from .models import (
     ParticipantReadiness,
     ParticipantSkill,
     ProfileFact,
+    ProfileVerification,
 )
 
 PATTERN_CODES = {c for c, _ in WORK_PATTERNS}
@@ -72,7 +73,32 @@ def _iso(d):
 
 def read(p: Participant, *, hide_staff: bool = False) -> dict:
     doc = _read(p)
-    return _hide_staff(doc) if hide_staff else doc
+    if hide_staff:
+        return _hide_staff(doc)
+    _attach_verification(p, doc)
+    return doc
+
+
+def _attach_verification(p: Participant, doc: dict) -> None:
+    """Add the staff check detail (status, method, note) to each entry that has one."""
+    rows = {
+        str(v.fact_id): v
+        for v in ProfileVerification.objects.filter(participant=p).select_related("decided_by")
+    }
+    for key in (*SECTIONS, "readiness"):
+        for row in doc[key] if key != "readiness" else [doc[key]]:
+            v = rows.get(row.get("id") or "")
+            row["verification"] = (
+                {
+                    "status": v.status,
+                    "method": v.method,
+                    "notes": v.notes,
+                    "decided_by": v.decided_by.get_username() if v.decided_by_id else "",
+                    "decided_at": v.decided_at.isoformat() if v.decided_at else None,
+                }
+                if v
+                else None
+            )
 
 
 def _read(p: Participant) -> dict:
@@ -200,6 +226,16 @@ def _stamp(obj, actor, source):
     obj.verified_by, obj.verified_at = None, None
 
 
+def _reassess(obj):
+    """An entry that staff had verified changed: its check no longer applies, say so."""
+    ProfileVerification.objects.filter(fact_id=obj.pk, status=ProfileVerification.VERIFIED).update(
+        status=ProfileVerification.REASSESS
+    )
+    ProfileVerification.objects.filter(fact_id=obj.pk, status=ProfileVerification.REJECTED).update(
+        status=ProfileVerification.PENDING
+    )
+
+
 def _sync(p, qs, rows, build, tracked, actor, source):
     """Replace the rows of one section. ``build(row)`` returns field values or raises.
     ``tracked`` is the set of fields whose change clears verification, or a function of the
@@ -215,10 +251,13 @@ def _sync(p, qs, rows, build, tracked, actor, source):
         elif all(getattr(obj, k) == v for k, v in values.items() if k in names):
             keep.add(str(obj.pk))
             continue  # nothing changed: keep it and its verification
+        changed_existing = obj.pk is not None and str(obj.pk) in existing
         for k, v in values.items():
             setattr(obj, k, v)
         _stamp(obj, actor, source)
         obj.save()
+        if changed_existing:
+            _reassess(obj)
         keep.add(str(obj.pk))
     for key, obj in existing.items():
         if key not in keep:
@@ -227,6 +266,7 @@ def _sync(p, qs, rows, build, tracked, actor, source):
                     "An entry checked by staff cannot be removed here. Ask your officer.",
                     "verified",
                 )
+            ProfileVerification.objects.filter(fact_id=obj.pk).delete()
             obj.delete()
     return len(keep)
 
@@ -525,12 +565,75 @@ def verify(*, actor, p: Participant, kind: str, fact_id, verified: bool) -> dict
     obj.verified_by = actor if verified else None
     obj.verified_at = timezone.now() if verified else None
     obj.save(update_fields=["verified_by", "verified_at", "updated_at"])
+    _upsert_verification(
+        p,
+        kind,
+        obj,
+        actor,
+        ProfileVerification.VERIFIED if verified else ProfileVerification.PENDING,
+    )
     audit.record(
         actor=actor,
         action="participant.profile_verified" if verified else "participant.profile_unverified",
         object_type="participant",
         object_id=p.pk,
         after={"kind": kind, "id": str(obj.pk)},
+    )
+    return read(p)
+
+
+def _upsert_verification(p, kind, obj, actor, status, method="", notes=""):
+    ProfileVerification.objects.update_or_create(
+        fact_id=obj.pk,
+        defaults={
+            "participant": p,
+            "kind": kind,
+            "status": status,
+            "method": method,
+            "notes": notes,
+            "decided_by": actor,
+            "decided_at": timezone.now(),
+        },
+    )
+
+
+METHOD_CODES = {c for c, _ in ProfileVerification.METHODS}
+STATUS_CODES = {c for c, _ in ProfileVerification.STATUSES}
+
+
+@transaction.atomic
+def record_verification(
+    *, actor, p: Participant, kind: str, fact_id, status: str, method: str = "", notes: str = ""
+) -> dict:
+    """Record the outcome of checking one entry. Only ``verified`` makes the entry count as
+    verified for the matching rules; every other status clears that mark."""
+    model = KINDS.get(kind)
+    if model is None:
+        raise ProfileError("Unknown kind of fact.", "kind")
+    if status not in STATUS_CODES:
+        raise ProfileError("Unknown verification status.", "status")
+    if method and method not in METHOD_CODES:
+        raise ProfileError("Unknown verification method.", "method")
+    notes = (notes or "").strip()
+    if status == ProfileVerification.VERIFIED and not method:
+        raise ProfileError("Say how it was checked.", "method")
+    if status == ProfileVerification.REJECTED and not notes:
+        raise ProfileError("Say why it was rejected.", "notes")
+    try:
+        obj = model.objects.get(pk=fact_id, participant=p)
+    except (model.DoesNotExist, ValueError):
+        raise ProfileError("That entry was not found.", "id") from None
+    ok = status == ProfileVerification.VERIFIED
+    obj.verified_by = actor if ok else None
+    obj.verified_at = timezone.now() if ok else None
+    obj.save(update_fields=["verified_by", "verified_at", "updated_at"])
+    _upsert_verification(p, kind, obj, actor, status, method, notes)
+    audit.record(
+        actor=actor,
+        action="participant.profile_verification",
+        object_type="participant",
+        object_id=p.pk,
+        after={"kind": kind, "id": str(obj.pk), "status": status, "method": method},
     )
     return read(p)
 
@@ -544,6 +647,8 @@ def options() -> dict:
         "practical_kinds": [{"id": c, "name": n} for c, n in PRACTICAL_KINDS],
         "language_levels": [{"id": c, "name": n} for c, n in LANGUAGE_LEVELS],
         "languages": COMMON_LANGUAGES,
+        "verification_methods": [{"id": c, "name": n} for c, n in ProfileVerification.METHODS],
+        "verification_statuses": [{"id": c, "name": n} for c, n in ProfileVerification.STATUSES],
         "counties": [
             {"id": c["id"], "name": c["name"]} for c in configuration.filter_options()["counties"]
         ],

@@ -465,3 +465,52 @@ class ParticipantPhoto(models.Model):
 
     def __str__(self):
         return f"photo:{self.participant_id}"
+
+
+class ProfileVerification(models.Model):
+    """The record of how staff checked one profile entry (a qualification, a skill and so on).
+
+    ``ProfileFact.verified_at`` stays the single yes/no that the rules read; this adds what a
+    plain yes/no cannot say: still pending, rejected, or needs checking again after the youth
+    changed the entry, plus how it was checked and a note. One row per entry. Free-text notes
+    are for staff only and are never written to the audit log."""
+
+    PENDING, VERIFIED, REJECTED, REASSESS = "pending", "verified", "rejected", "needs_reassessment"
+    STATUSES = [
+        (PENDING, "Pending"),
+        (VERIFIED, "Verified"),
+        (REJECTED, "Rejected"),
+        (REASSESS, "Needs reassessment"),
+    ]
+    METHODS = [
+        ("document", "Document seen"),
+        ("reference", "Reference or referee"),
+        ("institution", "Confirmed with institution or employer"),
+        ("interview", "Interview or conversation"),
+        ("assessment", "Assessment or practical test"),
+        ("other", "Other"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    participant = models.ForeignKey(
+        Participant, on_delete=models.CASCADE, related_name="verifications"
+    )
+    kind = models.CharField(max_length=14)
+    fact_id = models.UUIDField()
+    status = models.CharField(max_length=20, choices=STATUSES, default=PENDING)
+    method = models.CharField(max_length=14, choices=METHODS, blank=True)
+    notes = models.CharField(max_length=1000, blank=True)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["kind", "fact_id"], name="one_verification_per_entry")
+        ]
+        indexes = [models.Index(fields=["participant"])]
+
+    def __str__(self):
+        return f"{self.kind}:{self.fact_id} {self.status}"
