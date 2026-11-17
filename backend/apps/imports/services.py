@@ -387,6 +387,7 @@ def commit(*, actor, batch) -> ImportBatch:
     todo = batch.rows.filter(
         committed=False, outcome__in=[ImportRow.CREATE, ImportRow.UPDATE]
     ).order_by("row_no")
+    owner = participants.import_owner(actor)
     try:
         while True:
             chunk = list(todo[:CHUNK_SIZE])
@@ -401,7 +402,7 @@ def commit(*, actor, batch) -> ImportBatch:
                         action = "create"
                     else:
                         action, pid, before, after = participants.import_participant(
-                            row.clean, batch_ref=str(batch.pk)
+                            row.clean, batch_ref=str(batch.pk), owner=owner
                         )
                     RecordLineage.objects.create(
                         row=row,

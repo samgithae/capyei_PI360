@@ -207,9 +207,20 @@ def _snapshot(p: Participant, e: ParticipantEnrollment) -> dict:
     }
 
 
+def import_owner(actor):
+    """Who youth created by this user's import are assigned to. A user limited to their own
+    caseload (a placement officer) gets what they import, or they could not see it afterwards.
+    An organisation-wide user (steward, administrator) already sees everything, so no one."""
+    from apps.api import access
+
+    limited = bool(access.scope_q(actor, {"officer": "assigned_officer_id"}))
+    return actor if limited and getattr(actor, "pk", None) else None
+
+
 @transaction.atomic
-def import_participant(clean: dict, *, batch_ref: str) -> tuple[str, str, dict, dict]:
+def import_participant(clean: dict, *, batch_ref: str, owner=None) -> tuple[str, str, dict, dict]:
     """Create or update. Returns (action, participant_id, before, after).
+    ``owner`` becomes the assigned officer of a newly created youth (see ``import_owner``).
 
     Matching is deterministic: programme + enrollment number. The rule for fields an officer has
     corrected since the last import (R-15, D-005) is not built yet, so updates overwrite.
@@ -246,6 +257,7 @@ def import_participant(clean: dict, *, batch_ref: str) -> tuple[str, str, dict, 
         gender=clean["gender"],
         age_at_source=clean["age"],
         origin_county_id=refs["county"],
+        assigned_officer=owner,
     )
     e = ParticipantEnrollment.objects.create(
         participant=p,

@@ -95,6 +95,8 @@ DEFAULT_ROLES = [
             "participants.edit",
             "placements.edit",
             "employers.edit",
+            "imports.run",
+            "imports.commit",
             "referrals.view",
             "referrals.edit",
             "intelligence.view",

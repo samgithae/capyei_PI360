@@ -33,10 +33,13 @@ export function ReferenceImport({
   onDone,
   endpoint = `/config/reference/${kind}/import`,
   templateEndpoint = `/config/reference/${kind}/import-template`,
+  buttonLabel = 'Import',
 }: {
   kind: string;
   endpoint?: string;
   templateEndpoint?: string;
+  /** Words on the button that opens the dialog. */
+  buttonLabel?: string;
   title: string;
   columns: string;
   onDone: () => void;
@@ -102,7 +105,7 @@ export function ReferenceImport({
           setOpen(true);
         }}
       >
-        <Upload className="size-4" /> Import
+        <Upload className="size-4" /> {buttonLabel}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

@@ -66,6 +66,11 @@ def test_officer_gets_role_permissions_only(make_user):
     assert not p & GRANT_ONLY
 
 
+def test_officer_can_upload_and_approve_imports(make_user):
+    """Staff on a caseload import their own youth sheets (and approve them) without a steward."""
+    assert {"imports.run", "imports.commit"} <= perms(make_user("o", "Placement officer"))
+
+
 def test_user_without_role_has_nothing(make_user):
     assert perms(make_user("nobody")) == frozenset()
 

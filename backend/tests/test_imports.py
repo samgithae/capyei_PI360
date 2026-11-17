@@ -607,7 +607,8 @@ def test_sample_workbook_downloads_and_maps_itself(world, steward, target):
     assert r.status_code == 200
     assert f"import-sample-{target}.xlsx" in r["Content-Disposition"]
     data = r.content
-    assert data == build_xlsx(target)
+    # Not byte-for-byte: the file carries a created-at stamp that changes between calls.
+    assert read_rows("a.xlsx", data) == read_rows("a.xlsx", build_xlsx(target))
 
     headers, rows = read_rows("sample.xlsx", data)  # the Data sheet is the first one
     seen = services.inspect(file_name="sample.xlsx", data=data, target=target)
@@ -631,3 +632,26 @@ def test_sample_lists_live_codes_and_rejects_unknown_target(world, steward):
     codes = {row[1] for row in wb["Codes"].iter_rows(min_row=2, values_only=True)}
     assert {"P1", "K1", "C1"} <= codes
     assert Client().get("/api/v1/imports/sample").status_code == 401
+
+
+@pytest.mark.django_db
+def test_officer_sees_and_owns_the_youth_they_import(world, make_user):
+    """An officer limited to their own caseload is made the assigned officer of what they import,
+    so the youth show up in their list; a steward's imports are left unassigned."""
+    from apps.identity import services as identity
+
+    officer = make_user("off", "Placement officer")
+    identity.set_scopes(actor=None, user=officer, scopes=[("officer", "self")])
+    t = services.create_template(actor=officer, source="by-officer", columns=COLUMNS)
+    load(officer, upload(officer, t, *GOOD))
+    mine = Participant.objects.visible_to(officer)
+    assert mine.count() == 3
+    assert set(mine.values_list("assigned_officer_id", flat=True)) == {officer.pk}
+
+    steward = make_user("stew", "Data steward")
+    t2 = services.create_template(actor=steward, source="by-steward", columns=COLUMNS)
+    load(steward, upload(steward, t2, "Other One,P1,K1,C1,E-100,F,20,01"))
+    other = Participant.objects.get(enrollments__source_enrollment_no="E-100")
+    assert other.assigned_officer_id is None
+    assert Participant.objects.visible_to(steward).count() == 4
+    assert Participant.objects.visible_to(officer).count() == 3

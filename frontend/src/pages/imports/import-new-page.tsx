@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { useAuth } from '@/auth/auth-context';
+import { ReferenceImport } from '@/pages/admin/reference-import';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
@@ -48,6 +50,7 @@ const SKIP = '__skip__'; // Radix Select cannot hold an empty value
  * mapping is confirmed and the file is validated (the "dry run"). */
 export function ImportNewPage() {
   const nav = useNavigate();
+  const { can } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [seen, setSeen] = useState<Inspection | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
@@ -163,7 +166,23 @@ export function ImportNewPage() {
         <title>New import - PI 360</title>
       </Helmet>
       <div className="container-fluid space-y-5">
-        <PageHeader crumbs={[{ label: 'New import' }]} title="New import" />
+        <PageHeader
+          crumbs={[{ label: 'New import' }]}
+          title="New import"
+          actions={
+            can('participants.edit') && (
+              <ReferenceImport
+                kind="youth-capability"
+                title="Youth skills and qualifications"
+                buttonLabel="Import skills & qualifications"
+                columns="enrollment_no*, programme, type* (qualification, skill, experience, availability), value*, detail, months, year"
+                endpoint="/participants/profile-import"
+                templateEndpoint="/participants/profile-import-template"
+                onDone={() => void 0}
+              />
+            )
+          }
+        />
         <ImportStepper current={step} />
 
         {error && (

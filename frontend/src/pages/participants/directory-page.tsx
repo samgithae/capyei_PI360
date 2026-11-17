@@ -1,5 +1,4 @@
 import { useAuth } from '@/auth/auth-context';
-import { ReferenceImport } from '@/pages/admin/reference-import';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate, useSearchParams } from 'react-router';
@@ -134,16 +133,6 @@ export function DirectoryPage() {
               <Button asChild>
                 <Link to="/imports/new">Import participants</Link>
               </Button>
-            )}
-            {can('participants.edit') && (
-              <ReferenceImport
-                kind="youth-capability"
-                title="Youth skills and qualifications"
-                columns="enrollment_no*, programme, type* (qualification, skill, experience, availability), value*, detail, months, year"
-                endpoint="/participants/profile-import"
-                templateEndpoint="/participants/profile-import-template"
-                onDone={() => void 0}
-              />
             )}
           </>
         }
