@@ -45,6 +45,7 @@ def _summary(r):
         "opportunity_id": str(r.opportunity_id),
         "opportunity": r.opportunity.title,
         "employer": r.opportunity.employer.name,
+        "employer_id": str(r.opportunity.employer_id),
         "opportunity_counties": sorted(c.name for c in r.opportunity.counties.all()),
         "opportunity_sectors": sorted(s.name for s in r.opportunity.sectors.all()),
         "origin": r.origin,

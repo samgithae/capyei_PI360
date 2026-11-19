@@ -375,12 +375,14 @@ export const STAFF_GUIDES: Guide[] = [
     steps: [
       'Open Placements to see every episode, with the counts by pathway at the top. Filter by pathway, by Current, Ended or Not verified, or search by youth or employer.',
       'People who may edit placements choose Record placement. Pick the youth, the pathway (wage work, self-employment, work-based learning or further training), the start date and the employer or business. Wage work and work-based learning need an employer; pick one from the register or type the name.',
+      'If the youth was selected through a referral, start from the referral instead. Open it from Referrals; once it is Selected or Placed, choose Record placement. The youth, the employer and the role are filled in, so you only add the pathway and the start date.',
+      'PI 360 warns you if the youth already has a running placement with that employer, so a second click does not create a copy. Read the warning and cancel if it is the same job. If it is a separate job or a new spell, choose record anyway. A spell that already has an end date, or an earlier one that has ended, never triggers the warning.',
       'When it ends, choose End on its row and enter the end date and why. The episode stays in the history. A new job is a new episode, not an edit of the old one.',
       'Choose Verify and say how you confirmed it (for example a call to the employer). Correcting an episode later clears its verification, so it has to be confirmed again.',
       'Episodes that came from an import show Imported. They can be ended and verified here but not edited; correct them by importing again.',
     ],
-    why: 'A youth’s current status is worked out from their episodes: they are placed while any episode has no end date. Counts show verified and unverified apart so a reported placement is never mistaken for a confirmed one.',
-    related: ['case-work', 'followups'],
+    why: 'A referral that reaches Selected or Placed does not create a placement by itself, because the start date and pathway are only known to staff. A youth’s current status is worked out from their episodes: they are placed while any episode has no end date. Counts show verified and unverified apart so a reported placement is never mistaken for a confirmed one. The duplicate warning only asks you to check; it never blocks a genuine second job.',
+    related: ['case-work', 'followups', 'move-referral'],
     updated: '2026-11',
   },
   {

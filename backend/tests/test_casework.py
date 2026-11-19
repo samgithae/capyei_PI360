@@ -215,6 +215,47 @@ def test_a_new_episode_never_overwrites_an_earlier_one(officer, youth, enrollmen
     assert sum(r["current"] for r in rows) == 1  # derived: only the running one counts
 
 
+def test_a_second_running_placement_with_the_same_employer_needs_confirming(
+    officer, youth, enrollment
+):
+    c = client_for(officer)
+    assert place(c, youth).status_code == 201
+    # the same name typed differently is still the same employer
+    r = place(c, youth, employer_name_source="  acme   TRADERS ")
+    assert r.status_code == 409, r.content
+    err = r.json()["errors"][0]
+    assert err["code"] == "possible_duplicate" and "Acme Traders" in err["message"]
+    assert Placement.objects.count() == 1
+    # staff who know it is a separate spell can record it anyway
+    assert place(c, youth, confirm_duplicate=True).status_code == 201
+    assert Placement.objects.count() == 2
+
+
+def test_the_duplicate_warning_ignores_ended_spells_other_employers_and_past_episodes(
+    officer, youth, enrollment
+):
+    c = client_for(officer)
+    first = place(c, youth).json()["id"]
+    # a different employer is not a duplicate
+    assert place(c, youth, employer_name_source="Beta Ltd").status_code == 201
+    # a spell that is already over (it carries an end date) is not a duplicate either
+    past = place(c, youth, start_date="2025-01-01", end_date="2025-06-01")
+    assert past.status_code == 201, past.content
+    # once the running one ends, the same employer can be recorded again without a warning
+    c.post(f"{PL}/{first}/end", {"end_date": "2026-06-01"}, content_type=JSON)
+    assert place(c, youth, start_date="2026-07-01").status_code == 201
+
+
+def test_the_warning_matches_a_register_employer_by_id(officer, youth, enrollment):
+    c = client_for(officer)
+    e = Employer.objects.create(name="Java House")
+    kw = {"employer_id": str(e.pk), "employer_name_source": ""}
+    assert place(c, youth, **kw).status_code == 201
+    r = place(c, youth, **kw)
+    assert r.status_code == 409 and r.json()["errors"][0]["code"] == "possible_duplicate"
+    assert "Java House" in r.json()["errors"][0]["message"]
+
+
 def test_verify_records_how_and_editing_clears_it(officer, youth, enrollment):
     c = client_for(officer)
     pk = place(c, youth).json()["id"]

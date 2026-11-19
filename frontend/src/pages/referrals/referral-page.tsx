@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useAuth } from '@/auth/auth-context';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { MoveRight, Undo2, UserCheck } from 'lucide-react';
+import { Briefcase, MoveRight, Undo2, UserCheck } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
@@ -19,6 +20,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { SelectField } from '@/components/shared/select-field';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import { PlacementDialog } from '../cases/case-shared';
 import { CandidateProfile, WhySuggested } from './candidate-profile';
 import { InterviewCard } from './interview-card';
 import {
@@ -131,6 +133,8 @@ const BLANK = { to: '', reason: '', note: '', needsNote: false };
 export function ReferralPage() {
   const { id } = useParams();
   const refresh = useRefreshReferrals();
+  const { can } = useAuth();
+  const [recording, setRecording] = useState(false);
   // One form state shared by the move and correction dialogs; `mode` says which is open.
   const [mode, setMode] = useState<'move' | 'correct' | null>(null);
   const [form, setForm] = useState(BLANK);
@@ -224,6 +228,10 @@ export function ReferralPage() {
     setMode('correct');
   };
   const needsReason = UNSUCCESSFUL.includes(form.to);
+  // Selecting a youth does not make a placement: staff record it once they know the start
+  // date and pathway. This opens that form already filled in from the referral.
+  const canRecordPlacement =
+    can('placements.edit') && ['selected', 'placed'].includes(r.stage);
 
   return (
     <div className="container-fluid space-y-6">
@@ -261,6 +269,11 @@ export function ReferralPage() {
                   {MOVE_LABEL[to] ?? stageName(to)}
                 </Button>
               ))}
+            {canRecordPlacement && (
+              <Button variant="outline" onClick={() => setRecording(true)}>
+                <Briefcase /> Record placement
+              </Button>
+            )}
             {canCorrect && (
               <Button variant="outline" onClick={openCorrect}>
                 <Undo2 /> {closed ? 'Reopen' : 'Correct stage'}
@@ -360,6 +373,18 @@ export function ReferralPage() {
           )}
         </Section>
       </div>
+
+      {recording && (
+        <PlacementDialog
+          open
+          onOpenChange={setRecording}
+          participant={{ id: r.participant_id, name: r.participant }}
+          prefill={{
+            employer: { id: r.employer_id, name: r.employer },
+            designation: r.opportunity,
+          }}
+        />
+      )}
 
       <FormModal
         open={mode !== null}

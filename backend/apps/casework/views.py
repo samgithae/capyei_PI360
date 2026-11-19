@@ -63,6 +63,8 @@ class PlacementCreateSerializer(serializers.Serializer):
         required=False, allow_blank=True, max_length=255, default=""
     )
     benefits = serializers.CharField(required=False, allow_blank=True, max_length=2000, default="")
+    # Set after the "already running with this employer" warning, to record it anyway.
+    confirm_duplicate = serializers.BooleanField(required=False, default=False)
 
 
 class PlacementUpdateSerializer(serializers.Serializer):

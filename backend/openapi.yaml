@@ -8917,6 +8917,9 @@ components:
           type: string
           default: ''
           maxLength: 2000
+        confirm_duplicate:
+          type: boolean
+          default: false
       required:
       - participant_id
       - pathway

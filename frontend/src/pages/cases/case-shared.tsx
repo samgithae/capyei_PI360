@@ -241,10 +241,14 @@ function EmployerPicker({
   value,
   onChange,
   open,
+  known,
 }: {
   value: string;
   onChange: (id: string) => void;
   open: boolean;
+  /** An employer already chosen elsewhere (e.g. from a referral); kept in the list so it
+   * still shows when the search results do not include it. */
+  known?: { id: string; name: string };
 }) {
   const [q, setQ] = useState('');
   const list = useQuery({
@@ -268,11 +272,20 @@ function EmployerPicker({
         label="Choose employer"
         value={value}
         emptyLabel="Not on the register"
-        options={list.data?.results ?? []}
+        options={withKnown(list.data?.results ?? [], known)}
         onChange={onChange}
       />
     </div>
   );
+}
+
+function withKnown(
+  options: { id: string; name: string }[],
+  known?: { id: string; name: string },
+) {
+  return known && !options.some((o) => o.id === known.id)
+    ? [known, ...options]
+    : options;
 }
 
 /** Staff who work cases, for assigning an owner (needs caseload.reassign). */
@@ -608,26 +621,36 @@ export function PlacementDialog({
   onOpenChange,
   participant,
   edit,
+  prefill,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   participant?: { id: string; name: string };
   edit?: PlacementRow;
+  /** Start the form from a selected referral: the employer and the role are already known. */
+  prefill?: { employer?: { id: string; name: string }; designation?: string };
 }) {
   const refresh = useRefreshCases();
   const options = usePlacementOptions(open);
   const [youthId, setYouthId] = useState('');
   const [pathway, setPathway] = useState(edit?.pathway ?? '');
   const [start, setStart] = useState(edit?.start_date ?? '');
-  const [employerId, setEmployerId] = useState(edit?.employer_id ?? '');
+  const [employerId, setEmployerId] = useState(
+    edit?.employer_id ?? prefill?.employer?.id ?? '',
+  );
   const [employerName, setEmployerName] = useState(
     edit && !edit.employer_id ? edit.employer : '',
   );
-  const [designation, setDesignation] = useState(edit?.designation ?? '');
+  const [designation, setDesignation] = useState(
+    edit?.designation ?? prefill?.designation ?? '',
+  );
   const [error, setError] = useState('');
+  // The server's "this youth already has a placement with them" warning (not an error: staff
+  // who know it is a separate job or spell can record it anyway).
+  const [duplicate, setDuplicate] = useState('');
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: (confirmDuplicate: boolean) => {
       const body = {
         pathway,
         start_date: start,
@@ -643,6 +666,7 @@ export function PlacementDialog({
       return post('/placements', {
         ...body,
         participant_id: participant?.id ?? youthId,
+        ...(confirmDuplicate ? { confirm_duplicate: true } : {}),
       });
     },
     onSuccess: () => {
@@ -650,7 +674,15 @@ export function PlacementDialog({
       refresh();
       onOpenChange(false);
     },
-    onError: (e) => setError(errorText(e)),
+    onError: (e) => {
+      if (
+        e instanceof ApiError &&
+        e.status === 409 &&
+        e.errors.some((x) => x.code === 'possible_duplicate')
+      )
+        return setDuplicate(e.message);
+      setError(errorText(e));
+    },
   });
 
   return (
@@ -668,7 +700,8 @@ export function PlacementDialog({
         if (!pathway) return setError('Choose the pathway.');
         if (!start) return setError('Enter the start date.');
         setError('');
-        save.mutate();
+        setDuplicate('');
+        save.mutate(false);
       }}
     >
       {!edit &&
@@ -704,7 +737,15 @@ export function PlacementDialog({
           onChange={(e) => setStart(e.target.value)}
         />
       </div>
-      <EmployerPicker value={employerId} onChange={setEmployerId} open={open} />
+      <EmployerPicker
+        value={employerId}
+        onChange={(id) => {
+          setEmployerId(id);
+          setDuplicate('');
+        }}
+        open={open}
+        known={prefill?.employer}
+      />
       {!employerId && (
         <div className="space-y-1.5">
           <Label htmlFor="pl-employer-name">
@@ -714,7 +755,10 @@ export function PlacementDialog({
             id="pl-employer-name"
             maxLength={255}
             value={employerName}
-            onChange={(e) => setEmployerName(e.target.value)}
+            onChange={(e) => {
+              setEmployerName(e.target.value);
+              setDuplicate('');
+            }}
           />
         </div>
       )}
@@ -727,6 +771,29 @@ export function PlacementDialog({
           onChange={(e) => setDesignation(e.target.value)}
         />
       </div>
+      {duplicate && (
+        <div
+          role="alert"
+          className="space-y-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm"
+        >
+          <p className="font-medium">{duplicate}</p>
+          <p>
+            If this is a separate job or spell,{' '}
+            <button
+              type="button"
+              className="font-medium underline"
+              disabled={save.isPending}
+              onClick={() => {
+                setDuplicate('');
+                save.mutate(true);
+              }}
+            >
+              record anyway
+            </button>
+            .
+          </p>
+        </div>
+      )}
     </FormModal>
   );
 }

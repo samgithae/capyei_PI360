@@ -201,6 +201,30 @@ def current_by_enrollment(enrollment_ids) -> dict:
     return out
 
 
+def _same_words(text) -> str:
+    return " ".join((text or "").lower().split())
+
+
+def running_with_employer(enrollment_id, *, employer_id=None, employer_name="") -> Placement | None:
+    """The youth's running placement with this employer, if any: the same register employer,
+    or (for one typed by name) the same name ignoring case and spacing. Used to warn before a
+    second episode is recorded by mistake; ended episodes never count."""
+    running = Placement.objects.filter(
+        enrollment_id=enrollment_id, status=PLACED, end_date__isnull=True
+    ).select_related("employer")
+    name = _same_words(employer_name)
+    for p in running:
+        if employer_id and p.employer_id and str(p.employer_id) == str(employer_id):
+            return p
+        if not employer_id and name:
+            if name in (
+                _same_words(p.employer_name_source),
+                _same_words(p.employer and p.employer.name),
+            ):
+                return p
+    return None
+
+
 @transaction.atomic
 def record_manual(
     *,

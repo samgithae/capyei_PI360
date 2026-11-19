@@ -88,6 +88,15 @@ def test_create_submits_and_records_history(officer, youth, opp):
     assert AuditEvent.objects.filter(action="referral.created").count() == 1
 
 
+def test_referral_carries_employer_id_for_the_placement_form(officer, youth, opp):
+    """The referral page opens the placement form already filled in, so it needs the employer."""
+    c = client_for(officer)
+    rid = refer(c, youth, opp).json()["id"]
+    detail = c.get(f"{URL}/{rid}").json()
+    assert detail["employer_id"] == str(opp.employer_id)
+    assert detail["employer"] == "Acme Traders"
+
+
 def test_draft_then_submit(officer, youth, opp):
     c = client_for(officer)
     rid = refer(c, youth, opp, submit=False).json()["id"]

@@ -180,9 +180,32 @@ def enrollment_choices(user, participant_id) -> list:
     return [str(e) for e in participants.enrollment_ids(participant_id)]
 
 
-def create_placement(*, actor, participant_id, enrollment_id=None, employer_id=None, **fields):
+def create_placement(
+    *,
+    actor,
+    participant_id,
+    enrollment_id=None,
+    employer_id=None,
+    confirm_duplicate=False,
+    **fields,
+):
     _check_employer(employer_id)
     enrollment = _enrollment_for(actor, participant_id, enrollment_id)
+    if not confirm_duplicate and not fields.get("end_date"):
+        twin = placements.running_with_employer(
+            enrollment,
+            employer_id=employer_id,
+            employer_name=fields.get("employer_name_source", ""),
+        )
+        if twin:
+            who = twin.employer.name if twin.employer_id else twin.employer_name_source
+            since = twin.start_date.strftime("%d %b %Y") if twin.start_date else "an unknown date"
+            raise Violation(
+                "employer_id",
+                f"This youth already has a placement running with {who}, since {since}. "
+                "Record another only if it is a separate job or spell.",
+                "possible_duplicate",
+            )
     return _wrap(
         placements.record_manual, actor=actor, enrollment_id=enrollment,
         employer_id=employer_id, **fields,

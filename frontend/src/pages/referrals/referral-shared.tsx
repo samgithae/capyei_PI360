@@ -18,6 +18,7 @@ export interface ReferralRow {
   opportunity_id: string;
   opportunity: string;
   employer: string;
+  employer_id: string;
   opportunity_counties?: string[];
   opportunity_sectors?: string[];
   origin: string;
