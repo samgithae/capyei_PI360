@@ -4,8 +4,6 @@ referrals.view reads the work queue; placements.view reads episodes and placemen
 corrects, ends and verifies them. A placement whose youth is outside the caller's scope gives
 404."""
 
-import uuid
-
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound
@@ -119,19 +117,12 @@ class PlacementListView(APIView):
     def get(self, request):
         g = request.query_params
         try:
-            employer = uuid.UUID(g["employer"]) if g.get("employer") else None
-            participant = uuid.UUID(g["participant"]) if g.get("participant") else None
+            filters = services.placement_filters(g)
             offset = max(int(g.get("offset", 0)), 0)
         except ValueError:
             raise serializers.ValidationError({"filter": ["Invalid filter value."]}) from None
         size = page_size_of(g)
-        total, rows = services.list_placements(
-            request.user,
-            pathway=g.get("pathway") if g.get("pathway") in PATHWAYS else "",
-            state=g.get("state") if g.get("state") in ("current", "ended", "unverified") else "",
-            employer_id=employer, q=g.get("q", "").strip(), participant_id=participant,
-            offset=offset, size=size,
-        )  # fmt: skip
+        total, rows = services.list_placements(request.user, offset=offset, size=size, **filters)
         return Response({"total": total, "page_size": size, "results": rows})
 
     @extend_schema(request=PlacementCreateSerializer, responses={201: dict, 409: dict})
@@ -321,19 +312,12 @@ class FollowUpListView(APIView):
     def get(self, request):
         g = request.query_params
         try:
-            participant = uuid.UUID(g["participant"]) if g.get("participant") else None
-            placement = uuid.UUID(g["placement"]) if g.get("placement") else None
+            filters = services.followup_filters(request.user, g)
             offset = max(int(g.get("offset", 0)), 0)
         except ValueError:
             raise serializers.ValidationError({"filter": ["Invalid filter value."]}) from None
         size = page_size_of(g)
-        total, rows = services.list_followups(
-            request.user,
-            state=g.get("state") if g.get("state") in FOLLOWUP_STATES else "open",
-            kind=g.get("kind") if g.get("kind") in FOLLOWUP_KINDS else "",
-            mine=g.get("mine") == "1", q=g.get("q", "").strip(), participant_id=participant,
-            placement_id=placement, offset=offset, size=size,
-        )  # fmt: skip
+        total, rows = services.list_followups(request.user, offset=offset, size=size, **filters)
         return Response({"total": total, "page_size": size, "results": rows})
 
 

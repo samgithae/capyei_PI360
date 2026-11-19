@@ -359,34 +359,27 @@ def filtered(user, params):
     return qs.distinct().order_by("full_name_source", "pk"), fuzzy
 
 
-def directory_rows(user, params) -> list[dict]:
-    """The directory as plain rows for an export: the columns the table shows plus gender and
-    age. No contact details, ID numbers or addresses."""
+def export_groups() -> list[dict]:
+    """The youth fields an export can hold, grouped, for the field picker."""
+    from . import export_fields
+
+    return export_fields.groups()
+
+
+def export_rows(user, params, keys) -> list[dict]:
+    """One row per youth in the directory under ``params``, holding ``_id`` and each requested
+    field this module owns. Same filter and scope as the table, so the file matches the screen."""
+    from . import export_fields
+
     qs, _fuzzy = filtered(user, params)
-    qs = qs.select_related("origin_county").prefetch_related(
-        "enrollments__programme", "enrollments__cohort_course__cohort"
-    )
-    rows = []
-    for p in qs:
-        enrollments = list(p.enrollments.all())
-        rows.append(
-            {
-                "name": p.full_name_source,
-                "gender": p.get_gender_display(),
-                "age": current_age(p),
-                "programme": ", ".join(sorted({e.programme.name for e in enrollments})),
-                "cohort": ", ".join(sorted({e.cohort_course.cohort.name for e in enrollments})),
-                "county": p.origin_county.name if p.origin_county_id else "",
-                "status": p.get_status_display(),
-            }
-        )
-    return rows
+    return export_fields.rows(qs, keys)
 
 
 __all__ = [
     "FilterError",
     "current_age",
-    "directory_rows",
+    "export_groups",
+    "export_rows",
     "filtered",
     "DuplicateFailure",
     "PhotoError",

@@ -39,6 +39,7 @@ import {
   useArchiveFlow,
   useSelection,
 } from '@/components/shared/bulk';
+import { ExportButton } from '@/components/shared/export-button';
 import { SummaryStatCard } from '@/components/shared/info-card';
 import { FormModal } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
@@ -395,6 +396,12 @@ export function OpportunitiesPage() {
                 onChange={(v) => set('archived', v ? '1' : '')}
               />
             )}
+            <ExportButton
+              table="opportunities"
+              params={params}
+              noun="opportunities"
+              total={data?.total}
+            />
           </>
         }
       >

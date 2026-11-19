@@ -10,6 +10,7 @@ import {
   Pager,
   SearchBox,
 } from '@/components/data-card';
+import { ExportButton } from '@/components/shared/export-button';
 import { SummaryStatCard } from '@/components/shared/info-card';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
@@ -162,6 +163,12 @@ export function FollowUpsPage() {
               options={STATES}
               onChange={(v) => set('state', v)}
               className="w-48"
+            />
+            <ExportButton
+              table="followups"
+              params={params}
+              noun="follow-ups"
+              total={data?.total}
             />
           </>
         }

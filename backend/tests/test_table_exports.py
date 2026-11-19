@@ -70,11 +70,16 @@ def test_export_is_exactly_the_filtered_table(people):
     resp = c.post(URL + q, BODY, content_type="application/json")
     assert resp.status_code == 200 and "attachment" in resp["Content-Disposition"]
     rows = parse(resp)
-    assert rows[0] == ["Name", "Gender", "Age", "Programme", "Cohort", "County", "Status"]
+    head = rows[0]
+    # With no choice made, the file holds every field, starting with the ones the table shows.
+    assert head[:2] == ["Name", "Given name"] and {"Gender", "Age", "Programme", "Cohort"} <= set(
+        head
+    )
+    col = head.index
     assert [r[0].lstrip("'") for r in rows[1:]] == [r["name"] for r in listed["results"]]
     assert len(rows) - 1 == listed["total"] == 2
-    assert {r[5] for r in rows[1:]} == {people["mombasa"].name}
-    assert {r[6] for r in rows[1:]} == {"Active"}
+    assert {r[col("County")] for r in rows[1:]} == {people["mombasa"].name}
+    assert {r[col("Status")] for r in rows[1:]} == {"Active"}
     assert resp["X-Export-Rows"] == "2"
 
 

@@ -3,9 +3,6 @@ closed referral needs referrals.approve, and reassigning needs caseload.reassign
 
 A referral outside the caller's scope (its youth is not visible to them) gives 404."""
 
-import uuid
-
-from django.db.models import Q
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, PermissionDenied
@@ -147,24 +144,8 @@ class ReferralListView(APIView):
     )
     def get(self, request):
         g = request.query_params
-        qs = _base(request.user)
-        if q := g.get("q", "").strip():
-            qs = qs.filter(
-                Q(participant__full_name_source__icontains=q)
-                | Q(opportunity__title__icontains=q)
-                | Q(opportunity__employer__name__icontains=q)
-            )
-        if g.get("stage") == "active":
-            qs = qs.filter(stage__in=Referral.ACTIVE)
-        elif g.get("stage") in STAGE_NAMES:
-            qs = qs.filter(stage=g["stage"])
-        if g.get("mine") == "1":
-            qs = qs.filter(assigned_to=request.user)
         try:
-            if g.get("participant"):
-                qs = qs.filter(participant_id=uuid.UUID(g["participant"]))
-            if g.get("opportunity"):
-                qs = qs.filter(opportunity_id=uuid.UUID(g["opportunity"]))
+            qs = services.filtered(request.user, g)
             offset = max(int(g.get("offset", 0)), 0)
         except ValueError:
             raise serializers.ValidationError({"filter": ["Invalid filter value."]}) from None

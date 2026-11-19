@@ -5,6 +5,7 @@ scope (which youth the caller may see) in front of the placement history, and ga
 officer's work queue from interventions, referrals, flags and placements, each of which stays
 inside its own module."""
 
+import uuid
 from datetime import date
 
 from django.utils import timezone
@@ -81,7 +82,7 @@ def rows_for(user, placement_list, owners=None) -> list[dict]:
 
 
 def list_placements(user, *, pathway="", state="", employer_id=None, q="", participant_id=None,
-                    offset=0, size=25) -> tuple[int, list[dict]]:  # fmt: skip
+                    offset=0, size: int | None = 25) -> tuple[int, list[dict]]:  # fmt: skip
     owners = _owners(user)
     if participant_id:
         enrollments = [e for e, pid in owners.items() if str(pid) == str(participant_id)]
@@ -93,7 +94,89 @@ def list_placements(user, *, pathway="", state="", employer_id=None, q="", parti
         q_enrollment_ids=[e for e, pid in owners.items() if pid in name_hits],
     )  # fmt: skip
     total = qs.count()
-    return total, rows_for(user, list(qs[offset : offset + size]), owners)
+    page = qs[offset : offset + size] if size else qs
+    return total, rows_for(user, list(page), owners)
+
+
+PLACEMENT_STATES = ("current", "ended", "unverified")
+FOLLOWUP_STATES = ("open", "overdue", "due_soon", "done", "closed", "all")
+
+
+def _uuid_or_none(value):
+    return uuid.UUID(value) if value else None
+
+
+def placement_filters(params) -> dict:
+    """The placements list's filters as keyword arguments. A bad id raises ``ValueError``."""
+    return {
+        "pathway": params.get("pathway") if params.get("pathway") in PATHWAY_NAMES else "",
+        "state": params.get("state") if params.get("state") in PLACEMENT_STATES else "",
+        "employer_id": _uuid_or_none(params.get("employer")),
+        "q": params.get("q", "").strip(),
+        "participant_id": _uuid_or_none(params.get("participant")),
+    }
+
+
+def followup_filters(user, params) -> dict:
+    """The follow-ups list's filters as keyword arguments. A bad id raises ``ValueError``."""
+    return {
+        "state": params.get("state") if params.get("state") in FOLLOWUP_STATES else "open",
+        "kind": params.get("kind") if params.get("kind") in FOLLOWUP_KINDS else "",
+        "mine": params.get("mine") == "1",
+        "q": params.get("q", "").strip(),
+        "participant_id": _uuid_or_none(params.get("participant")),
+        "placement_id": _uuid_or_none(params.get("placement")),
+    }
+
+
+def export_placements(user, params) -> list[dict]:
+    """Placements as plain rows for an export: the table's columns, no notes or evidence."""
+    _, rows = list_placements(user, size=None, **placement_filters(params))
+    return [
+        {
+            "youth": r["participant"],
+            "employer": r["employer"],
+            "designation": r["designation"],
+            "pathway": r["pathway_label"],
+            "state": "Current" if r["current"] else "Ended" if r["end_date"] else "Not current",
+            "start_date": r["start_date"] or "",
+            "end_date": r["end_date"] or "",
+            "verified": "Yes" if r["verified"] else "No",
+        }
+        for r in rows
+    ]
+
+
+def youth_placements(user, participant_ids) -> dict:
+    """``{youth id: ["Role at Employer: Pathway, state", ...]}`` for the youth export, limited to
+    the placements the user may see."""
+    wanted = {str(i) for i in participant_ids}
+    out: dict = {}
+    _, rows = list_placements(user, size=None)
+    for r in rows:
+        if r["participant_id"] in wanted:
+            state = "current" if r["current"] else "ended" if r["end_date"] else "not current"
+            role = r["designation"] or "Placement"
+            what = f"{role} at {r['employer']}: {r['pathway_label']}, {state}"
+            out.setdefault(uuid.UUID(r["participant_id"]), []).append(what)
+    return out
+
+
+def export_followups(user, params) -> list[dict]:
+    """Follow-ups as plain rows for an export: the table's columns, no response notes."""
+    _, rows = list_followups(user, size=None, **followup_filters(user, params))
+    return [
+        {
+            "youth": r["participant"],
+            "employer": r["employer"],
+            "follow_up": r["label"] or r["kind_label"],
+            "due_date": r["due_date"],
+            "status": "Overdue" if r["overdue"] else r["status_label"],
+            "assigned_to": r["assigned_to"] or "",
+            "next_action": r["next_action"] or "",
+        }
+        for r in rows
+    ]
 
 
 def summary(user) -> dict:
@@ -272,7 +355,7 @@ def followup_rows(user, rows, owners=None, today=None) -> list[dict]:
 
 
 def list_followups(user, *, state="open", kind="", mine=False, q="", participant_id=None,
-                   placement_id=None, offset=0, size=25):  # fmt: skip
+                   placement_id=None, offset=0, size: int | None = 25):  # fmt: skip
     owners = _owners(user)
     today = timezone.localdate()
     if participant_id:
@@ -288,7 +371,8 @@ def list_followups(user, *, state="open", kind="", mine=False, q="", participant
         placement_id=placement_id, q_enrollment_ids=narrowed, today=today,
     )  # fmt: skip
     total = qs.count()
-    return total, followup_rows(user, list(qs[offset : offset + size]), owners, today)
+    page = qs[offset : offset + size] if size else qs
+    return total, followup_rows(user, list(page), owners, today)
 
 
 def followup_summary(user, *, mine: bool = False) -> dict:

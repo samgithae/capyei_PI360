@@ -3,9 +3,11 @@
 Every change writes a stage event (the referral's own history) and an audit event, in the same
 transaction as the change, so all three commit or none does."""
 
+import uuid
+
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.api.access import has_permission
@@ -578,6 +580,73 @@ def brief(ids) -> dict:
             "detail": f"{r.opportunity.title}, {r.opportunity.employer.name} · "
             f"{r.get_stage_display()}",
         }
+    return out
+
+
+# ---- list filter and export rows -------------------------------------------------------------
+
+
+def filtered(user, params):
+    """The referrals list as a queryset, scoped to the user. A bad id raises ``ValueError``."""
+    qs = (
+        visible(user)
+        .select_related(
+            "participant", "opportunity__employer", "reason", "assigned_to", "created_by"
+        )
+        .prefetch_related("opportunity__counties", "opportunity__sectors")
+    )
+    if q := params.get("q", "").strip():
+        qs = qs.filter(
+            Q(participant__full_name_source__icontains=q)
+            | Q(opportunity__title__icontains=q)
+            | Q(opportunity__employer__name__icontains=q)
+        )
+    stage = params.get("stage")
+    if stage == "active":
+        qs = qs.filter(stage__in=Referral.ACTIVE)
+    elif stage in dict(Referral.STAGES):
+        qs = qs.filter(stage=stage)
+    if params.get("mine") == "1":
+        qs = qs.filter(assigned_to=user)
+    if params.get("participant"):
+        qs = qs.filter(participant_id=uuid.UUID(params["participant"]))
+    if params.get("opportunity"):
+        qs = qs.filter(opportunity_id=uuid.UUID(params["opportunity"]))
+    return qs
+
+
+def export_referrals(user, params) -> list[dict]:
+    """Referrals as plain rows for an export: the table's columns, no notes."""
+    names = dict(Referral.STAGES)
+    return [
+        {
+            "youth": r.participant.full_name_source,
+            "opportunity": r.opportunity.title,
+            "employer": r.opportunity.employer.name,
+            "stage": names[r.stage],
+            "assigned_to": (r.assigned_to.get_full_name() or r.assigned_to.get_username())
+            if r.assigned_to_id
+            else "",
+            "referred_at": timezone.localtime(r.referred_at).date().isoformat()
+            if r.referred_at
+            else "",
+            "interview_at": timezone.localtime(r.interview_at).strftime("%Y-%m-%d %H:%M")
+            if r.interview_at
+            else "",
+        }
+        for r in filtered(user, params).order_by("-updated_at", "pk")
+    ]
+
+
+def youth_referrals(user, participant_ids) -> dict:
+    """``{youth id: ["Opportunity at Employer: Stage", ...]}`` for the youth export, limited to
+    the referrals the user may see, oldest first."""
+    names = dict(Referral.STAGES)
+    out: dict = {}
+    qs = visible(user).filter(participant_id__in=list(participant_ids))
+    for r in qs.select_related("opportunity__employer").order_by("referred_at", "pk"):
+        what = f"{r.opportunity.title} at {r.opportunity.employer.name}: {names[r.stage]}"
+        out.setdefault(r.participant_id, []).append(what)
     return out
 
 

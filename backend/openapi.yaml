@@ -2304,6 +2304,29 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/exports/fields/{table}:
+    get:
+      operationId: exports_table_fields
+      description: The fields a table export lets you choose, grouped, for the picker
+        in the Export dialog.
+      parameters:
+      - in: path
+        name: table
+        schema:
+          type: string
+        required: true
+      tags:
+      - exports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/exports/table/{table}:
     post:
       operationId: exports_table
@@ -2316,6 +2339,10 @@ paths:
         schema:
           type: string
       - in: query
+        name: awaiting
+        schema:
+          type: string
+      - in: query
         name: cohort
         schema:
           type: string
@@ -2324,11 +2351,35 @@ paths:
         schema:
           type: string
       - in: query
+        name: kind
+        schema:
+          type: string
+      - in: query
+        name: mine
+        schema:
+          type: string
+      - in: query
+        name: pathway
+        schema:
+          type: string
+      - in: query
         name: programme
         schema:
           type: string
       - in: query
         name: q
+        schema:
+          type: string
+      - in: query
+        name: sector
+        schema:
+          type: string
+      - in: query
+        name: stage
+        schema:
+          type: string
+      - in: query
+        name: state
         schema:
           type: string
       - in: query
@@ -9790,6 +9841,13 @@ components:
         purpose:
           type: string
           maxLength: 300
+        fields:
+          type: array
+          items:
+            type: string
+            maxLength: 60
+          nullable: true
+          maxItems: 100
       required:
       - format
       - purpose

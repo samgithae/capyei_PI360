@@ -22,6 +22,7 @@ import {
   SearchBox,
 } from '@/components/data-card';
 import { RowActions } from '@/components/shared/bulk';
+import { ExportButton } from '@/components/shared/export-button';
 import { SummaryStatCard } from '@/components/shared/info-card';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -137,6 +138,12 @@ export function ReferralsPage() {
               />
               Only mine
             </label>
+            <ExportButton
+              table="referrals"
+              params={params}
+              noun="referrals"
+              total={data?.total}
+            />
           </>
         }
       >

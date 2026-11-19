@@ -244,6 +244,7 @@ MATRIX = {
     "identity/grants/<int:pk>/revoke": {"POST": "identity.manage_roles"},
     "exports": {"GET": "exports.deidentified", "POST": "exports.deidentified"},
     "exports/table/<slug:table>": {"POST": "exports.identifiable"},
+    "exports/fields/<slug:table>": {"GET": "exports.identifiable"},
     "exports/<uuid:pk>/download": {"GET": "exports.deidentified"},
     "participants/<uuid:pk>/support-review": {"POST": "referrals.edit"},
     "rules/settings": {"GET": "intelligence.view", "PUT": "intelligence.manage_rules"},
@@ -332,6 +333,7 @@ def concrete(route):
         .replace("<uuid:pk>", "00000000-0000-0000-0000-000000000000")
         .replace("<str:kind>", "sectors")
         .replace("<str:key>", "x")
+        .replace("<slug:table>", "youth")
     )
 
 

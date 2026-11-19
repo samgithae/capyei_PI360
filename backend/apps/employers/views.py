@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.api.access import HasPermission
-from apps.api.archive import ARCHIVE, BulkArchiveView, archived_filter
+from apps.api.archive import ARCHIVE, BulkArchiveView
 from apps.api.pagination import page_size_of
 from apps.audit import services as audit
 from apps.configuration import services as configuration
@@ -176,19 +176,10 @@ class EmployerListView(APIView):
     )
     def get(self, request):
         g = request.query_params
-        qs = archived_filter(Employer.objects.prefetch_related("sectors", "counties"), g)
-        if q := g.get("q", "").strip():
-            qs = qs.filter(name_normalised__contains=services.norm(q))
-        if g.get("status") in {s for s, _ in Employer.STATUSES}:
-            qs = qs.filter(status=g["status"])
         try:
-            if g.get("sector"):
-                qs = qs.filter(sectors__id=uuid.UUID(g["sector"]))
-            if g.get("county"):
-                qs = qs.filter(counties__id=uuid.UUID(g["county"]))
+            qs = services.filter_employers(g)
         except ValueError:
             raise serializers.ValidationError({"filter": ["Invalid filter value."]}) from None
-        size = page_size_of(g)
         try:
             offset = max(int(g.get("offset", 0)), 0)
         except ValueError:
@@ -405,23 +396,8 @@ class OpportunityListView(APIView):
     )
     def get(self, request):
         g = request.query_params
-        qs = archived_filter(
-            Opportunity.objects.select_related("employer").prefetch_related("counties", "sectors"),
-            g,
-        )
-        if g.get("archived") != "1":  # an archived employer takes its opportunities with it
-            qs = qs.filter(employer__archived_at__isnull=True)
-        if q := g.get("q", "").strip():
-            qs = qs.filter(title__icontains=q)
-        if g.get("status") in {s for s, _ in Opportunity.STATUSES}:
-            qs = qs.filter(status=g["status"])
-        if g.get("kind") in {k for k, _ in Opportunity.TYPES}:
-            qs = qs.filter(kind=g["kind"])
-        if g.get("awaiting") == "1":  # companies asking PI staff to publish
-            qs = qs.filter(publish_requested_at__isnull=False)
         try:
-            if g.get("employer"):
-                qs = qs.filter(employer_id=uuid.UUID(g["employer"]))
+            qs = services.filter_opportunities(g)
             offset = max(int(g.get("offset", 0)), 0)
         except ValueError:
             raise serializers.ValidationError({"filter": ["Invalid filter value."]}) from None

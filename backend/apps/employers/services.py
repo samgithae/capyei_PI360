@@ -1,5 +1,6 @@
 """Public interface of apps.employers (T-044). Every change is audited in the same transaction."""
 
+import uuid
 from collections import Counter
 from datetime import date
 from difflib import SequenceMatcher
@@ -9,6 +10,7 @@ from django.db.models import ProtectedError
 from django.dispatch import Signal
 from django.utils import timezone
 
+from apps.api.archive import archived_filter
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 from apps.configuration.services import normalise as norm
@@ -940,6 +942,78 @@ def brief_opportunities(ids) -> dict:
             "detail": f"{o.employer.name} · {o.get_status_display()}{close}",
         }
     return out
+
+
+# --- list filters, shared by the tables and their exports ------------------------------------
+
+
+def filter_employers(params):
+    """The employers list as a queryset. A bad id raises ``ValueError``."""
+    qs = archived_filter(Employer.objects.prefetch_related("sectors", "counties"), params)
+    if q := params.get("q", "").strip():
+        qs = qs.filter(name_normalised__contains=norm(q))
+    if params.get("status") in {s for s, _ in Employer.STATUSES}:
+        qs = qs.filter(status=params["status"])
+    if params.get("sector"):
+        qs = qs.filter(sectors__id=uuid.UUID(params["sector"]))
+    if params.get("county"):
+        qs = qs.filter(counties__id=uuid.UUID(params["county"]))
+    return qs
+
+
+def filter_opportunities(params):
+    """The opportunities list as a queryset. A bad id raises ``ValueError``."""
+    qs = archived_filter(
+        Opportunity.objects.select_related("employer").prefetch_related("counties", "sectors"),
+        params,
+    )
+    if params.get("archived") != "1":  # an archived employer takes its opportunities with it
+        qs = qs.filter(employer__archived_at__isnull=True)
+    if q := params.get("q", "").strip():
+        qs = qs.filter(title__icontains=q)
+    if params.get("status") in {s for s, _ in Opportunity.STATUSES}:
+        qs = qs.filter(status=params["status"])
+    if params.get("kind") in {k for k, _ in Opportunity.TYPES}:
+        qs = qs.filter(kind=params["kind"])
+    if params.get("awaiting") == "1":  # companies asking PI staff to publish
+        qs = qs.filter(publish_requested_at__isnull=False)
+    if params.get("employer"):
+        qs = qs.filter(employer_id=uuid.UUID(params["employer"]))
+    return qs
+
+
+def _names(rows):
+    return ", ".join(sorted(r.name for r in rows))
+
+
+def export_employers(user, params) -> list[dict]:
+    """Employers as plain rows for an export: the table's columns, no contacts or addresses."""
+    return [
+        {
+            "name": e.name,
+            "status": e.get_status_display(),
+            "sectors": _names(e.sectors.all()),
+            "counties": _names(e.counties.all()),
+        }
+        for e in filter_employers(params).order_by("name", "pk").distinct()
+    ]
+
+
+def export_opportunities(user, params) -> list[dict]:
+    """Opportunities as plain rows for an export: the table's columns."""
+    return [
+        {
+            "title": o.title,
+            "employer": o.employer.name,
+            "kind": o.get_kind_display(),
+            "status": o.get_status_display(),
+            "counties": _names(o.counties.all()),
+            "sectors": _names(o.sectors.all()),
+            "positions": o.positions,
+            "closing_date": o.closing_date.isoformat() if o.closing_date else "",
+        }
+        for o in filter_opportunities(params).order_by("title", "pk").distinct()
+    ]
 
 
 # The company-scoped functions the employer portal calls. Imported last because ``own`` imports

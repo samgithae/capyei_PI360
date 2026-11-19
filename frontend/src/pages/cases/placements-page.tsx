@@ -12,6 +12,7 @@ import {
   Pager,
   SearchBox,
 } from '@/components/data-card';
+import { ExportButton } from '@/components/shared/export-button';
 import { SummaryStatCard } from '@/components/shared/info-card';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
@@ -137,6 +138,12 @@ export function PlacementsPage() {
               options={STATES}
               onChange={(v) => set('state', v)}
               className="w-40"
+            />
+            <ExportButton
+              table="placements"
+              params={params}
+              noun="placements"
+              total={data?.total}
             />
           </>
         }

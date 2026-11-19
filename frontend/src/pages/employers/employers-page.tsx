@@ -29,6 +29,7 @@ import {
   useArchiveFlow,
   useSelection,
 } from '@/components/shared/bulk';
+import { ExportButton } from '@/components/shared/export-button';
 import { DialogShell } from '@/components/shared/modals';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
@@ -191,6 +192,12 @@ export function EmployersPage() {
                 onChange={(v) => set('archived', v ? '1' : '')}
               />
             )}
+            <ExportButton
+              table="employers"
+              params={params}
+              noun="employers"
+              total={data?.total}
+            />
           </>
         }
       >

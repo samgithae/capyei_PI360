@@ -98,6 +98,27 @@ class ExportsView(APIView):
         return Response(exports.serialize(log), status=status.HTTP_201_CREATED)
 
 
+class TableFieldsView(APIView):
+    """The fields a table export lets you choose, grouped, for the picker in the Export dialog."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": "exports.identifiable"}
+
+    @extend_schema(operation_id="exports_table_fields", responses={200: dict})
+    def get(self, request, table):
+        t = exports.TABLES.get(table)
+        if t is None or "groups" not in t:
+            return Response(
+                {
+                    "errors": [
+                        {"field": "table", "message": "No choice of fields.", "code": "not_found"}
+                    ]
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({"groups": t["groups"]()})
+
+
 class ExportDownloadView(APIView):
     permission_classes = [HasPermission]
     required_permission = {"GET": EXPORT}
@@ -117,6 +138,10 @@ class ExportDownloadView(APIView):
 class TableExportSerializer(serializers.Serializer):
     format = serializers.CharField(max_length=10)
     purpose = serializers.CharField(max_length=300, allow_blank=True)
+    # Youth only: which fields to include. Left out, every field is exported.
+    fields = serializers.ListField(
+        child=serializers.CharField(max_length=60), required=False, allow_null=True, max_length=100
+    )
 
 
 class TableExportView(APIView):
@@ -142,6 +167,7 @@ class TableExportView(APIView):
                 params=request.query_params,
                 file_format=s.validated_data["format"],
                 purpose=s.validated_data["purpose"],
+                fields=s.validated_data.get("fields"),
             )
         except exports.ExportError as exc:
             return _export_error(exc)
