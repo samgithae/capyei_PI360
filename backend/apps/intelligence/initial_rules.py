@@ -202,8 +202,10 @@ EMPLOYER_RELIABILITY = {
         _factor(
             "C-RETENTION", "Early retention", "indicator", "count_gte",
             "employer.placements_due_for_early_follow_up", _param("theta_min"),
-            "Placements still active at the early follow-up point divided by placements due "
-            "for that check. Only verified follow-ups count. " + _ENOUGH,
+            "Placements found still in place at the early retention point (the latest early step "
+            "of the follow-up schedule, 90 days by default) divided by placements checked. Only "
+            "completed check-ins with a stated source count; ones due but not yet checked are "
+            "shown apart, never counted as lost. " + _ENOUGH,
         ),
         _factor(
             "C-FEEDBACK", "Feedback", "indicator", "count_gte",
@@ -222,7 +224,8 @@ EMPLOYER_RELIABILITY = {
         ),
         "theta_follow_up": _undecided(
             "Early follow-up point after a placement starts", "D-028", "days",
-            "Used when placements due for the early check are counted.",
+            "Read from the follow-up schedule (Administration > Follow-up schedule), "
+            "not set here.",
         ),
     },
     "notes": (

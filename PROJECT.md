@@ -21,17 +21,17 @@ the import, directory and admin tooling. Pushed `main` is at `github.com/samgith
 | **Archive/restore** (soft delete) for participants, employers, opportunities; admin parity with steward | Done | this phase |
 | Row actions + bulk select on /youth, /opportunities, /employers | Done | this phase |
 | Referral workflow (stages, reason codes, corrections, reassign) | Done; stage list and reason codes await D-037 | T-046 |
-| Rules engine and rule versions (draft, review, approve, activate; a version in force is never edited; every step audited) | Done; who approves awaits D-009 (Administrator holds both rule permissions for now) | T-047 |
+| Rules engine and rule versions (draft, review, approve, activate; a version in force is never edited; every step audited) | Done; D-009: the Administrator approves for now (holds both rule permissions) | T-047 |
 | Initial rule configuration (three draft rule sets, one per module, loaded by `load_initial_rules`) | Done as drafts; every value awaits D-008, D-009, D-013, D-026, D-028 | T-048 |
 | Reference admin pages for every list (programmes, cohorts, courses, counties, sub-counties, wards...); Kenya geography seeded (47 / 290 / 1,448); searchable selects | Done | T-057 |
 | YDM assessment capture | Not started, optional, gated | T-049 |
 | Module B interim form: Suggested youth shows "Preferred: X of Y" and ranks by it, no percentage | Built, uncommitted; weights await D-009 | T-060 |
-| Module C evidence: employer "Referral evidence" card (counts, period, source, "Insufficient evidence" under the minimum, no overall rating) | Built, uncommitted; minimum and period are admin settings | T-067 |
+| Module C evidence: employer "Referral evidence" card (counts, period, source, "Insufficient evidence" under the minimum, no overall rating). Retention after placement is calculated from completed check-ins at the early retention point, the latest early step of the follow-up schedule (90 d by default), so changing the schedule moves it; due-but-unchecked shown apart, never counted as lost. Employer feedback still shows No data | Built and committed; minimum and period are admin settings | T-067 |
 | Module A support priority: /support queue (unsuccessful referrals, stalled referral, ready-but-never-referred) with "Mark reviewed" that pauses a flag | Built, uncommitted; documents and retention flags not captured yet | T-063 |
-| Rules > Settings: admin-editable numbers (defaults in code, changes audited) behind A and C | Built, uncommitted; values are placeholders until D-013, D-028 | T-063, T-067 |
+| Rules > Settings: admin-editable numbers (defaults in code, changes audited) behind A and C | Built, uncommitted; D-013 and D-028 decided (starting values in code, editable); D-026 values unapproved | T-063, T-067 |
 | **Programme dashboard** at `/`: KPI tiles, funnel, gender and placement, referral pipeline, monthly trend, age, county, needs-attention list, metric definitions; every number opens the list of records it counts (`/dashboard/list`) | Built, uncommitted; P0 and part of P1. Definitions marked "working" await CAP-YEI approval. Retention, training completion, skills demand, predictive, staff productivity not built | T-069, T-070 |
 | Case management (`/cases`) and placements (`/placements`): interventions, queues, verification, placement episodes | Committed locally (542a16a, not pushed) | T-064, T-065 |
-| Follow-up scheduling (`/followups`, Administration > Follow-up schedule): configurable steps, check-ins made when a placement with a start date is recorded or verified, attempts, response and evidence, next action. A schedule change affects new placements only | Built and pushed (`9b797c5`). Default intervals (30 d, 90 d, 6/12/24 months) await D-012; early window awaits D-028 | T-066 |
+| Follow-up scheduling (`/followups`, Administration > Follow-up schedule): configurable steps, check-ins made when a placement with a start date is recorded or verified, attempts, response and evidence, next action. A schedule change affects new placements only | Built and pushed (`9b797c5`). Default intervals (30 d, 90 d, 6/12/24 months) decided (D-012, D-028) and editable by an administrator | T-066 |
 | Record placement from a referral: on a Selected or Placed referral the button opens the placement form with youth, employer and role filled in (a referral never creates a placement by itself) | Built and committed (e281025) | T-065 |
 | Duplicate-placement warning: recording a placement for a youth who already has a running one with the same employer (register id, or the typed name ignoring case and spacing) returns a 409 `possible_duplicate`; the dialog shows it with "record anyway", which resends with `confirm_duplicate`. Ended spells and episodes created with an end date never trigger it. Help guides updated | Built and committed (e281025) | T-065 |
 | Data retention (`/administration/retention`, `run_retention` command): per-class period + written basis + separate approval; first class is imported source rows (values cleared N days after the batch's reconciliation sign-off, keeping counts, errors, cohort code, hashes). Dry run by default; applied runs need confirmation; every run recorded and audited with counts only. Participant, audit, placement and follow-up data are not covered yet | Built and committed (b55b9b4); no period is set or approved (nothing is cleared) until D-015; scheduling the command is deployment work (T-076) | T-073 |
@@ -114,9 +114,14 @@ and `reporting/drilldown`. Placed = a placement mapped as placed, or a referral 
 3. Then M3 (I05): T-064 interventions/case queues, T-065 placements and employment episodes,
    T-054 consent fields (minimum built on the provisional D-015 basis, behind an off-by-default setting); T-055 duplicate warnings is built. The interim forms of T-060 (Module B), T-063
    (Module A) and T-067 (Module C) are built; their final scoring waits for the decisions below.
-4. **Decisions that unblock the rest:** D-009 (weights and who approves), D-013 and D-028
-   (support and employer numbers; placeholders live in Rules > Settings), D-026 (what counts as a
-   readiness gap or barrier), D-037 (referral stages and reasons).
+4. **Decisions (answered 19 Nov 2026, relayed by the implementer):** decided: D-009 (the
+   Administrator approves rule versions for now; review cadence still to set), D-012 (follow-up
+   schedule 30 d, 90 d, 6/12/24 months), D-013 (show with count, hide below the minimum sample),
+   D-028 (early follow-up 30 d, early retention 90 d), D-037 (keep current stages, editable reason
+   codes). Proposed, not final: D-026 (starting values, marked unapproved until the placement lead
+   approves), D-015 (provisional basis; the data protection lead has not answered and production
+   import stays blocked), D-045 (keep current export rules). Every figure is an admin setting or
+   editable data, never hard-coded. Still to set: the D-009 review cadence; D-004 not asked.
 
 Done in this phase: T-046 referral workflow, T-047 rules engine and versioning, T-048 initial
 draft rules.

@@ -571,6 +571,7 @@ def employer_evidence(employer_id, today: date) -> dict:
     result is "insufficient evidence", never a score, and there is no overall rating (D-027)."""
     from datetime import timedelta
 
+    from apps.placements import services as placements
     from apps.referrals import services as referrals
 
     days = setting("employer.window_days")
@@ -591,6 +592,36 @@ def employer_evidence(employer_id, today: date) -> dict:
             "status": "shown" if enough else "insufficient",
         }
 
+    r = placements.followup_retention_counts(employer_id, since.date(), today)
+    retention_enough = r["checked"] >= minimum
+    if r["point_days"] is None or r["due"] == 0:
+        retention = {
+            "label": "Retention after placement",
+            "source": "PI 360 follow-ups",
+            "count": 0,
+            "of": 0,
+            "text": "No follow-ups due yet",
+            "percent": None,
+            "status": "no_data",
+        }
+    else:
+        waiting = r["due"] - r["checked"]
+        retention = {
+            "label": "Retention after placement",
+            "source": "PI 360 follow-ups (completed check-ins with a stated source)",
+            "count": r["retained"],
+            "of": r["checked"],
+            "text": (
+                f"{r['retained']} of {r['checked']} placements checked at {r['point_days']} days"
+                f" were still in the placement"
+                + (f" ({waiting} due, not yet checked)" if waiting else "")
+            ),
+            "percent": round(r["retained"] / r["checked"] * 100)
+            if retention_enough and r["checked"]
+            else None,
+            "status": "shown" if retention_enough else "insufficient",
+        }
+
     indicators = [
         ratio("Referrals answered", c["replied"], c["sent"], "referrals got a reply"),
         ratio("Interviews", c["interview"], c["sent"], "referrals reached an interview"),
@@ -608,15 +639,7 @@ def employer_evidence(employer_id, today: date) -> dict:
             "percent": None,
             "status": "shown" if enough and c["replied"] else "insufficient",
         },
-        {
-            "label": "Retention after placement",
-            "source": "Not recorded yet",
-            "count": 0,
-            "of": 0,
-            "text": "No follow-up data yet",
-            "percent": None,
-            "status": "no_data",
-        },
+        retention,
         {
             "label": "Employer feedback",
             "source": "Not recorded yet",

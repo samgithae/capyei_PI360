@@ -240,6 +240,42 @@ def counts(enrollment_ids, *, assigned_to=None, today: date | None = None) -> di
 # --- working a follow-up --------------------------------------------------------------------------
 
 
+def retention_counts(employer_id, since: date, today: date) -> dict:
+    """How many of an employer's placements were still going at the early retention point (D-028).
+
+    The point is read from the schedule, never fixed here: it is the latest active early step
+    (90 days by default), so an administrator who moves it moves this too. Counts the check-ins of
+    that step that fell due from ``since`` to ``today``. Only a completed check-in counts as
+    checked, and completing one needs an answer and a stated source, so every checked one is
+    verified. Cancelled tasks are left out; an open or unreachable one is "due, not yet checked",
+    never counted as lost."""
+    early = list(
+        FollowUpStep.objects.filter(kind=FollowUpStep.EARLY, active=True).values_list(
+            "offset_days", flat=True
+        )
+    )
+    if not early:
+        return {"point_days": None, "due": 0, "checked": 0, "retained": 0}
+    point = max(early)
+    due = (
+        FollowUp.objects.filter(
+            placement__employer_id=employer_id,
+            kind=FollowUpStep.EARLY,
+            step__offset_days=point,
+            due_date__gte=since,
+            due_date__lte=today,
+        )
+        .exclude(status=FollowUp.CANCELLED)
+    )  # fmt: skip
+    checked = due.filter(status=FollowUp.DONE, still_employed__isnull=False)
+    return {
+        "point_days": point,
+        "due": due.count(),
+        "checked": checked.count(),
+        "retained": checked.filter(still_employed=True).count(),
+    }
+
+
 def _locked_open(followup_id) -> FollowUp:
     try:
         f = FollowUp.objects.select_for_update().select_related("placement").get(pk=followup_id)

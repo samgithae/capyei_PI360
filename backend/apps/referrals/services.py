@@ -471,7 +471,7 @@ def learner_placed(participant_id) -> list[dict]:
 
 def employer_counts(employer_id, since) -> dict:
     """What happened to referrals sent to one employer since ``since``: raw counts and the
-    waiting times, nothing interpreted. Retention and feedback are not recorded yet."""
+    waiting times, nothing interpreted. Retention comes from the placements module."""
     sent = Referral.objects.filter(opportunity__employer_id=employer_id, referred_at__gte=since)
     ids = list(sent.values_list("pk", flat=True))
     first_reply = {}

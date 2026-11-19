@@ -496,6 +496,7 @@ followup_history = _followups.history
 followup_is_overdue = _followups.is_overdue
 followup_list = _followups.list_for
 followup_log_attempt = _followups.log_attempt
+followup_retention_counts = _followups.retention_counts
 followup_steps = _followups.steps
 followup_unreachable = _followups.mark_unreachable
 followup_update_step = _followups.update_step
