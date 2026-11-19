@@ -561,6 +561,33 @@ TABLES = {
         ],
         "rows": lambda user, params, keys: casework.export_followups(user, params, keys),
     },
+    "corrections": {
+        "label": "Corrections for the MIS",
+        "slug": "corrections",
+        "filters": ("state", "q"),
+        "note": PEOPLE_NOTE,
+        "groups": lambda: [
+            _group(
+                "youth",
+                "Which record",
+                ("name", "Youth"),
+                ("enrollment_no", "MIS enrolment number"),
+                ("programme", "Programme"),
+            ),
+            _group(
+                "fix",
+                "The correction",
+                ("field", "Field"),
+                ("was", "MIS value"),
+                ("now", "Corrected value"),
+                ("corrected_on", "Corrected on"),
+                ("corrected_by", "Corrected by"),
+                ("state", "Status"),
+                ("mis_value", "Value the last import tried to bring in"),
+            ),
+        ],
+        "rows": lambda user, params, keys: participants.export_corrections(user, params, keys),
+    },
 }
 FILTER_KEYS = tuple(dict.fromkeys(k for t in TABLES.values() for k in t["filters"]))
 TABLE_CONTENT = {

@@ -5419,6 +5419,126 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/corrections:
+    get:
+      operationId: dataquality_corrections
+      parameters:
+      - in: query
+        name: offset
+        schema:
+          type: string
+      - in: query
+        name: page_size
+        schema:
+          type: string
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: state
+        schema:
+          type: string
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/corrections/{id}/resolve:
+    post:
+      operationId: dataquality_correction_resolve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Resolve'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Resolve'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Resolve'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/data-quality:
+    get:
+      operationId: dataquality_summary
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/data-quality/records:
+    get:
+      operationId: dataquality_records
+      parameters:
+      - in: query
+        name: offset
+        schema:
+          type: string
+      - in: query
+        name: page_size
+        schema:
+          type: string
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: rule
+        schema:
+          type: string
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/duplicates:
     get:
       operationId: participants_duplicates_retrieve
@@ -7671,16 +7791,6 @@ paths:
           description: ''
 components:
   schemas:
-    ActionEnum:
-      enum:
-      - link
-      - create
-      - apart
-      type: string
-      description: |-
-        * `link` - link
-        * `create` - create
-        * `apart` - apart
     Activate:
       type: object
       properties:
@@ -7803,7 +7913,7 @@ components:
             maxLength: 300
           minItems: 1
         action:
-          $ref: '#/components/schemas/ActionEnum'
+          $ref: '#/components/schemas/ClusterDecisionActionEnum'
         employer_id:
           type: string
           format: uuid
@@ -7812,6 +7922,16 @@ components:
       - action
       - key
       - spellings
+    ClusterDecisionActionEnum:
+      enum:
+      - link
+      - create
+      - apart
+      type: string
+      description: |-
+        * `link` - link
+        * `create` - create
+        * `apart` - apart
     CohortCoursesBulk:
       type: object
       properties:
@@ -9618,6 +9738,27 @@ components:
         ward:
           type: string
           maxLength: 100
+    Resolve:
+      type: object
+      properties:
+        action:
+          $ref: '#/components/schemas/ResolveActionEnum'
+        note:
+          type: string
+          default: ''
+          maxLength: 500
+      required:
+      - action
+    ResolveActionEnum:
+      enum:
+      - confirm
+      - keep
+      - accept
+      type: string
+      description: |-
+        * `confirm` - confirm
+        * `keep` - keep
+        * `accept` - accept
     Role:
       type: object
       properties:

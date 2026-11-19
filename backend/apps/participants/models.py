@@ -514,3 +514,60 @@ class ProfileVerification(models.Model):
 
     def __str__(self):
         return f"{self.kind}:{self.fact_id} {self.status}"
+
+
+class ParticipantCorrection(models.Model):
+    """A fix an officer made in PI360 to a value that came from the MIS (T-074, D-025).
+
+    The MIS stays the system of record, so a fix is kept here with who made it and when, listed
+    in a correction export, and protected: an import must not overwrite it until the MIS carries
+    the same value (``confirmed``) or a reviewer decides. States: ``open`` (MIS not yet updated),
+    ``confirmed`` (MIS now agrees, or a reviewer marked it updated), ``closed`` (a reviewer took
+    the MIS value instead). A ``conflict_*`` value is what a later import tried to write over it."""
+
+    OPEN, CONFIRMED, CLOSED = "open", "confirmed", "closed"
+    STATES = [(OPEN, "Waiting for the MIS"), (CONFIRMED, "MIS updated"), (CLOSED, "MIS value kept")]
+    FIELDS = [
+        ("full_name", "Name"),
+        ("gender", "Gender"),
+        ("age", "Age"),
+        ("county", "County"),
+        ("status", "Enrolment status"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    participant = models.ForeignKey(
+        Participant, on_delete=models.CASCADE, related_name="corrections"
+    )
+    # Only for a field that lives on the enrolment (status): which enrolment it is.
+    enrollment = models.ForeignKey(
+        ParticipantEnrollment, null=True, blank=True, on_delete=models.CASCADE, related_name="+"
+    )
+    field = models.CharField(max_length=12, choices=FIELDS)
+    before_raw = models.CharField(max_length=200, blank=True)
+    before_label = models.CharField(max_length=200, blank=True)  # what the MIS had
+    after_raw = models.CharField(max_length=200, blank=True)  # compared with the import
+    after_label = models.CharField(max_length=200, blank=True)  # what the officer set
+    state = models.CharField(max_length=10, choices=STATES, default=OPEN, db_index=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    conflict_raw = models.CharField(max_length=200, blank=True)
+    conflict_label = models.CharField(max_length=200, blank=True)
+    conflict_batch = models.CharField(max_length=64, blank=True)
+    conflict_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
+    closed_how = models.CharField(max_length=20, blank=True)
+    closed_note = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        indexes = [models.Index(fields=["participant", "state"])]
+
+    def __str__(self):
+        return f"{self.participant_id}:{self.field}:{self.state}"

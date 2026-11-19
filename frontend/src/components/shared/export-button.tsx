@@ -51,6 +51,11 @@ const TABLES = {
     names: true,
     picker: true,
   },
+  corrections: {
+    filters: ['state', 'q'],
+    names: true,
+    picker: true,
+  },
 } as const;
 
 export type ExportTable = keyof typeof TABLES;

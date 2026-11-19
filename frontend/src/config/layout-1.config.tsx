@@ -13,6 +13,7 @@ import {
   ListChecks,
   Scale,
   Settings,
+  ShieldCheck,
   UserRound,
   Users,
 } from 'lucide-react';
@@ -90,6 +91,12 @@ export const MENU_SIDEBAR: MenuConfig = [
     icon: GitMerge,
     path: '/duplicates',
     permission: 'duplicates.review',
+  },
+  {
+    title: 'Data quality',
+    icon: ShieldCheck,
+    path: '/data-quality',
+    permission: 'dataquality.review',
   },
   {
     title: 'Imports',

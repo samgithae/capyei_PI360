@@ -165,6 +165,25 @@ export const STAFF_GUIDES: Guide[] = [
     updated: '2026-11',
   },
   {
+    slug: 'fix-data-quality',
+    title: 'Fix data-quality problems and track MIS corrections',
+    summary:
+      'See which youth records fail the checks, and keep a list of fixes for whoever updates the MIS.',
+    group: 'Youth',
+    needs: ['dataquality.review'],
+    to: { path: '/data-quality', label: 'Open Data quality' },
+    steps: [
+      'Open Data quality. On Records to fix, each card is a check, such as No county, Age outside 14 to 35 or Dates reversed, with the number of youth that fail it. Choose a card to list only those youth, or search by name.',
+      'Choose a name to open the youth and fix the value. The age limits are provisional until the programme confirms them.',
+      'When you correct a name, gender, age, county or enrolment status that came from the MIS, the fix is recorded on the MIS corrections tab with the value the MIS had and the new one. Fixes to youth who did not come from the MIS are not listed, because there is nothing to correct there.',
+      'Whoever updates the MIS can use Export on the MIS corrections tab to get the list (choose the fields and say what the file is for). Once the MIS has been updated, choose MIS updated on that line, with a note if you wish.',
+      'If a later import carries a different value from your fix, the import does not overwrite it. The line is marked Import disagreed and shows the MIS value. Choose Keep my fix to turn the import value down, or Accept MIS value to replace your fix with it. If the import carries the same value as your fix, the line closes by itself.',
+    ],
+    why: 'The MIS is the system of record, so a fix made here must reach it or the next import would undo it. Keeping each fix with who made it and when, and holding back imports that disagree, means nothing is lost silently.',
+    related: ['edit-youth', 'import-youth-from-sheet', 'export-youth-list'],
+    updated: '2026-11',
+  },
+  {
     slug: 'youth-workspace',
     title: 'Find your way around a youth’s page',
     summary: 'The header and the six tabs on a youth’s profile.',

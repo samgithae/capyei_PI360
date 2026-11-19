@@ -9,6 +9,7 @@ import { CasePage } from '@/pages/cases/case-page';
 import { CasesPage } from '@/pages/cases/cases-page';
 import { PlacementsPage } from '@/pages/cases/placements-page';
 import { DashboardListPage } from '@/pages/dashboard/dashboard-list-page';
+import { DataQualityPage } from '@/pages/data-quality/data-quality-page';
 import { EmployerCompanyPage } from '@/pages/employer/employer-company';
 import { EmployerDashboardPage } from '@/pages/employer/employer-dashboard';
 import {
@@ -168,6 +169,11 @@ export function AppRoutingSetup() {
           </Route>
           <Route element={<RequirePermission permission="duplicates.review" />}>
             <Route path="/duplicates" element={<DuplicatesPage />} />
+          </Route>
+          <Route
+            element={<RequirePermission permission="dataquality.review" />}
+          >
+            <Route path="/data-quality" element={<DataQualityPage />} />
           </Route>
           <Route element={<RequirePermission permission="employers.view" />}>
             <Route path="/employers" element={<EmployersPage />} />

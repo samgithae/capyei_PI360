@@ -18,7 +18,7 @@ from apps.api.pagination import page_size_of
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
-from . import services, similar
+from . import corrections, services, similar
 from .models import (
     Participant,
     ParticipantContact,
@@ -343,6 +343,15 @@ class ParticipantDetailView(APIView):
             for k, v in after.items():
                 setattr(p, k, v)
             p.save()
+            corrections.record(
+                actor=request.user,
+                participant=p,
+                changes={
+                    corrections.PARTICIPANT_FIELDS[k]: (before[k], v)
+                    for k, v in after.items()
+                    if k in corrections.PARTICIPANT_FIELDS
+                },
+            )
 
             def plain(x):  # audit payloads are JSON: dates and ids become text
                 if hasattr(x, "isoformat"):
@@ -491,6 +500,13 @@ class EnrollmentDetailView(APIView):
             for k, v in after.items():
                 setattr(e, k, v)
             e.save()
+            if "status" in after:
+                corrections.record(
+                    actor=request.user,
+                    participant=p,
+                    changes={"status": (before["status"], after["status"])},
+                    enrollment=e,
+                )
 
             def plain(x):
                 if hasattr(x, "isoformat"):

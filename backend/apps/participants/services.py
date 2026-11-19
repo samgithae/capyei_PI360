@@ -12,6 +12,7 @@ from django.db import transaction
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
+from . import corrections
 from . import cv as _cv
 from . import cv_pdf as _cv_pdf
 from . import photo as _photo
@@ -222,8 +223,8 @@ def import_participant(clean: dict, *, batch_ref: str, owner=None) -> tuple[str,
     """Create or update. Returns (action, participant_id, before, after).
     ``owner`` becomes the assigned officer of a newly created youth (see ``import_owner``).
 
-    Matching is deterministic: programme + enrollment number. The rule for fields an officer has
-    corrected since the last import (R-15, D-005) is not built yet, so updates overwrite.
+    Matching is deterministic: programme + enrollment number. A field an officer has corrected
+    since the last import is protected (R-15, D-005; see ``corrections.guard_import``).
     """
     refs = clean["_refs"]
     offering_id, _p, institution_id, _e = configuration.resolve_offering(
@@ -239,15 +240,28 @@ def import_participant(clean: dict, *, batch_ref: str, owner=None) -> tuple[str,
     if existing:
         p, e = existing.participant, existing
         before = _snapshot(p, e)
-        p.full_name_source = clean["full_name"]
+        # Fields an officer has corrected here are not overwritten (R-15, D-005, D-025): a
+        # file value that matches closes the correction, one that differs is held for review.
+        incoming = {"full_name": clean["full_name"]}
         if clean["gender"] != "unknown":
-            p.gender = clean["gender"]
+            incoming["gender"] = clean["gender"]
         if clean["age"] is not None:
-            p.age_at_source = clean["age"]
+            incoming["age"] = clean["age"]
         if refs["county"]:
+            incoming["county"] = refs["county"]
+        if clean["status"] != "unknown":
+            incoming["status"] = clean["status"]
+        held = corrections.guard_import(p, e, incoming, batch_ref=batch_ref)
+        if "full_name" not in held:
+            p.full_name_source = clean["full_name"]
+        if clean["gender"] != "unknown" and "gender" not in held:
+            p.gender = clean["gender"]
+        if clean["age"] is not None and "age" not in held:
+            p.age_at_source = clean["age"]
+        if refs["county"] and "county" not in held:
             p.origin_county_id = refs["county"]
         p.save()
-        if clean["status"] != "unknown":
+        if clean["status"] != "unknown" and "status" not in held:
             e.status = clean["status"]
             e.save()
         return "update", str(p.pk), before, _snapshot(p, e)
@@ -375,7 +389,13 @@ def export_rows(user, params, keys) -> list[dict]:
     return export_fields.rows(qs, keys)
 
 
+def export_corrections(user, params, keys) -> list[dict]:
+    """Rows for the corrections export (T-074): the fixes waiting for the MIS, by default."""
+    return corrections.export_rows(user, params, keys)
+
+
 __all__ = [
+    "export_corrections",
     "FilterError",
     "current_age",
     "export_groups",

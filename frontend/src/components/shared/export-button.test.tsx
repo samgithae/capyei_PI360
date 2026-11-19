@@ -203,4 +203,21 @@ describe('ExportButton', () => {
       fields: ['name', 'phone'],
     });
   });
+
+  it('sends the corrections list its state and name filters', async () => {
+    permissions = ['exports.identifiable'];
+    postFile.mockResolvedValue({ blob: new Blob(['x']), filename: 'a.csv' });
+    show('state=conflict&q=ann&offset=20&programme=p1', 'corrections');
+    fireEvent.click(screen.getByRole('button', { name: /export/i }));
+    await screen.findByLabelText('Phone');
+    expect(getFields).toHaveBeenCalledWith('/exports/fields/corrections');
+    fireEvent.change(screen.getByLabelText(/what is this file for/i), {
+      target: { value: 'MIS update' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }));
+    await waitFor(() => expect(postFile).toHaveBeenCalled());
+    expect(postFile.mock.calls[0][0]).toBe(
+      '/exports/table/corrections?state=conflict&q=ann',
+    );
+  });
 });

@@ -3,6 +3,7 @@ from django.urls import path
 from . import cv_views as cv
 from . import duplicate_views as d
 from . import profile_views as pv
+from . import quality_views as dq
 from . import skill_views as sk
 from . import views as v
 
@@ -16,6 +17,10 @@ urlpatterns = [
     path("participants/duplicates/<uuid:pk>/merge", d.DuplicateMergeView.as_view()),
     path("participants/merges", d.MergeListView.as_view()),
     path("participants/merges/<uuid:pk>/undo", d.MergeUndoView.as_view()),
+    path("participants/data-quality", dq.QualitySummaryView.as_view()),
+    path("participants/data-quality/records", dq.QualityRecordsView.as_view()),
+    path("participants/corrections", dq.CorrectionListView.as_view()),
+    path("participants/corrections/<uuid:pk>/resolve", dq.CorrectionResolveView.as_view()),
     path("participants/<uuid:pk>/contacts", v.ContactsView.as_view()),
     path("participants/skills", sk.StaffSearch.as_view()),
     path("participants/skills/categories", sk.StaffCategories.as_view()),

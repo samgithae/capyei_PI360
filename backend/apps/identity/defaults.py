@@ -22,6 +22,7 @@ ADMIN_ALSO = [
     "imports.commit",
     "duplicates.review",
     "duplicates.merge",
+    "dataquality.review",
     "referrals.view",
     "referrals.edit",
     "intelligence.view",
@@ -83,6 +84,7 @@ DEFAULT_ROLES = [
             "imports.commit",
             "duplicates.review",
             "duplicates.merge",
+            "dataquality.review",
             "config.view",  # the reference lists it maintains are read through this
             "reference.manage",
             "reports.view_aggregate",
