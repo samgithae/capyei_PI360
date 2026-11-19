@@ -1,6 +1,7 @@
 """Search and duplicate warnings (T-055, FR-37): near-duplicate check on create, tolerant search."""
 
 import datetime
+import json
 
 import pytest
 from django.test import Client
@@ -83,10 +84,13 @@ def test_phone_and_birthdate_sharpen_a_partial_name(people, make_user):
 
 def test_matches_never_reveal_the_phone_or_birthdate(people, make_user):
     c = client_for(make_user("steward", "Data steward"))
-    body = c.get(
-        f"{URL}/check-name", {"name": "John Kamau", "phone": "0712345678", "dob": "2001-05-04"}
-    ).content.decode()
-    assert "0712" not in body and "2001" not in body
+    matches = check(c, name="John Kamau", phone="0712345678", dob="2001-05-04")
+    assert matches
+    for m in matches:
+        # Look at the fields, not the raw body: ids are random UUIDs and can contain "2001".
+        assert not {"phone", "date_of_birth", "dob"} & m.keys()
+        shown = json.dumps({k: v for k, v in m.items() if k != "id"})
+        assert "0712" not in shown and "2001" not in shown
 
 
 def test_check_is_closed_to_roles_that_cannot_add_youth(people, make_user):
