@@ -123,7 +123,7 @@ class ActivateView(_Public):
         return Response(status=status.HTTP_204_NO_CONTENT)  # they then sign in as usual
 
 
-class ConsentSerializer(serializers.Serializer):
+class YouthConsentSerializer(serializers.Serializer):
     version = serializers.CharField(max_length=20)
 
 
@@ -147,9 +147,11 @@ class YouthMeView(_Youth):
 
 
 class YouthConsentView(_Youth):
-    @extend_schema(operation_id="youth_consent", request=ConsentSerializer, responses={200: dict})
+    @extend_schema(
+        operation_id="youth_consent", request=YouthConsentSerializer, responses={200: dict}
+    )
     def post(self, request):
-        s = ConsentSerializer(data=request.data)
+        s = YouthConsentSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         return self.run(services.give_consent, version=s.validated_data["version"])
 

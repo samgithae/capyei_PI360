@@ -25,7 +25,7 @@ class PeriodSerializer(serializers.Serializer):
     basis = serializers.CharField(allow_blank=True, max_length=2000, required=False, default="")
 
 
-class ReasonSerializer(serializers.Serializer):
+class RetentionReasonSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500)
 
 
@@ -98,9 +98,11 @@ class RetentionRevokeView(APIView):
     permission_classes = [HasPermission]
     required_permission = {"POST": MANAGE}
 
-    @extend_schema(operation_id="retention_revoke", request=ReasonSerializer, responses={200: dict})
+    @extend_schema(
+        operation_id="retention_revoke", request=RetentionReasonSerializer, responses={200: dict}
+    )
     def post(self, request, code):
-        s = ReasonSerializer(data=request.data)
+        s = RetentionReasonSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         try:
             services.revoke(actor=request.user, data_class=code, **s.validated_data)

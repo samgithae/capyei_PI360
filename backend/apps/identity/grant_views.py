@@ -93,13 +93,17 @@ class GrantListView(APIView):
         return Response(_out(_all().get(pk=g.pk)), status=status.HTTP_201_CREATED)
 
 
+class GrantRevokeSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=300)
+
+
 class GrantRevokeView(APIView):
     permission_classes = [HasPermission]
     required_permission = {"POST": MANAGE}
 
     @extend_schema(
         operation_id="grants_revoke",
-        request=serializers.Serializer,
+        request=GrantRevokeSerializer,
         responses={200: dict},
     )
     def post(self, request, pk):

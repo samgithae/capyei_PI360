@@ -2911,6 +2911,18 @@ paths:
         required: true
       tags:
       - identity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantRevoke'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GrantRevoke'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GrantRevoke'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -6872,13 +6884,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Reason'
+              $ref: '#/components/schemas/RetentionReason'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Reason'
+              $ref: '#/components/schemas/RetentionReason'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Reason'
+              $ref: '#/components/schemas/RetentionReason'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -7486,13 +7499,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Consent'
+              $ref: '#/components/schemas/YouthConsent'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Consent'
+              $ref: '#/components/schemas/YouthConsent'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Consent'
+              $ref: '#/components/schemas/YouthConsent'
         required: true
       security:
       - cookieAuth: []
@@ -8372,6 +8385,14 @@ components:
       - permission
       - purpose
       - user_id
+    GrantRevoke:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 300
+      required:
+      - reason
     Health:
       type: object
       properties:
@@ -9814,6 +9835,14 @@ components:
         * `confirm` - confirm
         * `keep` - keep
         * `accept` - accept
+    RetentionReason:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+      required:
+      - reason
     Role:
       type: object
       properties:
@@ -10303,6 +10332,14 @@ components:
       required:
       - id
       - kind
+    YouthConsent:
+      type: object
+      properties:
+        version:
+          type: string
+          maxLength: 20
+      required:
+      - version
     YouthDetails:
       type: object
       description: Only what a youth may change. Status, enrollment and the like are
