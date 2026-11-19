@@ -111,6 +111,12 @@ class RuleVersion(models.Model):
     effective_from = models.DateTimeField(null=True, blank=True)  # set on activation
     retired_at = models.DateTimeField(null=True, blank=True)
     used_at = models.DateTimeField(null=True, blank=True)  # first time a result used it
+    # Last time an approver looked at the version in force and kept it as it is (D-009).
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="+",
+    )  # fmt: skip
 
     objects = RuleVersionQuerySet.as_manager()
 

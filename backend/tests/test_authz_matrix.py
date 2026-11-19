@@ -267,6 +267,7 @@ MATRIX = {
     "rules/versions/<uuid:pk>/approve": {"POST": "intelligence.approve_rules"},
     "rules/versions/<uuid:pk>/activate": {"POST": "intelligence.approve_rules"},
     "rules/versions/<uuid:pk>/deactivate": {"POST": "intelligence.approve_rules"},
+    "rules/versions/<uuid:pk>/review": {"POST": "intelligence.approve_rules"},
     "rules/versions/<uuid:pk>/history": {"GET": "intelligence.view"},
     "opportunities": {"GET": "employers.view", "POST": "employers.edit"},
     "opportunities/<uuid:pk>": {

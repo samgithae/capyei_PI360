@@ -66,6 +66,8 @@ def _version(v):
         "effective_from": _iso(v.effective_from),
         "retired_at": _iso(v.retired_at),
         "used": v.used_at is not None,
+        "reviewed_at": _iso(v.reviewed_at),
+        "reviewed_by": _user_name(v.reviewed_by),
     }
 
 
@@ -410,6 +412,15 @@ class RuleVersionDeactivateView(_StepView):
     def run(self, request, version, note):
         services.deactivate(actor=request.user, version=version, reason=note)
         return version
+
+
+class RuleVersionReviewView(_StepView):
+    """Record that the version in force was looked at and kept as it is."""
+
+    required_permission = {"POST": APPROVE}
+
+    def run(self, request, version, note):
+        return services.mark_reviewed(actor=request.user, version=version, note=note)
 
 
 class RuleVersionHistoryView(APIView):

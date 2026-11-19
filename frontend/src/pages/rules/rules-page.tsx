@@ -50,6 +50,16 @@ export function RulesPage() {
     queryKey: ['rules'],
     queryFn: () => api<RuleSet[]>('/rules'),
   });
+  const reviewed = useMutation({
+    mutationFn: (versionId: string) =>
+      post(`/rules/versions/${versionId}/review`, {}),
+    onSuccess: () => {
+      toast.success('Marked as reviewed. The review count starts again.');
+      refresh();
+    },
+    onError: (e) =>
+      toast.error(e instanceof ApiError ? e.message : 'Could not save.'),
+  });
   const create = useMutation({
     mutationFn: () => post<RuleSet>('/rules', form),
     onSuccess: (made) => {
@@ -182,6 +192,18 @@ export function RulesPage() {
                             Review due
                           </Badge>
                         )}
+                        {r.review?.overdue &&
+                          can('intelligence.approve_rules') && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={reviewed.isPending}
+                              aria-label={`Mark ${r.name} as reviewed`}
+                              onClick={() => reviewed.mutate(r.active!.id)}
+                            >
+                              Mark reviewed
+                            </Button>
+                          )}
                       </span>
                     ) : (
                       <span className="text-muted-foreground">

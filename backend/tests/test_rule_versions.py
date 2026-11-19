@@ -308,6 +308,42 @@ def test_the_rules_list_says_when_a_rule_in_force_is_due_for_review(admin, rule_
     assert review()["overdue"] is True
 
 
+def test_marking_a_rule_reviewed_restarts_the_review_count_without_a_new_version(
+    admin, make_user, rule_set
+):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    c = client_for(admin)
+    v = go_live(admin, draft_of(rule_set))
+    RuleVersion.objects.filter(pk=v.pk).update(effective_from=timezone.now() - timedelta(days=100))
+
+    def review():
+        return next(r for r in c.get(URL).json() if r["code"] == "support-priority")["review"]
+
+    assert review()["overdue"] is True
+    r = c.post(f"{URL}/versions/{v.pk}/review", {"note": "Still right"}, JSON)
+    assert r.status_code == 200 and r.json()["reviewed_by"]
+    assert review() == {
+        "due_on": (timezone.localdate() + timedelta(days=90)).isoformat(),
+        "overdue": False,
+    }
+    assert RuleVersion.objects.filter(rule_set=rule_set).count() == 1  # no new version
+    v.refresh_from_db()
+    assert v.status == "active"
+    assert AuditEvent.objects.get(action="rule_version.reviewed").reason == "Still right"
+    # Only an approver may do it.
+    other = client_for(make_user("wanjiru", "Placement officer"))
+    assert other.post(f"{URL}/versions/{v.pk}/review", {}, JSON).status_code == 403
+
+
+def test_only_the_version_in_force_can_be_marked_reviewed(admin, rule_set):
+    draft = draft_of(rule_set)
+    r = client_for(admin).post(f"{URL}/versions/{draft.pk}/review", {}, JSON)
+    assert r.status_code == 409 and r.json()["errors"][0]["code"] == "wrong_status"
+
+
 def test_api_viewers_can_read_rules_but_not_change_them(make_user, rule_set):
     c = client_for(make_user("wanjiru", "Placement officer"))
     assert c.get(URL).status_code == 200

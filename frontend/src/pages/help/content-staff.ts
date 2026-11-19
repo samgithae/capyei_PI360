@@ -392,6 +392,7 @@ export const STAFF_GUIDES: Guide[] = [
       'Give every number a value. The approver reviews them all, so there is no separate tick per number.',
       'Send for review. An approver then approves; approval is refused while any number has no value.',
       'Activate. The new version goes into force and the old one is retired.',
+      'If a rule shows Review due and you checked it and want no change, an approver chooses Mark reviewed on the Rules page. The review count starts again and no new version is needed.',
     ],
     why: 'The rules decide who is called a good fit, so people must be able to see which version applied and who approved it.',
     related: ['create-opportunity', 'rule-settings', 'support-queue'],

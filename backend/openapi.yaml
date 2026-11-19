@@ -1978,6 +1978,100 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/employers/{id}/feedback:
+    get:
+      operationId: employers_feedback_retrieve
+      description: Feedback officers have logged about one employer (Module C).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: employers_feedback_create
+      description: Feedback officers have logged about one employer (Module C).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Feedback'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Feedback'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Feedback'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/employers/{id}/feedback/{cpk}:
+    delete:
+      operationId: employers_feedback_destroy
+      parameters:
+      - in: path
+        name: cpk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - employers
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/employers/{id}/history:
     get:
       operationId: employers_history
@@ -7386,6 +7480,47 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/rules/versions/{id}/review:
+    post:
+      operationId: rules_versions_review_create
+      description: Record that the version in force was looked at and kept as it is.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Note'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Note'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Note'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/rules/versions/{id}/submit:
     post:
       operationId: rules_versions_submit_create
@@ -8223,6 +8358,41 @@ components:
         * `location` - Location
         * `availability` - Availability
         * `other` - Other
+    Feedback:
+      type: object
+      properties:
+        party:
+          $ref: '#/components/schemas/PartyEnum'
+        source:
+          $ref: '#/components/schemas/FeedbackSourceEnum'
+        rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+        note:
+          type: string
+          default: ''
+          maxLength: 1000
+        given_on:
+          type: string
+          format: date
+      required:
+      - given_on
+      - party
+      - rating
+      - source
+    FeedbackSourceEnum:
+      enum:
+      - call
+      - visit
+      - email
+      - meeting
+      type: string
+      description: |-
+        * `call` - Phone call
+        * `visit` - Visit
+        * `email` - E-mail
+        * `meeting` - Meeting
     Flag:
       type: object
       properties:
@@ -8971,6 +9141,14 @@ components:
         * `completed` - completed
         * `withdrawn` - withdrawn
         * `unknown` - unknown
+    PartyEnum:
+      enum:
+      - employer
+      - youth
+      type: string
+      description: |-
+        * `employer` - The employer
+        * `youth` - A young person placed there
     PasswordChange:
       type: object
       properties:

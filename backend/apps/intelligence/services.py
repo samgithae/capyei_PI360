@@ -355,6 +355,19 @@ def deactivate(*, actor, version, reason) -> RuleVersion | None:
     return fallback
 
 
+@transaction.atomic
+def mark_reviewed(*, actor, version, note="") -> RuleVersion:
+    """An approver confirms the version in force still stands, so no new version is needed just to
+    record a review. Restarts the review-due count (D-009); the rule itself does not change."""
+    v = _locked(version)
+    _need(v, RuleVersion.ACTIVE, doing="marked as reviewed")
+    before = _state(v)
+    v.reviewed_at, v.reviewed_by = timezone.now(), actor
+    v.save()
+    _record(actor, "rule_version.reviewed", v, before, reason=note.strip())
+    return v
+
+
 # ---- evaluation ------------------------------------------------------------------------------
 
 
@@ -528,12 +541,14 @@ def setting(key: str) -> int:
 
 def review_status(active, today: date, every_days: int) -> dict | None:
     """When the version in force is next due a look (D-009). Counted from the day it came into
-    force; a new version starts the count again. None when nothing is in force."""
+    force or was last marked reviewed, whichever is later; a new version starts the count again.
+    None when nothing is in force."""
     from datetime import timedelta
 
     if active is None or active.effective_from is None:
         return None
-    due_on = active.effective_from.date() + timedelta(days=every_days)
+    since = max(active.effective_from, active.reviewed_at or active.effective_from)
+    due_on = since.date() + timedelta(days=every_days)
     return {"due_on": due_on.isoformat(), "overdue": today >= due_on}
 
 

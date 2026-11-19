@@ -20,5 +20,6 @@ urlpatterns = [
     path("rules/versions/<uuid:pk>/approve", v.RuleVersionApproveView.as_view()),
     path("rules/versions/<uuid:pk>/activate", v.RuleVersionActivateView.as_view()),
     path("rules/versions/<uuid:pk>/deactivate", v.RuleVersionDeactivateView.as_view()),
+    path("rules/versions/<uuid:pk>/review", v.RuleVersionReviewView.as_view()),
     path("rules/versions/<uuid:pk>/history", v.RuleVersionHistoryView.as_view()),
 ]
