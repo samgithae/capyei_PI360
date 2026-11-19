@@ -18,7 +18,8 @@ import { FormModal } from '@/components/shared/modals';
 /** What each table's export honours. These match the keys the table's own list takes; paging and
  * sorting are never sent, because the file holds every matching row, not just the page on screen.
  * `names` says whether the file holds young people's names (company tables do not). `picker` means
- * the person chooses the fields first (Youth); the others export the columns the table shows. */
+ * the person chooses the fields first; every table offers it, and a table that sets it false would
+ * export just the columns it shows. */
 const TABLES = {
   youth: {
     filters: ['q', 'programme', 'cohort', 'county', 'status', 'archived'],
@@ -28,27 +29,27 @@ const TABLES = {
   employers: {
     filters: ['q', 'sector', 'county', 'status', 'archived'],
     names: false,
-    picker: false,
+    picker: true,
   },
   opportunities: {
     filters: ['q', 'status', 'kind', 'awaiting', 'archived'],
     names: false,
-    picker: false,
+    picker: true,
   },
   referrals: {
     filters: ['q', 'stage', 'mine'],
     names: true,
-    picker: false,
+    picker: true,
   },
   placements: {
     filters: ['q', 'pathway', 'state'],
     names: true,
-    picker: false,
+    picker: true,
   },
   followups: {
     filters: ['q', 'kind', 'state', 'mine'],
     names: true,
-    picker: false,
+    picker: true,
   },
 } as const;
 
@@ -187,8 +188,8 @@ export function ExportButton({
               />
               {hasSensitive && (
                 <p className="text-xs text-amber-800">
-                  The file will include contact, date of birth or address
-                  details. Share it only with people who need it.
+                  The file will include personal details (contact, date of birth
+                  or address). Share it only with people who need it.
                 </p>
               )}
             </>

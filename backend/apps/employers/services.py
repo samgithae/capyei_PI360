@@ -986,21 +986,50 @@ def _names(rows):
     return ", ".join(sorted(r.name for r in rows))
 
 
-def export_employers(user, params) -> list[dict]:
-    """Employers as plain rows for an export: the table's columns, no contacts or addresses."""
+def _contact_line(c) -> str:
+    who = f"{c.name} ({c.role})" if c.role else c.name
+    return ", ".join(x for x in (who, c.email, c.phone) if x)
+
+
+def export_employers(user, params, keys=None) -> list[dict]:
+    """Employers as plain rows for an export. Only the keys asked for (``None`` = all) are worked
+    out. No notes. Company contacts (name, role, email, phone) are offered as one cell each."""
+    want = lambda k: keys is None or k in keys  # noqa: E731
+    qs = filter_employers(params).order_by("name", "pk").distinct()
+    if want("contacts"):
+        qs = qs.prefetch_related("contacts")
+    found = list(qs)
+    counts: dict = {}
+    if want("opportunities") or want("open_opportunities"):
+        for emp_id, status in Opportunity.objects.filter(
+            employer_id__in=[e.pk for e in found]
+        ).values_list("employer_id", "status"):
+            c = counts.setdefault(emp_id, {"all": 0, "open": 0})
+            c["all"] += 1
+            c["open"] += status == Opportunity.OPEN
     return [
         {
             "name": e.name,
             "status": e.get_status_display(),
             "sectors": _names(e.sectors.all()),
             "counties": _names(e.counties.all()),
+            "sub_county": e.sub_county,
+            "address": e.address,
+            "website": e.website,
+            "about": e.description,
+            "opportunities": counts.get(e.pk, {}).get("all", 0),
+            "open_opportunities": counts.get(e.pk, {}).get("open", 0),
+            "contacts": "; ".join(_contact_line(c) for c in e.contacts.all())
+            if want("contacts")
+            else "",
+            "registered_on": e.created_at.date().isoformat(),
         }
-        for e in filter_employers(params).order_by("name", "pk").distinct()
+        for e in found
     ]
 
 
-def export_opportunities(user, params) -> list[dict]:
-    """Opportunities as plain rows for an export: the table's columns."""
+def export_opportunities(user, params, keys=None) -> list[dict]:
+    """Opportunities as plain rows for an export. No notes."""
     return [
         {
             "title": o.title,
@@ -1010,7 +1039,11 @@ def export_opportunities(user, params) -> list[dict]:
             "counties": _names(o.counties.all()),
             "sectors": _names(o.sectors.all()),
             "positions": o.positions,
+            "location": o.location,
+            "start_date": o.start_date.isoformat() if o.start_date else "",
             "closing_date": o.closing_date.isoformat() if o.closing_date else "",
+            "description": o.description,
+            "created_on": o.created_at.date().isoformat(),
         }
         for o in filter_opportunities(params).order_by("title", "pk").distinct()
     ]

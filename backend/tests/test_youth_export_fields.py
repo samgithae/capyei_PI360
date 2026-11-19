@@ -197,8 +197,8 @@ def test_unknown_or_empty_choices_are_refused(admin, full):
     other = Client()
     other.force_login(admin)
     resp = other.post(
-        "/api/v1/exports/table/employers", {**BODY, "fields": ["name"]}, content_type=JSON
-    )
+        "/api/v1/exports/table/employers", {**BODY, "fields": ["title"]}, content_type=JSON
+    )  # a youth field name is not an employers field
     assert resp.status_code == 409 and resp.json()["errors"][0]["code"] == "invalid"
     assert ExportLog.objects.count() == 0  # nothing was exported or logged
 
@@ -249,7 +249,8 @@ def test_field_list_endpoint_is_grouped_and_flags_sensitive_fields(admin, full, 
             "readiness", "outcomes"} <= set(groups)  # fmt: skip
     sensitive = {f["key"] for g in groups.values() for f in g["fields"] if f["sensitive"]}
     assert {"phone", "email", "date_of_birth", "ward"} <= sensitive and "name" not in sensitive
-    assert c.get("/api/v1/exports/fields/employers").status_code == 404
+    assert c.get("/api/v1/exports/fields/employers").status_code == 200
+    assert c.get("/api/v1/exports/fields/nothing").status_code == 404
     nobody = make_user("nobody", "Data steward")
     c.force_login(nobody)
     assert c.get("/api/v1/exports/fields/youth").status_code == 403

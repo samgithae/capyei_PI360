@@ -26,3 +26,12 @@ def make_user(db):
 def _production_mfa_rule(settings):
     """Dev runs (DJANGO_DEBUG=1) switch MFA off for convenience; tests check the real rule."""
     settings.AUTH_MFA_ROLES = ["Administrator"]
+
+
+@pytest.fixture(autouse=True)
+def _fresh_throttle_counters():
+    """Throttle counts live in the cache, and user ids repeat from test to test, so without this a
+    long run slowly spends one user's 600-a-minute allowance and later tests get 429."""
+    from django.core.cache import cache
+
+    cache.clear()

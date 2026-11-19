@@ -378,6 +378,15 @@ def resolve_fields(table, fields) -> list[tuple[str, str]]:
     return [(k, h) for k, h in catalogue if k in set(fields)]
 
 
+def _group(key, label, *fields) -> dict:
+    """A picker group: each field is ``(key, label)`` or ``(key, label, True)`` when sensitive."""
+    return {
+        "key": key,
+        "label": label,
+        "fields": [{"key": f[0], "label": f[1], "sensitive": len(f) > 2} for f in fields],
+    }
+
+
 PEOPLE_NOTE = (
     "Contains names. Use only for the purpose stated, keep it secure, and delete it when done."
 )
@@ -399,79 +408,158 @@ TABLES = {
         "slug": "employers",
         "filters": ("q", "sector", "county", "status", "archived"),
         "note": COMPANY_NOTE,
-        "columns": [
-            ("name", "Employer"),
-            ("status", "Status"),
-            ("sectors", "Sectors"),
-            ("counties", "Counties"),
+        "groups": lambda: [
+            _group(
+                "company",
+                "Company",
+                ("name", "Employer"),
+                ("status", "Status"),
+                ("sectors", "Sectors"),
+                ("counties", "Counties"),
+                ("registered_on", "Registered on"),
+            ),
+            _group(
+                "place",
+                "Where and online",
+                ("sub_county", "Sub-county"),
+                ("address", "Address"),
+                ("website", "Website"),
+                ("about", "About the company"),
+            ),
+            _group(
+                "hiring",
+                "Opportunities",
+                ("opportunities", "Opportunities (all)"),
+                ("open_opportunities", "Open opportunities"),
+            ),
+            _group(
+                "people",
+                "Company contacts",
+                ("contacts", "Contacts (name, role, email, phone)", True),
+            ),
         ],
-        "rows": lambda user, params: employers.export_employers(user, params),
+        "rows": lambda user, params, keys: employers.export_employers(user, params, keys),
     },
     "opportunities": {
         "label": "Opportunities",
         "slug": "opportunities",
         "filters": ("q", "status", "kind", "awaiting", "archived"),
         "note": COMPANY_NOTE,
-        "columns": [
-            ("title", "Opportunity"),
-            ("employer", "Employer"),
-            ("kind", "Type"),
-            ("status", "Status"),
-            ("counties", "Counties"),
-            ("sectors", "Sectors"),
-            ("positions", "Positions"),
-            ("closing_date", "Closing date"),
+        "groups": lambda: [
+            _group(
+                "role",
+                "The opportunity",
+                ("title", "Opportunity"),
+                ("employer", "Employer"),
+                ("kind", "Type"),
+                ("status", "Status"),
+                ("positions", "Positions"),
+                ("description", "Description"),
+            ),
+            _group(
+                "where",
+                "Where and when",
+                ("counties", "Counties"),
+                ("location", "Location"),
+                ("sectors", "Sectors"),
+                ("start_date", "Start date"),
+                ("closing_date", "Closing date"),
+                ("created_on", "Created on"),
+            ),
         ],
-        "rows": lambda user, params: employers.export_opportunities(user, params),
+        "rows": lambda user, params, keys: employers.export_opportunities(user, params, keys),
     },
     "referrals": {
         "label": "Referrals",
         "slug": "referrals",
         "filters": ("q", "stage", "mine"),
         "note": PEOPLE_NOTE,
-        "columns": [
-            ("youth", "Youth"),
-            ("opportunity", "Opportunity"),
-            ("employer", "Employer"),
-            ("stage", "Stage"),
-            ("assigned_to", "Assigned to"),
-            ("referred_at", "Referred on"),
-            ("interview_at", "Interview"),
+        "groups": lambda: [
+            _group(
+                "youth",
+                "The youth",
+                ("youth", "Youth"),
+                ("youth_gender", "Gender"),
+                ("youth_county", "County"),
+            ),
+            _group(
+                "opportunity",
+                "The opportunity",
+                ("opportunity", "Opportunity"),
+                ("opportunity_kind", "Type"),
+                ("employer", "Employer"),
+            ),
+            _group(
+                "progress",
+                "Progress",
+                ("stage", "Stage"),
+                ("reason", "Reason given"),
+                ("origin", "How it began"),
+                ("referred_at", "Referred on"),
+                ("interview_at", "Interview"),
+                ("updated_on", "Last updated"),
+            ),
+            _group("staff", "Staff", ("assigned_to", "Assigned to"), ("created_by", "Created by")),
         ],
-        "rows": lambda user, params: referrals.export_referrals(user, params),
+        "rows": lambda user, params, keys: referrals.export_referrals(user, params, keys),
     },
     "placements": {
         "label": "Placements",
         "slug": "placements",
         "filters": ("q", "pathway", "state"),
         "note": PEOPLE_NOTE,
-        "columns": [
-            ("youth", "Youth"),
-            ("employer", "Employer"),
-            ("designation", "Role"),
-            ("pathway", "Pathway"),
-            ("state", "State"),
-            ("start_date", "Start"),
-            ("end_date", "End"),
-            ("verified", "Verified"),
+        "groups": lambda: [
+            _group("youth", "The youth", ("youth", "Youth")),
+            _group(
+                "job",
+                "The placement",
+                ("employer", "Employer"),
+                ("designation", "Role"),
+                ("pathway", "Pathway"),
+                ("state", "State"),
+                ("start_date", "Start"),
+                ("end_date", "End"),
+                ("exit_reason", "Exit reason"),
+            ),
+            _group(
+                "checks",
+                "Checks",
+                ("verified", "Verified"),
+                ("verified_on", "Verified on"),
+                ("verification_source", "Verified by"),
+                ("imported", "Came from an import"),
+            ),
         ],
-        "rows": lambda user, params: casework.export_placements(user, params),
+        "rows": lambda user, params, keys: casework.export_placements(user, params, keys),
     },
     "followups": {
         "label": "Follow-ups",
         "slug": "followups",
         "filters": ("q", "kind", "state", "mine"),
         "note": PEOPLE_NOTE,
-        "columns": [
-            ("youth", "Youth"),
-            ("employer", "Employer"),
-            ("follow_up", "Follow-up"),
-            ("due_date", "Due"),
-            ("status", "Status"),
-            ("assigned_to", "Assigned to"),
-            ("next_action", "Next action"),
+        "groups": lambda: [
+            _group("youth", "The youth", ("youth", "Youth")),
+            _group(
+                "job",
+                "The placement",
+                ("employer", "Employer"),
+                ("designation", "Role"),
+                ("placement_start", "Placement start"),
+            ),
+            _group(
+                "task",
+                "The follow-up",
+                ("follow_up", "Follow-up"),
+                ("kind", "Kind"),
+                ("due_date", "Due"),
+                ("status", "Status"),
+                ("attempts", "Attempts"),
+                ("next_action", "Next action"),
+                ("next_action_date", "Next action date"),
+            ),
+            _group("staff", "Staff", ("assigned_to", "Assigned to")),
         ],
-        "rows": lambda user, params: casework.export_followups(user, params),
+        "rows": lambda user, params, keys: casework.export_followups(user, params, keys),
     },
 }
 FILTER_KEYS = tuple(dict.fromkeys(k for t in TABLES.values() for k in t["filters"]))
@@ -510,7 +598,7 @@ def _table_file(columns, rows, file_format, about) -> bytes:
 
 def export_table(*, actor, dataset, params, file_format, purpose, fields=None, now=None):
     """``(log, file bytes, file name)`` for the rows the caller sees under ``params``. ``fields``
-    chooses the columns of a table that offers a choice (Youth); ``None`` means all of them."""
+    chooses the columns; ``None`` means every field the table offers."""
     table = TABLES.get(dataset)
     if table is None:
         raise ExportError("dataset", "There is no such table to export.", "not_found")
@@ -520,16 +608,10 @@ def export_table(*, actor, dataset, params, file_format, purpose, fields=None, n
     if not purpose:
         raise ExportError("purpose", "State what the file is for.", "required")
     now = now or timezone.now()
-    chosen = None
-    if "groups" in table:
-        columns = resolve_fields(table, fields)
-        chosen = [k for k, _h in columns]
-    elif fields is not None:
-        raise ExportError("fields", "This table has no choice of fields.", "invalid")
-    else:
-        columns = table["columns"]
+    columns = resolve_fields(table, fields)
+    chosen = [k for k, _h in columns]
     try:
-        rows = table["rows"](actor, params, chosen) if chosen else table["rows"](actor, params)
+        rows = table["rows"](actor, params, chosen)
     except ValueError:  # a bad filter, from participants.FilterError or a bad id
         raise ExportError("filter", "Invalid filter value.", "invalid") from None
     if not rows:
@@ -546,23 +628,24 @@ def export_table(*, actor, dataset, params, file_format, purpose, fields=None, n
         ("Purpose", purpose),
         ("Handling", table["note"]),
     ]  # fmt: skip
-    if chosen:
-        about.insert(5, ("Fields", ", ".join(h for _k, h in columns)))
+    about.insert(5, ("Fields", ", ".join(h for _k, h in columns)))
     content = _table_file(columns, rows, file_format, about)
     name = f"pi360-{table['slug']}-{timezone.localdate(now):%Y%m%d}.{file_format}"
     with transaction.atomic():
         log = ExportLog.objects.create(
             actor=actor, actor_label=actor.get_username()[:150], dataset=dataset,
             file_format=file_format, filename=name, row_count=len(rows),
-            detail={"filters": used, "purpose": purpose, "columns": [h for _k, h in columns]}
-            | ({"fields": chosen} if chosen else {}),
+            detail={
+                "filters": used, "purpose": purpose, "columns": [h for _k, h in columns],
+                "fields": chosen,
+            },
         )  # fmt: skip
         audit.record(
             actor=actor, action="export.created", object_type="export", object_id=log.id,
             after={
                 "dataset": dataset, "format": file_format, "rows": len(rows), "filters": used,
-                "identifiable": True,
-            } | ({"fields": chosen} if chosen else {}),
+                "identifiable": True, "fields": chosen,
+            },
             reason=purpose,
         )  # fmt: skip
     return log, content, name

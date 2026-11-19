@@ -615,26 +615,40 @@ def filtered(user, params):
     return qs
 
 
-def export_referrals(user, params) -> list[dict]:
-    """Referrals as plain rows for an export: the table's columns, no notes."""
+def export_referrals(user, params, keys=None) -> list[dict]:
+    """Referrals as plain rows for an export. No notes. The youth's gender and county come from
+    the youth record the referral points at."""
     names = dict(Referral.STAGES)
+    origins = dict(Referral.ORIGINS)
+
+    def person(u):
+        return (u.get_full_name() or u.get_username()) if u else ""
+
+    def when(d, fmt):
+        return timezone.localtime(d).strftime(fmt) if d else ""
+
     return [
         {
             "youth": r.participant.full_name_source,
+            "youth_gender": r.participant.get_gender_display(),
+            "youth_county": r.participant.origin_county.name
+            if r.participant.origin_county_id
+            else "",
             "opportunity": r.opportunity.title,
+            "opportunity_kind": r.opportunity.get_kind_display(),
             "employer": r.opportunity.employer.name,
             "stage": names[r.stage],
-            "assigned_to": (r.assigned_to.get_full_name() or r.assigned_to.get_username())
-            if r.assigned_to_id
-            else "",
-            "referred_at": timezone.localtime(r.referred_at).date().isoformat()
-            if r.referred_at
-            else "",
-            "interview_at": timezone.localtime(r.interview_at).strftime("%Y-%m-%d %H:%M")
-            if r.interview_at
-            else "",
+            "reason": r.reason.name if r.reason_id else "",
+            "origin": origins.get(r.origin, r.origin),
+            "assigned_to": person(r.assigned_to),
+            "created_by": person(r.created_by),
+            "referred_at": when(r.referred_at, "%Y-%m-%d"),
+            "interview_at": when(r.interview_at, "%Y-%m-%d %H:%M"),
+            "updated_on": when(r.updated_at, "%Y-%m-%d"),
         }
-        for r in filtered(user, params).order_by("-updated_at", "pk")
+        for r in filtered(user, params)
+        .select_related("participant__origin_county")
+        .order_by("-updated_at", "pk")
     ]
 
 

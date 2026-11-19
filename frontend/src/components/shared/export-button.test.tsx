@@ -119,6 +119,7 @@ describe('ExportButton', () => {
     // `county` is an employers filter, `stage` belongs to referrals, `sort` to neither.
     show('stage=active&mine=1&county=c1&sort=name', 'referrals');
     fireEvent.click(screen.getByRole('button', { name: /export/i }));
+    await screen.findByLabelText('Phone');
     fireEvent.change(screen.getByLabelText(/what is this file for/i), {
       target: { value: 'Review' },
     });
@@ -183,12 +184,14 @@ describe('ExportButton', () => {
     expect(postFile).not.toHaveBeenCalled();
   });
 
-  it('does not offer a picker or ask for fields on other tables', async () => {
+  it('offers the same picker on the other tables, asking for that table', async () => {
     permissions = ['exports.identifiable'];
     postFile.mockResolvedValue({ blob: new Blob(['x']), filename: 'a.csv' });
     show('q=acme', 'employers');
     fireEvent.click(screen.getByRole('button', { name: /export/i }));
-    expect(screen.queryByText('Fields to include')).toBeNull();
+    await screen.findByLabelText('Phone');
+    expect(getFields).toHaveBeenCalledWith('/exports/fields/employers');
+    fireEvent.click(screen.getByLabelText('Date of birth'));
     fireEvent.change(screen.getByLabelText(/what is this file for/i), {
       target: { value: 'Review' },
     });
@@ -197,7 +200,7 @@ describe('ExportButton', () => {
     expect(postFile.mock.calls[0][1]).toEqual({
       format: 'csv',
       purpose: 'Review',
+      fields: ['name', 'phone'],
     });
-    expect(getFields).not.toHaveBeenCalled();
   });
 });

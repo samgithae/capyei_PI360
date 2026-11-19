@@ -129,8 +129,8 @@ def followup_filters(user, params) -> dict:
     }
 
 
-def export_placements(user, params) -> list[dict]:
-    """Placements as plain rows for an export: the table's columns, no notes or evidence."""
+def export_placements(user, params, keys=None) -> list[dict]:
+    """Placements as plain rows for an export. No notes or evidence files."""
     _, rows = list_placements(user, size=None, **placement_filters(params))
     return [
         {
@@ -141,7 +141,11 @@ def export_placements(user, params) -> list[dict]:
             "state": "Current" if r["current"] else "Ended" if r["end_date"] else "Not current",
             "start_date": r["start_date"] or "",
             "end_date": r["end_date"] or "",
+            "exit_reason": r["exit_reason"],
             "verified": "Yes" if r["verified"] else "No",
+            "verified_on": r["verified_on"] or "",
+            "verification_source": r["verification_source_label"],
+            "imported": "Yes" if r["imported"] else "No",
         }
         for r in rows
     ]
@@ -162,18 +166,23 @@ def youth_placements(user, participant_ids) -> dict:
     return out
 
 
-def export_followups(user, params) -> list[dict]:
-    """Follow-ups as plain rows for an export: the table's columns, no response notes."""
+def export_followups(user, params, keys=None) -> list[dict]:
+    """Follow-ups as plain rows for an export. No response notes."""
     _, rows = list_followups(user, size=None, **followup_filters(user, params))
     return [
         {
             "youth": r["participant"],
             "employer": r["employer"],
+            "designation": r["designation"],
+            "placement_start": r["placement_start"] or "",
             "follow_up": r["label"] or r["kind_label"],
+            "kind": r["kind_label"],
             "due_date": r["due_date"],
             "status": "Overdue" if r["overdue"] else r["status_label"],
             "assigned_to": r["assigned_to"] or "",
+            "attempts": r["attempts"] if r["attempts"] is not None else "",
             "next_action": r["next_action"] or "",
+            "next_action_date": r["next_action_date"] or "",
         }
         for r in rows
     ]
