@@ -1,10 +1,10 @@
 """Participant API (T-058, T-043 core): directory, profile, edit. Every query is scoped to the
 caller (SEC-06); records outside scope are 404. Contact details need participants.view_contact."""
 
+import datetime
 import uuid
 
 from django.db import transaction
-from django.db.models import Q
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers
@@ -18,7 +18,7 @@ from apps.api.pagination import page_size_of
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
-from . import services
+from . import services, similar
 from .models import (
     Participant,
     ParticipantContact,
@@ -201,28 +201,33 @@ class ParticipantCreateSerializer(serializers.Serializer):
 
 
 class NameCheckView(APIView):
-    """Similar names already in the caller's scope, so a duplicate is noticed before saving."""
+    """Who already looks like this youth, so a duplicate is noticed before saving (T-055).
+    Names are compared loosely; a phone number or date of birth sharpens the match. It only
+    warns: the caller decides whether to go ahead."""
 
     permission_classes = [HasPermission]
     required_permission = {"GET": EDIT}
 
     @extend_schema(
         operation_id="participants_check_name",
-        parameters=[OpenApiParameter("name", str)],
+        parameters=[
+            OpenApiParameter("name", str),
+            OpenApiParameter("phone", str),
+            OpenApiParameter("dob", str),
+        ],
         responses={200: dict},
     )
     def get(self, request):
-        name = request.query_params.get("name", "").strip()
-        if len(name) < 3:
-            return Response({"matches": []})
-        qs = _visible(request).filter(full_name_source__iexact=name)[:5]
-        return Response(
-            {
-                "matches": [
-                    {"id": str(p.pk), "name": p.full_name_source, "status": p.status} for p in qs
-                ]
-            }
+        g = request.query_params
+        phone = g.get("phone", "") if has_permission(request.user, CONTACT) else ""
+        try:
+            dob = datetime.date.fromisoformat(g["dob"]) if g.get("dob") else None
+        except ValueError:
+            dob = None
+        matches = similar.similar_to(
+            name=g.get("name", ""), scope=_visible(request), phone=phone, birth_date=dob
         )
+        return Response({"matches": matches})
 
 
 class ParticipantListView(APIView):
@@ -275,10 +280,9 @@ class ParticipantListView(APIView):
             raise serializers.ValidationError({"filter": ["Invalid filter value."]}) from None
         if g.get("status") in {s for s, _ in Participant.STATUSES}:
             qs = qs.filter(status=g["status"])
+        fuzzy = False
         if q := g.get("q", "").strip():
-            qs = qs.filter(
-                Q(full_name_source__icontains=q) | Q(enrollments__source_enrollment_no__icontains=q)
-            )
+            qs, fuzzy = similar.search(qs, q)
         qs = qs.distinct().order_by("full_name_source", "pk")
         size = page_size_of(g)
         try:
@@ -289,7 +293,12 @@ class ParticipantListView(APIView):
             "enrollments__programme", "enrollments__cohort_course__cohort"
         )[offset : offset + size]
         return Response(
-            {"total": qs.count(), "page_size": size, "results": [_summary(p) for p in page]}
+            {
+                "total": qs.count(),
+                "page_size": size,
+                "similar_names": fuzzy,
+                "results": [_summary(p) for p in page],
+            }
         )
 
 

@@ -20,6 +20,7 @@ import {
   type CapabilityDraft,
   type CapabilityOptions,
 } from './capability-fields';
+import { DuplicateWarning, type SimilarMatch } from './duplicate-warning';
 
 interface Option {
   id: string;
@@ -28,11 +29,6 @@ interface Option {
 interface Filters {
   cohorts: Option[];
   counties: Option[];
-}
-interface Match {
-  id: string;
-  name: string;
-  status: string;
 }
 interface ExtraRow {
   label: string;
@@ -116,8 +112,10 @@ export function AddYouth() {
   const [extras, setExtras] = useState<ExtraRow[]>(freshExtras);
   const [capability, setCapability] = useState<CapabilityDraft>(emptyDraft);
   const [error, setError] = useState('');
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [matches, setMatches] = useState<SimilarMatch[]>([]);
+  const [seen, setSeen] = useState<string[]>([]);
   const [confirmed, setConfirmed] = useState(false);
+  const [reviewed, setReviewed] = useState(false);
   const set = (k: keyof Values, val: string) =>
     setV((p) => ({ ...p, [k]: val }));
   const text = (
@@ -170,7 +168,9 @@ export function AddYouth() {
     setStep(0);
     setError('');
     setMatches([]);
+    setSeen([]);
     setConfirmed(false);
+    setReviewed(false);
   };
 
   const fullName = [v.first, v.middle, v.last]
@@ -237,6 +237,40 @@ export function AddYouth() {
     },
   });
 
+  /** Who already looks like this youth. A courtesy: if the lookup fails, saving still validates. */
+  const lookalikes = async (name: string, more = '') => {
+    try {
+      const found = await api<{ matches: SimilarMatch[] }>(
+        `/participants/check-name?name=${encodeURIComponent(name)}${more}`,
+      );
+      return found.matches;
+    } catch {
+      return [];
+    }
+  };
+
+  /** Last look before saving, now that the phone and date of birth are known too. People the
+   * user already waved through on the first step are not shown again. */
+  const submit = async () => {
+    setError('');
+    const extra = [
+      canContact && v.phone.trim()
+        ? `&phone=${encodeURIComponent(v.phone.trim())}`
+        : '',
+      v.dob ? `&dob=${encodeURIComponent(v.dob)}` : '',
+    ].join('');
+    if (extra && !reviewed) {
+      const fresh = (await lookalikes(fullName, extra)).filter(
+        (m) => !seen.includes(m.id),
+      );
+      if (fresh.length) {
+        setMatches(fresh);
+        return;
+      }
+    }
+    create.mutate();
+  };
+
   /** Checks that must pass before leaving a step. */
   const next = async () => {
     setError('');
@@ -244,16 +278,10 @@ export function AddYouth() {
       if (!v.first.trim() || !v.last.trim())
         return setError('First name and last name are required.');
       if (!confirmed) {
-        try {
-          const found = await api<{ matches: Match[] }>(
-            `/participants/check-name?name=${encodeURIComponent(fullName)}`,
-          );
-          if (found.matches.length) {
-            setMatches(found.matches);
-            return;
-          }
-        } catch {
-          /* a courtesy check; saving still validates */
+        const found = await lookalikes(fullName);
+        if (found.length) {
+          setMatches(found);
+          return;
         }
       }
     }
@@ -357,24 +385,16 @@ export function AddYouth() {
                   ),
                 )}
               </div>
-              {matches.length > 0 && (
-                <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
-                  Someone with this name is already in the directory:{' '}
-                  {matches.map((m) => `${m.name} (${m.status})`).join(', ')}. If
-                  this is a different person,{' '}
-                  <button
-                    type="button"
-                    className="font-medium underline"
-                    onClick={() => {
-                      setConfirmed(true);
-                      setMatches([]);
-                      setStep(1);
-                    }}
-                  >
-                    continue anyway
-                  </button>
-                  .
-                </div>
+              {step === 0 && (
+                <DuplicateWarning
+                  matches={matches}
+                  onContinue={() => {
+                    setSeen((x) => [...x, ...matches.map((m) => m.id)]);
+                    setConfirmed(true);
+                    setMatches([]);
+                    setStep(1);
+                  }}
+                />
               )}
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Gender">
@@ -617,6 +637,18 @@ export function AddYouth() {
             </dl>
           )}
 
+          {step === LAST && (
+            <DuplicateWarning
+              matches={matches}
+              continueLabel="add anyway"
+              onContinue={() => {
+                setReviewed(true);
+                setMatches([]);
+                create.mutate();
+              }}
+            />
+          )}
+
           {error && (
             <p role="alert" className="text-sm text-destructive">
               {error}
@@ -626,7 +658,11 @@ export function AddYouth() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => (step === 0 ? setOpen(false) : setStep(step - 1))}
+              onClick={() => {
+                setMatches([]);
+                if (step === 0) setOpen(false);
+                else setStep(step - 1);
+              }}
             >
               {step === 0 ? 'Cancel' : 'Back'}
             </Button>
@@ -638,7 +674,7 @@ export function AddYouth() {
               <Button
                 type="button"
                 disabled={create.isPending}
-                onClick={() => create.mutate()}
+                onClick={() => void submit()}
               >
                 {create.isPending ? 'Saving...' : 'Add youth'}
               </Button>

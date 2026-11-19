@@ -5154,11 +5154,21 @@ paths:
   /api/v1/participants/check-name:
     get:
       operationId: participants_check_name
-      description: Similar names already in the caller's scope, so a duplicate is
-        noticed before saving.
+      description: |-
+        Who already looks like this youth, so a duplicate is noticed before saving (T-055).
+        Names are compared loosely; a phone number or date of birth sharpens the match. It only
+        warns: the caller decides whether to go ahead.
       parameters:
       - in: query
+        name: dob
+        schema:
+          type: string
+      - in: query
         name: name
+        schema:
+          type: string
+      - in: query
+        name: phone
         schema:
           type: string
       tags:

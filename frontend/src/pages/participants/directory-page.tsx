@@ -46,6 +46,7 @@ interface Row {
 interface Page {
   total: number;
   page_size: number;
+  similar_names?: boolean;
   results: Row[];
 }
 interface Option {
@@ -212,6 +213,14 @@ export function DirectoryPage() {
           <div className="p-5">
             <LoadingState />
           </div>
+        )}
+        {data?.similar_names && (
+          <p
+            role="status"
+            className="border-b px-5 py-2 text-sm text-muted-foreground"
+          >
+            No exact match for “{params.get('q')}”. Showing similar names.
+          </p>
         )}
         {data && data.results.length > 0 && (
           <BulkBar

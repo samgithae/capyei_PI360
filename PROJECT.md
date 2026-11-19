@@ -31,7 +31,8 @@ the import, directory and admin tooling. Pushed `main` is at `github.com/samgith
 | Rules > Settings: admin-editable numbers (defaults in code, changes audited) behind A and C | Built, uncommitted; values are placeholders until D-013, D-028 | T-063, T-067 |
 | **Programme dashboard** at `/`: KPI tiles, funnel, gender and placement, referral pipeline, monthly trend, age, county, needs-attention list, metric definitions; every number opens the list of records it counts (`/dashboard/list`) | Built, uncommitted; P0 and part of P1. Definitions marked "working" await CAP-YEI approval. Retention, training completion, skills demand, predictive, staff productivity not built | T-069, T-070 |
 | Case management (`/cases`) and placements (`/placements`): interventions, queues, verification, placement episodes | Committed locally (542a16a, not pushed) | T-064, T-065 |
-| Follow-up scheduling (`/followups`, Administration > Follow-up schedule): configurable steps, check-ins made when a placement with a start date is recorded or verified, attempts, response and evidence, next action. A schedule change affects new placements only | Built, uncommitted. Default intervals (30 d, 90 d, 6/12/24 months) await D-012; early window awaits D-028 | T-066 |
+| Follow-up scheduling (`/followups`, Administration > Follow-up schedule): configurable steps, check-ins made when a placement with a start date is recorded or verified, attempts, response and evidence, next action. A schedule change affects new placements only | Built and pushed (`9b797c5`). Default intervals (30 d, 90 d, 6/12/24 months) await D-012; early window awaits D-028 | T-066 |
+| Search and duplicate warnings: Add youth warns of likely duplicates (same name, reordered words, small spelling difference; phone and birth date sharpen it, never shown) at the name step and again at Review; the directory search takes words in any order, enrollment numbers and source IDs, and falls back to near-spellings. Portable matching, no `pg_trgm` index yet | Built, uncommitted. Thresholds in `participants/similar.py` are proposals pending D-004 | T-055 |
 | De-identified exports | Not started (M3) | T-071 |
 
 **Built, not yet committed (working tree, 2026-11-12):** the Module A/B/C rows above; the rules
@@ -105,7 +106,7 @@ and `reporting/drilldown`. Placed = a placement mapped as placed, or a referral 
 1. **T-050 gaps**: Playwright e2e, axe checks, synthetic data generator (not started). T-051 QA run once: see `docs/m2-review.md`.
 2. **T-052 M2 review**: `docs/m2-review.md` written; awaiting product owner sign-off.
 3. Then M3 (I05): T-064 interventions/case queues, T-065 placements and employment episodes,
-   T-054/T-055 consent and duplicate warnings. The interim forms of T-060 (Module B), T-063
+   T-054 consent fields (blocked on D-015); T-055 duplicate warnings is built. The interim forms of T-060 (Module B), T-063
    (Module A) and T-067 (Module C) are built; their final scoring waits for the decisions below.
 4. **Decisions that unblock the rest:** D-009 (weights and who approves), D-013 and D-028
    (support and employer numbers; placeholders live in Rules > Settings), D-026 (what counts as a
