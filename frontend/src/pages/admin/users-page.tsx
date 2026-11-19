@@ -283,7 +283,9 @@ function CreateUser({ roles }: { roles: Role[] }) {
           className="w-48"
           value={form.role}
           emptyLabel="No role yet"
-          options={roles.filter((r) => r.active)}
+          options={roles
+            .filter((r) => r.active)
+            .map((r) => ({ id: String(r.id), name: r.name }))}
           onChange={(x) => setForm({ ...form, role: x })}
         />
       )}

@@ -124,6 +124,7 @@ function Stat({
           </div>
           {meter !== undefined && (
             <Progress
+              aria-label={label}
               value={Math.min(100, meter ?? 0)}
               className="h-1.5"
               indicatorClassName={c.bar}
@@ -160,6 +161,7 @@ function Bars({
             </Link>
           </div>
           <Progress
+            aria-label={r.label}
             value={(100 * r.count) / top}
             className="h-2"
             indicatorClassName={TONE[tone].bar}
@@ -427,15 +429,18 @@ export function OverviewPage() {
                   description="Registered youth by gender"
                 >
                   <div className="p-5">
+                    {/* The list below gives the same numbers in words, so the ring is decoration. */}
                     <ChartContainer
+                      aria-hidden="true"
                       config={genderConfig}
                       className="mx-auto aspect-square h-52"
                     >
-                      <PieChart>
+                      <PieChart accessibilityLayer={false}>
                         <ChartTooltip
                           content={<ChartTooltipContent hideLabel />}
                         />
                         <Pie
+                          rootTabIndex={-1}
                           data={d.gender}
                           dataKey="count"
                           nameKey="label"

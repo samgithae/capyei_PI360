@@ -138,7 +138,6 @@ function AccordionMenu({
             setNestedStates((prev) => ({ ...prev, root: value }))
           }
           {...props}
-          role="menu"
         >
           {children}
         </AccordionPrimitive.Root>
@@ -151,7 +150,6 @@ function AccordionMenu({
             setNestedStates((prev) => ({ ...prev, root: value }))
           }
           {...props}
-          role="menu"
         >
           {children}
         </AccordionPrimitive.Root>
@@ -238,56 +236,48 @@ const itemVariants = cva(
   },
 );
 
+/**
+ * A link row in the menu. It is a plain element holding the link, not an accordion trigger: a
+ * trigger is a button, and a link inside a button is a nested control that assistive technology
+ * cannot reach reliably (and a trigger points at content that a link does not have). Clicking the
+ * padding around the link still follows it.
+ */
 function AccordionMenuItem({
   className,
   children,
   variant,
-  asChild,
+  value,
   onClick,
-  ...props
-}: React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item> &
+}: Pick<React.ComponentPropsWithoutRef<'div'>, 'className' | 'children'> &
   VariantProps<typeof itemVariants> & {
+    value?: string;
     onClick?: React.MouseEventHandler<HTMLElement>;
   }) {
   const { classNames, selectedValue, matchPath, onItemClick } =
     React.useContext(AccordionMenuContext);
   return (
-    <AccordionPrimitive.Item className="flex" {...props}>
-      <AccordionPrimitive.Header className="flex w-full">
-        <AccordionPrimitive.Trigger
-          asChild={asChild}
-          data-slot="accordion-menu-item"
-          className={cn(itemVariants({ variant }), classNames?.item, className)}
-          onClick={(e) => {
-            if (onItemClick) {
-              onItemClick(props.value, e);
-            }
-
-            if (onClick) {
-              onClick(e);
-            }
-            e.preventDefault();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              const target = e.currentTarget as HTMLElement;
-              const firstChild = target.firstElementChild as HTMLElement | null;
-              if (firstChild) {
-                firstChild.click();
-              }
-            }
-          }}
-          data-selected={
-            matchPath(props.value as string) || selectedValue === props.value
-              ? 'true'
-              : undefined
-          }
-        >
-          {children}
-        </AccordionPrimitive.Trigger>
-      </AccordionPrimitive.Header>
-    </AccordionPrimitive.Item>
+    <div
+      data-slot="accordion-menu-item"
+      className={cn(itemVariants({ variant }), classNames?.item, className)}
+      onClick={(e) => {
+        if (onItemClick) {
+          onItemClick(value ?? '', e);
+        }
+        if (onClick) {
+          onClick(e);
+        }
+        if (e.target === e.currentTarget) {
+          e.currentTarget.querySelector('a')?.click();
+        }
+      }}
+      data-selected={
+        matchPath(value as string) || selectedValue === value
+          ? 'true'
+          : undefined
+      }
+    >
+      {children}
+    </div>
   );
 }
 
@@ -397,7 +387,6 @@ function AccordionMenuSubContent({
           className={cn('w-full py-0.5', classNames?.subWrapper)}
           type="multiple"
           value={currentValue as string[]}
-          role="menu"
           data-slot="accordion-menu-sub-wrapper"
           onValueChange={(value: string | string[]) => {
             const newValue = Array.isArray(value) ? value : [value];
@@ -412,7 +401,6 @@ function AccordionMenuSubContent({
           type="single"
           collapsible={collapsible}
           value={currentValue as string}
-          role="menu"
           data-slot="accordion-menu-sub-wrapper"
           onValueChange={(value: string | string[]) =>
             setNestedStates((prev) => ({ ...prev, [parentValue]: value }))

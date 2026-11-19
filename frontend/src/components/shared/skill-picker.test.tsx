@@ -240,9 +240,15 @@ describe('skill picker', () => {
   it('stops a look-alike twin: shows similar skills and adds only when confirmed', async () => {
     const { ApiError } = await import('@/lib/api');
     post.mockRejectedValueOnce(
-      new ApiError(409, 'Similar', [{ code: 'similar' }], '', {
-        similar: [row('t0', 'Welding')],
-      }),
+      new ApiError(
+        409,
+        'Similar',
+        [{ field: '', message: 'Similar', code: 'similar' }],
+        '',
+        {
+          similar: [row('t0', 'Welding')],
+        },
+      ),
     );
     post.mockResolvedValueOnce(row('n2', 'Weld repair', 'Trades'));
     setup();
@@ -266,9 +272,15 @@ describe('skill picker', () => {
   it('uses the existing skill instead of making a duplicate', async () => {
     const { ApiError } = await import('@/lib/api');
     post.mockRejectedValueOnce(
-      new ApiError(409, 'Exists', [{ code: 'exists' }], '', {
-        existing: row('t0', 'Welding'),
-      }),
+      new ApiError(
+        409,
+        'Exists',
+        [{ field: '', message: 'Exists', code: 'exists' }],
+        '',
+        {
+          existing: row('t0', 'Welding'),
+        },
+      ),
     );
     setup();
     search('welding!');

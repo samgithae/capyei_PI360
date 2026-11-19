@@ -55,7 +55,10 @@ const RECORDS = {
     },
   ],
 };
-const CORRECTION = {
+const CORRECTION: {
+  conflict: { value: string; batch: string; at: string } | null;
+  [key: string]: unknown;
+} = {
   id: 'c1',
   participant: { id: 'p1', name: 'Ann Wanjiru' },
   field_label: 'County',

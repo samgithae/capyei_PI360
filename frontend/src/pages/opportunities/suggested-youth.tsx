@@ -146,7 +146,7 @@ export function SuggestedYouth({
       {q.isPending ? (
         <LoadingState rows={3} />
       ) : q.isError ? (
-        <ErrorState onRetry={() => void q.refetch()} />
+        <ErrorState error={q.error} onRetry={() => void q.refetch()} />
       ) : !q.data.available ? (
         <p className="text-sm text-muted-foreground">{q.data.reason}</p>
       ) : (

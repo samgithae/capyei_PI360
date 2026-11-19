@@ -112,17 +112,16 @@ export function Header() {
         <div className="ms-auto flex items-center gap-3 text-sm">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="gap-2 px-2 max-sm:min-w-11"
-                aria-label="Account menu"
-              >
-                <Avatar className="size-8 ring-2 ring-primary/15">
+              <Button variant="ghost" className="gap-2 px-2 max-sm:min-w-11">
+                <Avatar
+                  aria-hidden="true"
+                  className="size-8 ring-2 ring-primary/15"
+                >
                   <AvatarFallback className="bg-primary/10 text-xs font-medium uppercase text-primary">
                     {me?.username?.slice(0, 2)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden sm:inline text-foreground">
+                <span className="text-foreground max-sm:sr-only">
                   {me?.username}
                 </span>
               </Button>

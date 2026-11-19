@@ -57,7 +57,15 @@ describe('Choose skills on the youth CV editor', () => {
       <SkillsCard
         endpoint="/youth/skills"
         profile={profile([
-          { id: 'row1', skill_id: 's1', skill: 'Welding', proficiency: 3 },
+          {
+            id: 'row1',
+            skill_id: 's1',
+            skill: 'Welding',
+            proficiency: 3,
+            source: 'youth',
+            verified: false,
+            verified_by: '',
+          },
         ])}
         save={{ mutate, isError: false, isPending: false } as never}
       />,

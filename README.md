@@ -40,6 +40,20 @@ cd backend && uv run ruff check . && uv run lint-imports && uv run pytest
 cd frontend && npm run lint && npm run build
 ```
 
+End-to-end tests and accessibility checks (Playwright and axe) drive a real browser against a real
+API on their own ports (8020 and 5190) with a throwaway SQLite database seeded from
+`backend/scripts/seed_dev.py`, so they never touch your dev database. They need Google Chrome
+locally (CI installs Chromium):
+
+```bash
+cd frontend && npm run e2e                 # everything
+npx playwright test accessibility.e2e.ts   # just the axe scans
+npm run typecheck:e2e
+```
+
+A scan fails on serious or critical WCAG 2 A/AA findings and prints the smaller ones. On failure
+Playwright keeps a trace and screenshot in `frontend/test-results/`.
+
 After changing an API, regenerate the committed schema (CI fails if it is stale):
 
 ```bash

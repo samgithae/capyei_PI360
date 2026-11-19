@@ -38,7 +38,7 @@ export function SidebarMenu() {
     root: 'lg:ps-1 space-y-3',
     group: 'gap-px',
     label:
-      'uppercase text-[11px] tracking-wide font-semibold text-muted-foreground/70 pt-3 pb-1',
+      'uppercase text-[11px] tracking-wide font-semibold text-muted-foreground pt-3 pb-1',
     separator: '',
     item: 'h-9 max-lg:h-11 rounded-md text-accent-foreground hover:bg-muted hover:text-foreground data-[selected=true]:text-primary data-[selected=true]:bg-primary/10 data-[selected=true]:font-medium',
     sub: '',
@@ -214,15 +214,17 @@ export function SidebarMenu() {
 
   return (
     <ScrollArea className="flex grow shrink-0 py-5 px-5 lg:h-[calc(100vh-5.5rem)]">
-      <AccordionMenu
-        selectedValue={pathname}
-        matchPath={matchPath}
-        type="single"
-        collapsible
-        classNames={classNames}
-      >
-        {buildMenu(filterMenu(MENU_SIDEBAR, can))}
-      </AccordionMenu>
+      <nav aria-label="Main">
+        <AccordionMenu
+          selectedValue={pathname}
+          matchPath={matchPath}
+          type="single"
+          collapsible
+          classNames={classNames}
+        >
+          {buildMenu(filterMenu(MENU_SIDEBAR, can))}
+        </AccordionMenu>
+      </nav>
     </ScrollArea>
   );
 }

@@ -30,9 +30,9 @@ Run on 2026-11-12 against `main` plus the geography change:
   Changamwe → 5 wards cascade in the Add youth wizard.
 
 Gaps against T-050 (test framework), honestly stated: pytest, factories-style seeders, the
-authorisation matrix harness and the dev synthetic data exist. **Not yet in place:** Playwright
-end-to-end tests, automated axe accessibility checks, and a synthetic data generator covering all
-entities. Not manually tested: dark mode, mobile layout, the add/edit/retire round trip on every
+authorisation matrix harness and the dev synthetic data exist. Playwright end-to-end tests and
+axe accessibility scans were added afterwards (`npm run e2e`, a CI job). A full synthetic data
+generator was dropped by decision: testing is manual on the seeded dev data. Not manually tested: dark mode, mobile layout, the add/edit/retire round trip on every
 new reference page, restoring an employer whose name now duplicates a live one.
 
 ## 3. Decisions and RAID
