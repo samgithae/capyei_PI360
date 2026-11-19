@@ -4870,6 +4870,43 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/{id}/consent:
+    put:
+      operationId: participants_consent_record
+      description: |-
+        Record a youth's privacy-notice consent status (T-054). Needs participants.edit, and the
+        ``consent_tracking`` setting must be on: with it off the route does not exist (404).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Consent'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Consent'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Consent'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/{id}/contacts:
     put:
       operationId: participants_contacts_replace
@@ -7949,11 +7986,29 @@ components:
     Consent:
       type: object
       properties:
-        version:
+        status:
+          $ref: '#/components/schemas/ConsentStatusEnum'
+        notice_version:
           type: string
-          maxLength: 20
+          default: ''
+          maxLength: 40
+        recorded_on:
+          type: string
+          format: date
       required:
-      - version
+      - status
+    ConsentStatusEnum:
+      enum:
+      - not_recorded
+      - given
+      - declined
+      - withdrawn
+      type: string
+      description: |-
+        * `not_recorded` - Not recorded
+        * `given` - Given
+        * `declined` - Declined
+        * `withdrawn` - Withdrawn
     Contact:
       type: object
       properties:

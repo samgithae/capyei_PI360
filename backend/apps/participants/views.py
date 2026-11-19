@@ -37,9 +37,9 @@ def _visible(request, archived=False):
 current_age = services.current_age
 
 
-def _summary(p):
+def _summary(p, consent=False):
     enrollments = list(p.enrollments.all())
-    return {
+    out = {
         "id": str(p.pk),
         "name": p.full_name_source,
         "gender": p.gender,
@@ -50,10 +50,14 @@ def _summary(p):
         "programmes": sorted({e.programme.name for e in enrollments}),
         "cohorts": sorted({e.cohort_course.cohort.name for e in enrollments}),
     }
+    if consent:  # only while the consent setting is on
+        out["consent"] = p.consent_status
+    return out
 
 
 def _detail(p, user):
-    out = _summary(p)
+    on = services.consent_enabled()
+    out = _summary(p, on)
     out.update(
         county_id=str(p.origin_county_id) if p.origin_county_id else "",
         given_name=p.given_name,
@@ -98,6 +102,13 @@ def _detail(p, user):
         out["contacts"] = [
             {"kind": c.kind, "value": c.value, "primary": c.is_primary} for c in p.contacts.all()
         ]
+    if on:
+        out["consent"] = {
+            "status": p.consent_status,
+            "label": p.get_consent_status_display(),
+            "notice_version": p.consent_notice_version,
+            "recorded_on": p.consent_recorded_on.isoformat() if p.consent_recorded_on else None,
+        }
     return out
 
 
@@ -274,12 +285,13 @@ class ParticipantListView(APIView):
         page = qs.select_related("origin_county").prefetch_related(
             "enrollments__programme", "enrollments__cohort_course__cohort"
         )[offset : offset + size]
+        consent = services.consent_enabled()
         return Response(
             {
                 "total": qs.count(),
                 "page_size": size,
                 "similar_names": fuzzy,
-                "results": [_summary(p) for p in page],
+                "results": [_summary(p, consent) for p in page],
             }
         )
 
@@ -538,6 +550,69 @@ class ParticipantContactsSerializer(serializers.Serializer):
             if sum(1 for r in rows if r["kind"] == kind and r["primary"]) > 1:
                 raise serializers.ValidationError(f"Only one primary {kind} is allowed.")
         return rows
+
+
+class ConsentSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=Participant.CONSENTS)
+    notice_version = serializers.CharField(max_length=40, allow_blank=True, default="")
+    recorded_on = serializers.DateField(required=False)
+
+    def validate(self, attrs):
+        if attrs["status"] == Participant.CONSENT_NOT_RECORDED:
+            return {"status": attrs["status"], "notice_version": "", "recorded_on": None}
+        version = attrs["notice_version"].strip()
+        if not version:
+            raise serializers.ValidationError({"notice_version": ["Say which notice version."]})
+        on = attrs.get("recorded_on") or timezone.localdate()
+        if on > timezone.localdate():
+            raise serializers.ValidationError(
+                {"recorded_on": ["The date cannot be in the future."]}
+            )
+        return {"status": attrs["status"], "notice_version": version, "recorded_on": on}
+
+
+class ConsentView(APIView):
+    """Record a youth's privacy-notice consent status (T-054). Needs participants.edit, and the
+    ``consent_tracking`` setting must be on: with it off the route does not exist (404)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"PUT": EDIT}
+
+    @extend_schema(
+        operation_id="participants_consent_record", request=ConsentSerializer, responses={200: dict}
+    )
+    def put(self, request, pk):
+        if not services.consent_enabled():
+            raise NotFound
+        try:
+            p = _visible(request, archived=None).get(pk=pk)
+        except Participant.DoesNotExist:
+            raise NotFound from None
+        s = ConsentSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+
+        def snap():
+            return {
+                "status": p.consent_status,
+                "notice_version": p.consent_notice_version,
+                "recorded_on": p.consent_recorded_on.isoformat() if p.consent_recorded_on else None,
+            }
+
+        before = snap()
+        p.consent_status = d["status"]
+        p.consent_notice_version = d["notice_version"]
+        p.consent_recorded_on = d["recorded_on"]
+        p.save()
+        audit.record(
+            actor=request.user,
+            action="participant.consent_recorded",
+            object_type="participant",
+            object_id=p.pk,
+            before=before,
+            after=snap(),
+        )
+        return Response(_detail(p, request.user))
 
 
 class ContactsView(APIView):

@@ -22,6 +22,7 @@ urlpatterns = [
     path("participants/corrections", dq.CorrectionListView.as_view()),
     path("participants/corrections/<uuid:pk>/resolve", dq.CorrectionResolveView.as_view()),
     path("participants/<uuid:pk>/contacts", v.ContactsView.as_view()),
+    path("participants/<uuid:pk>/consent", v.ConsentView.as_view()),
     path("participants/skills", sk.StaffSearch.as_view()),
     path("participants/skills/categories", sk.StaffCategories.as_view()),
     path("participants/skills/popular", sk.StaffPopular.as_view()),

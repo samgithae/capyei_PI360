@@ -11,6 +11,7 @@ import {
 import { DataCard, ParticipantStatus } from '@/components/data-card';
 import { InviteCard } from '../invite-card';
 import { ActivityFeed } from './activity';
+import { ConsentCard } from './consent-card';
 import { useParticipantReferrals } from './queries';
 import type { Detail } from './types';
 
@@ -85,6 +86,8 @@ export function AccountTab({ p }: { p: Detail }) {
           )}
         </CardContent>
       </Card>
+
+      {p.consent && <ConsentCard p={p} consent={p.consent} />}
 
       {p.contacts && (
         <Card>

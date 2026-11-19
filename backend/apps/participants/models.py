@@ -45,6 +45,18 @@ class Participant(models.Model):
         "configuration.County", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
     status = models.CharField(max_length=10, choices=STATUSES, default=UNKNOWN)
+    # Privacy notice and consent (T-054). The statuses and wording are provisional until CAP-YEI's
+    # data protection lead decides D-015; the MIS carries none of this, so imports start unrecorded.
+    CONSENT_NOT_RECORDED, CONSENT_GIVEN = "not_recorded", "given"
+    CONSENTS = [
+        (CONSENT_NOT_RECORDED, "Not recorded"),
+        (CONSENT_GIVEN, "Given"),
+        ("declined", "Declined"),
+        ("withdrawn", "Withdrawn"),
+    ]
+    consent_status = models.CharField(max_length=12, choices=CONSENTS, default=CONSENT_NOT_RECORDED)
+    consent_notice_version = models.CharField(max_length=40, blank=True)
+    consent_recorded_on = models.DateField(null=True, blank=True)
     assigned_officer = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )

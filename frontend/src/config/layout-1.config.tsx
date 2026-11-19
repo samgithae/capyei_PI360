@@ -183,6 +183,11 @@ export const MENU_SIDEBAR: MenuConfig = [
         permission: 'config.view',
       },
       {
+        title: 'Youth records',
+        path: '/administration/youth-settings',
+        permission: 'config.view',
+      },
+      {
         title: 'Programmes',
         path: '/administration/programmes',
         permission: 'config.view',

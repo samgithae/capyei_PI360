@@ -18,6 +18,13 @@ export interface Detail {
   gender: string;
   age: number | null;
   status: string;
+  /** Present only while the consent setting is on. */
+  consent?: {
+    status: string;
+    label: string;
+    notice_version: string;
+    recorded_on: string | null;
+  };
   county: string;
   given_name?: string;
   family_name?: string;

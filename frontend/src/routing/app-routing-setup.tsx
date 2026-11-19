@@ -2,7 +2,10 @@ import { useAuth } from '@/auth/auth-context';
 import { RequireAuth, RequirePermission } from '@/auth/guards';
 import { AccountPage } from '@/pages/account/account-page';
 import { AccessGrantsPage } from '@/pages/admin/access-grants-page';
-import { PortalSettingsPage } from '@/pages/admin/portal-settings-page';
+import {
+  PortalSettingsPage,
+  YouthSettingsPage,
+} from '@/pages/admin/portal-settings-page';
 import { REFERENCE_KINDS, ReferencePage } from '@/pages/admin/reference-page';
 import { UsersPage } from '@/pages/admin/users-page';
 import { CasePage } from '@/pages/cases/case-page';
@@ -220,6 +223,10 @@ export function AppRoutingSetup() {
             <Route
               path="/administration/employer-portal"
               element={<PortalSettingsPage />}
+            />
+            <Route
+              path="/administration/youth-settings"
+              element={<YouthSettingsPage />}
             />
           </Route>
           <Route element={<RequirePermission permission="retention.view" />}>

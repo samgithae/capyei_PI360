@@ -184,6 +184,25 @@ export const STAFF_GUIDES: Guide[] = [
     updated: '2026-11',
   },
   {
+    slug: 'record-youth-consent',
+    title: 'Record a youth’s privacy notice and consent',
+    summary:
+      'Note which privacy notice a youth was shown and whether they agreed, and spot youth with no consent recorded.',
+    group: 'Youth',
+    needs: ['participants.edit'],
+    to: { path: '/youth', label: 'Open Youth' },
+    steps: [
+      'This is off until an administrator turns it on, under Administration, Youth records, Record privacy notice and consent. While it is off you will not see the consent card, the No consent badge or the consent export fields. Anything already recorded is kept.',
+      'Open a youth and go to the Programme & Account tab. The Privacy notice and consent card shows the status, the notice version and the date.',
+      'Choose Record consent. Pick Given, Declined or Withdrawn, type the version of the privacy notice the youth was shown, and set the date (it is today if you leave it empty). Choose Not recorded to clear an entry made by mistake.',
+      'Youth with no consent recorded show a No consent badge in the Youth list. Imported youth start this way, because the MIS does not hold consent.',
+      'Consent status, notice version and date are also fields you can tick when you export the youth list, so the file shows who is missing consent.',
+    ],
+    why: 'The programme needs to show that young people were told how their data is used. This only flags missing consent: nothing is blocked, and the statuses and wording are provisional until the CAP-YEI data protection lead decides.',
+    related: ['export-youth-list', 'fix-data-quality'],
+    updated: '2026-11',
+  },
+  {
     slug: 'youth-workspace',
     title: 'Find your way around a youth’s page',
     summary: 'The header and the six tabs on a youth’s profile.',

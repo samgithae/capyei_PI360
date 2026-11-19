@@ -16,8 +16,14 @@ interface Flag {
   enabled: boolean;
 }
 
+interface Text {
+  title: string;
+  on: string;
+  off: string;
+}
+
 /** The two switches that shape the employer portal. Both start off. */
-const PORTAL: Record<string, { title: string; on: string; off: string }> = {
+const PORTAL: Record<string, Text> = {
   employer_self_publish: {
     title: 'Employers publish their own opportunities',
     on: 'On: an employer opens an opportunity straight away. Staff are not asked.',
@@ -30,7 +36,27 @@ const PORTAL: Record<string, { title: string; on: string; off: string }> = {
   },
 };
 
-export function PortalSettingsPage() {
+/** Switches for the youth records. Starts off. */
+const YOUTH: Record<string, Text> = {
+  consent_tracking: {
+    title: 'Record privacy notice and consent for each youth',
+    on: 'On: staff can record each youth’s consent status, notice version and date. Youth with none recorded show a No consent badge, and the fields can be exported. Nothing is blocked.',
+    off: 'Off: no consent fields, badges or export columns are shown. Anything already recorded is kept.',
+  },
+};
+
+/** A page of on/off switches for the feature flags named in `texts`. Each change is audited. */
+function FlagSettingsPage({
+  texts,
+  crumb,
+  title,
+  description,
+}: {
+  texts: Record<string, Text>;
+  crumb: string;
+  title: string;
+  description: string;
+}) {
   const { can } = useAuth();
   const canManage = can('config.manage');
   const qc = useQueryClient();
@@ -45,7 +71,7 @@ export function PortalSettingsPage() {
         method: 'PATCH',
         body: JSON.stringify({
           enabled: !f.enabled,
-          reason: 'Changed on the employer portal settings page',
+          reason: `Changed on the ${crumb} settings page`,
         }),
       }),
     onSuccess: () => {
@@ -58,20 +84,20 @@ export function PortalSettingsPage() {
       toast.error(e instanceof ApiError ? e.message : 'Could not save.');
     },
   });
-  const rows = (q.data ?? []).filter((f) => f.key in PORTAL);
+  const rows = (q.data ?? []).filter((f) => f.key in texts);
 
   return (
     <div className="container-fluid space-y-5">
       <Helmet>
-        <title>Employer portal settings | PI 360</title>
+        <title>{title} | PI 360</title>
       </Helmet>
       <PageHeader
         crumbs={[
           { label: 'Administration', to: '/administration' },
-          { label: 'Employer portal' },
+          { label: crumb },
         ]}
-        title="Employer portal settings"
-        description="How much freedom employer users have. Each change is recorded in the audit trail."
+        title={title}
+        description={description}
       />
       {q.isError && (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
@@ -81,7 +107,7 @@ export function PortalSettingsPage() {
         <Section title="Settings" flush>
           <ul className="divide-y">
             {rows.map((f) => {
-              const t = PORTAL[f.key];
+              const t = texts[f.key];
               return (
                 <li
                   key={f.key}
@@ -110,12 +136,12 @@ export function PortalSettingsPage() {
       <ConfirmDialog
         open={pending !== null}
         onOpenChange={(o) => !o && setPending(null)}
-        title={pending ? `Change “${PORTAL[pending.key].title}”?` : ''}
+        title={pending ? `Change “${texts[pending.key].title}”?` : ''}
         description={
           pending
             ? pending.enabled
-              ? PORTAL[pending.key].off
-              : PORTAL[pending.key].on
+              ? texts[pending.key].off
+              : texts[pending.key].on
             : ''
         }
         confirmLabel="Change setting"
@@ -124,3 +150,21 @@ export function PortalSettingsPage() {
     </div>
   );
 }
+
+export const PortalSettingsPage = () => (
+  <FlagSettingsPage
+    texts={PORTAL}
+    crumb="Employer portal"
+    title="Employer portal settings"
+    description="How much freedom employer users have. Each change is recorded in the audit trail."
+  />
+);
+
+export const YouthSettingsPage = () => (
+  <FlagSettingsPage
+    texts={YOUTH}
+    crumb="Youth records"
+    title="Youth record settings"
+    description="Optional parts of the youth record, off until you turn them on. Each change is recorded in the audit trail."
+  />
+);

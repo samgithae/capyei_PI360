@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api } from '@/lib/api';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -39,6 +40,7 @@ interface Row {
   gender: string;
   age: number | null;
   status: string;
+  consent?: string;
   archived: boolean;
   county: string;
   programmes: string[];
@@ -285,6 +287,11 @@ export function DirectoryPage() {
                   <TableCell>{p.county}</TableCell>
                   <TableCell>
                     <ParticipantStatus status={p.status} />
+                    {p.consent === 'not_recorded' && (
+                      <Badge variant="warning" className="ms-2">
+                        No consent
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <RowActions

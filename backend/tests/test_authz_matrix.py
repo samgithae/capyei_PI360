@@ -71,6 +71,7 @@ MATRIX = {
     "participants/<uuid:pk>/enrollments": {"POST": "participants.edit"},
     "participants/<uuid:pk>/enrollments/<uuid:enrollment_id>": {"PATCH": "participants.edit"},
     "participants/<uuid:pk>/contacts": {"PUT": "participants.edit"},
+    "participants/<uuid:pk>/consent": {"PUT": "participants.edit"},
     "participants/<uuid:pk>/invite": {
         "GET": "participants.invite",
         "POST": "participants.invite",

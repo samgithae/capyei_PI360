@@ -373,11 +373,20 @@ def filtered(user, params):
     return qs.distinct().order_by("full_name_source", "pk"), fuzzy
 
 
+CONSENT_FLAG = "consent_tracking"  # off until an administrator turns it on (T-054)
+
+
+def consent_enabled() -> bool:
+    return configuration.is_enabled(CONSENT_FLAG)
+
+
 def export_groups() -> list[dict]:
-    """The youth fields an export can hold, grouped, for the field picker."""
+    """The youth fields an export can hold, grouped, for the field picker. The consent group is
+    left out while the consent setting is off."""
     from . import export_fields
 
-    return export_fields.groups()
+    on = consent_enabled()
+    return [g for g in export_fields.groups() if on or g["key"] != "consent"]
 
 
 def export_rows(user, params, keys) -> list[dict]:
@@ -386,6 +395,8 @@ def export_rows(user, params, keys) -> list[dict]:
     from . import export_fields
 
     qs, _fuzzy = filtered(user, params)
+    if not consent_enabled():
+        keys = [k for k in keys if k not in export_fields.CONSENT_KEYS]
     return export_fields.rows(qs, keys)
 
 

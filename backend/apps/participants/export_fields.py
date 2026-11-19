@@ -127,6 +127,17 @@ FIELDS: list[tuple[str, str, list[Field]]] = [
         ],
     ),
     (
+        "consent",
+        "Privacy and consent",
+        [
+            Field("consent_status", "Consent status", lambda p: p.get_consent_status_display()),
+            Field("consent_notice_version", "Privacy notice version",
+                  lambda p: p.consent_notice_version),
+            Field("consent_recorded_on", "Consent recorded on",
+                  lambda p: _date(p.consent_recorded_on)),
+        ],
+    ),
+    (
         "residence",
         "Where they live",
         [
@@ -252,6 +263,7 @@ def _age(p):
     return "" if age is None else age
 
 
+CONSENT_KEYS = {"consent_status", "consent_notice_version", "consent_recorded_on"}
 BY_KEY = {f.key: f for _g, _l, fields in FIELDS for f in fields}
 
 
