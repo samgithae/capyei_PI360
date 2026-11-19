@@ -132,7 +132,7 @@ def test_retention_uses_the_latest_early_step_and_counts_only_checked(
     schedule,
     world,  # noqa: F811
 ):
-    services.update_settings(actor=None, values={"employer.min_referrals": 3})
+    services.update_settings(actor=None, values={"employer.min_retention_checks": 3})
     for i in range(2):
         checkin(world, employer, schedule["90"], employed=True, i=i)
     checkin(world, employer, schedule["90"], employed=False, i=2)
@@ -153,7 +153,7 @@ def test_retention_follows_the_schedule_when_the_point_moves(
     schedule,
     world,  # noqa: F811
 ):
-    services.update_settings(actor=None, values={"employer.min_referrals": 1})
+    services.update_settings(actor=None, values={"employer.min_retention_checks": 1})
     checkin(world, employer, schedule["30"], employed=True)
     c = api(make_user("admin", "Administrator"))
     assert retention(c, employer)["status"] == "no_data"  # the point is 90 days: nothing due
@@ -177,13 +177,30 @@ def test_retention_under_the_minimum_or_outside_the_period_shows_no_percentage(
     assert retention(c, employer)["of"] == 1
 
 
+def test_retention_has_its_own_minimum_apart_from_referrals(
+    employer,
+    make_user,
+    schedule,
+    world,  # noqa: F811
+):
+    services.update_settings(
+        actor=None, values={"employer.min_referrals": 50, "employer.min_retention_checks": 2}
+    )
+    c = api(make_user("admin", "Administrator"))
+    checkin(world, employer, schedule["90"], employed=True, i=0)
+    assert retention(c, employer)["percent"] is None
+    checkin(world, employer, schedule["90"], employed=False, i=1)
+    r = retention(c, employer)
+    assert (r["status"], r["percent"]) == ("shown", 50)
+
+
 def test_cancelled_and_other_employers_check_ins_are_left_out(
     employer,
     make_user,
     schedule,
     world,  # noqa: F811
 ):
-    services.update_settings(actor=None, values={"employer.min_referrals": 1})
+    services.update_settings(actor=None, values={"employer.min_retention_checks": 1})
     checkin(world, employer, schedule["90"], status="cancelled", i=0)
     checkin(world, Employer.objects.create(name="Other"), schedule["90"], employed=True, i=1)
     assert retention(api(make_user("admin", "Administrator")), employer)["status"] == "no_data"

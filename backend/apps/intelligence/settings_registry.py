@@ -10,7 +10,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Setting:
     key: str
-    group: str  # "A", "C" or "E"
+    group: str  # "A", "C", "E" or "R"
     label: str
     unit: str
     default: int
@@ -44,8 +44,27 @@ REGISTRY = [
         "Below this many referrals in the window an employer shows 'insufficient evidence'.",
     ),
     Setting(
+        "employer.min_retention_checks", "C", "Check-ins needed before retention shows",
+        "check-ins", 5, 1,
+        "Below this many completed retention check-ins, retention shows counts but no percentage.",
+    ),
+    Setting(
+        "employer.min_feedback", "C", "Feedback entries needed before a result", "entries", 5, 1,
+        "Below this many logged feedback entries in the period, feedback shows counts but no "
+        "percentage.",
+    ),
+    Setting(
+        "employer.positive_rating", "C", "Lowest rating that counts as positive", "out of 5", 4, 1,
+        "Feedback rated this or higher (out of 5) is counted as positive.",
+    ),
+    Setting(
         "employer.window_days", "C", "Period the evidence covers", "days", 180, 30,
         "Referrals sent in this many days are counted.",
+    ),
+    Setting(
+        "rules.review_days", "R", "Days between reviews of a rule", "days", 90, 7,
+        "A rule in force longer than this is marked 'Review due' on the Rules page. Working value "
+        "until the sponsor sets the cadence (D-009).",
     ),
     Setting(
         "exports.small_cell", "E", "Smallest group an export may show", "youth", 5, 2,

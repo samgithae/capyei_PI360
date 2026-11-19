@@ -21,6 +21,7 @@ from .models import (
     EmployerAlias,
     EmployerContact,
     EmployerCounty,
+    EmployerFeedback,
     Opportunity,
     OpportunityCounty,
     OpportunityRequirement,
@@ -249,6 +250,46 @@ def remove_contact(*, actor, employer, contact):
         actor=actor, action="employer.contact_removed", object_type="employer",
         object_id=employer.pk, before=snap,
     )  # fmt: skip
+
+
+MAX_RATING = 5
+
+
+@transaction.atomic
+def add_feedback(*, actor, employer, data):
+    """Log one piece of feedback. A rating outside 1 to 5 or a date in the future is refused."""
+    if not 1 <= data["rating"] <= MAX_RATING:
+        raise RuleViolation("rating", f"Rate from 1 to {MAX_RATING}.", "invalid_rating")
+    if data["given_on"] > timezone.localdate():
+        raise RuleViolation("given_on", "The date cannot be in the future.", "future_date")
+    row = EmployerFeedback.objects.create(employer=employer, recorded_by=actor, **data)
+    audit.record(
+        actor=actor, action="employer.feedback_added", object_type="employer",
+        object_id=employer.pk,
+        after={"feedback": str(row.pk), "party": row.party, "source": row.source,
+               "rating": row.rating},
+    )  # fmt: skip
+    return row
+
+
+@transaction.atomic
+def remove_feedback(*, actor, employer, feedback, reason):
+    """Withdraw an entry that was logged by mistake. The reason is kept in the audit trail."""
+    if not reason.strip():
+        raise RuleViolation("reason", "Say why this is being removed.", "reason_required")
+    snap = {"feedback": str(feedback.pk), "rating": feedback.rating, "source": feedback.source}
+    feedback.delete()
+    audit.record(
+        actor=actor, action="employer.feedback_removed", object_type="employer",
+        object_id=employer.pk, before=snap, reason=reason.strip(),
+    )  # fmt: skip
+
+
+def feedback_counts(employer_id, since: date, positive_from: int) -> dict:
+    """Entries given on or after ``since``: how many, and how many rated ``positive_from`` or more.
+    Every entry has a stated source, so all of them count."""
+    rows = EmployerFeedback.objects.filter(employer_id=employer_id, given_on__gte=since)
+    return {"count": rows.count(), "positive": rows.filter(rating__gte=positive_from).count()}
 
 
 def history(employer):

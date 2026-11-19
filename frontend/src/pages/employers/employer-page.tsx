@@ -22,6 +22,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { EmployerEvidence } from './employer-evidence';
+import { EmployerFeedback } from './employer-feedback';
 import {
   EmployerForm,
   EmployerValues,
@@ -238,6 +239,8 @@ export function EmployerPage() {
         </div>
 
         <EmployerEvidence id={e.id} />
+
+        <EmployerFeedback id={e.id} />
 
         <Section title="Activity">
           {history.isPending ? (

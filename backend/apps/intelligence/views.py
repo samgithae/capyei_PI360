@@ -2,6 +2,7 @@
 copy, send for review, discard); intelligence.approve_rules decides (return, approve, activate,
 deactivate). Keeping the two apart lets a deployment require a second person to approve."""
 
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound
@@ -68,8 +69,10 @@ def _version(v):
     }
 
 
-def _rule_set(rs, versions):
+def _rule_set(rs, versions, review_days=None):
     active = next((v for v in versions if v.status == RuleVersion.ACTIVE), None)
+    if review_days is None:
+        review_days = services.setting("rules.review_days")
     return {
         "id": str(rs.pk),
         "module": rs.module,
@@ -80,6 +83,7 @@ def _rule_set(rs, versions):
         "active": _version(active) if active else None,
         "latest": _version(versions[0]) if versions else None,
         "version_count": len(versions),
+        "review": services.review_status(active, timezone.localdate(), review_days),
     }
 
 
@@ -145,8 +149,12 @@ class RuleSetListView(APIView):
     @extend_schema(operation_id="rules_list", responses={200: dict(type="array", items={})})
     def get(self, request):
         sets = RuleSet.objects.prefetch_related("versions__created_by", "versions__approved_by")
+        every = services.setting("rules.review_days")
         return Response(
-            [_rule_set(rs, sorted(rs.versions.all(), key=lambda v: -v.number)) for rs in sets]
+            [
+                _rule_set(rs, sorted(rs.versions.all(), key=lambda v: -v.number), every)
+                for rs in sets
+            ]
         )
 
     @extend_schema(request=RuleSetCreateSerializer, responses={201: dict, 409: dict})

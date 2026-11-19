@@ -242,6 +242,8 @@ MATRIX = {
     "rules": {"GET": "intelligence.view", "POST": "intelligence.manage_rules"},
     "rules/operators": {"GET": "intelligence.view"},
     "employers/<uuid:pk>/evidence": {"GET": "intelligence.view"},
+    "employers/<uuid:pk>/feedback": {"GET": "employers.view", "POST": "employers.edit"},
+    "employers/<uuid:pk>/feedback/<uuid:cpk>": {"DELETE": "employers.edit"},
     "support/queue": {"GET": "participants.view_profile"},
     "reporting/dashboard": {"GET": SIGNED_IN},
     "reporting/drilldown": {"GET": SIGNED_IN},

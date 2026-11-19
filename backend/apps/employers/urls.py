@@ -12,6 +12,8 @@ urlpatterns = [
     path("employers/<uuid:pk>/history", v.EmployerHistoryView.as_view()),
     path("employers/<uuid:pk>/contacts", v.ContactListView.as_view()),
     path("employers/<uuid:pk>/contacts/<uuid:cpk>", v.ContactDetailView.as_view()),
+    path("employers/<uuid:pk>/feedback", v.FeedbackListView.as_view()),
+    path("employers/<uuid:pk>/feedback/<uuid:cpk>", v.FeedbackDetailView.as_view()),
     path("opportunities", v.OpportunityListView.as_view()),
     path("opportunities/archive", v.OpportunityArchiveView.as_view()),
     path("opportunities/restore", v.OpportunityRestoreView.as_view()),

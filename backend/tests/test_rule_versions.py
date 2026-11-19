@@ -288,6 +288,26 @@ def test_api_a_drafter_cannot_approve_or_activate(admin, drafter, rule_set):
     assert client_for(admin).post(f"{base}/approve", {}, JSON).status_code == 200
 
 
+def test_the_rules_list_says_when_a_rule_in_force_is_due_for_review(admin, rule_set):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    c = client_for(admin)
+
+    def review():
+        return next(r for r in c.get(URL).json() if r["code"] == "support-priority")["review"]
+
+    assert review() is None  # nothing in force yet
+    v = go_live(admin, draft_of(rule_set))
+    day = timezone.localdate()
+    assert review() == {"due_on": (day + timedelta(days=90)).isoformat(), "overdue": False}
+    services.update_settings(actor=admin, values={"rules.review_days": 7})
+    assert review()["due_on"] == (day + timedelta(days=7)).isoformat()
+    RuleVersion.objects.filter(pk=v.pk).update(effective_from=timezone.now() - timedelta(days=8))
+    assert review()["overdue"] is True
+
+
 def test_api_viewers_can_read_rules_but_not_change_them(make_user, rule_set):
     c = client_for(make_user("wanjiru", "Placement officer"))
     assert c.get(URL).status_code == 200

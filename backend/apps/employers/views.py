@@ -15,7 +15,13 @@ from apps.audit import services as audit
 from apps.configuration import services as configuration
 
 from . import services
-from .models import Employer, EmployerContact, Opportunity, OpportunityRequirement
+from .models import (
+    Employer,
+    EmployerContact,
+    EmployerFeedback,
+    Opportunity,
+    OpportunityRequirement,
+)
 
 VIEW, EDIT = "employers.view", "employers.edit"
 
@@ -120,6 +126,34 @@ class ContactSerializer(serializers.Serializer):
     email = serializers.EmailField(max_length=200, required=False, allow_blank=True)
     phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
     is_primary = serializers.BooleanField(required=False, default=False)
+
+
+class FeedbackSerializer(serializers.Serializer):
+    party = serializers.ChoiceField(choices=EmployerFeedback.PARTIES)
+    source = serializers.ChoiceField(choices=EmployerFeedback.SOURCES)
+    rating = serializers.IntegerField(min_value=1, max_value=services.MAX_RATING)
+    note = serializers.CharField(max_length=1000, required=False, allow_blank=True, default="")
+    given_on = serializers.DateField()
+
+
+class FeedbackRemoveSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=500)
+
+
+def _feedback(f):
+    return {
+        "id": str(f.pk),
+        "party": f.party,
+        "party_label": f.get_party_display(),
+        "source": f.source,
+        "source_label": f.get_source_display(),
+        "rating": f.rating,
+        "note": f.note,
+        "given_on": f.given_on.isoformat(),
+        "recorded_by": (f.recorded_by.get_full_name() or f.recorded_by.get_username())
+        if f.recorded_by
+        else "",
+    }
 
 
 def _duplicate_response(exc):
@@ -296,6 +330,52 @@ class ContactDetailView(APIView):
         e, c = self._contact(pk, cpk)
         try:
             services.remove_contact(actor=request.user, employer=e, contact=c)
+        except services.RuleViolation as exc:
+            return _violation(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FeedbackListView(APIView):
+    """Feedback officers have logged about one employer (Module C)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": VIEW, "POST": EDIT}
+
+    @extend_schema(responses={200: dict})
+    def get(self, request, pk):
+        e = _get(pk)
+        rows = e.feedback.select_related("recorded_by")
+        return Response({"results": [_feedback(f) for f in rows]})
+
+    @extend_schema(request=FeedbackSerializer, responses={201: dict, 409: dict})
+    def post(self, request, pk):
+        e = _get(pk)
+        s = FeedbackSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            f = services.add_feedback(actor=request.user, employer=e, data=s.validated_data)
+        except services.RuleViolation as exc:
+            return _violation(exc)
+        return Response(_feedback(f), status=status.HTTP_201_CREATED)
+
+
+class FeedbackDetailView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"DELETE": EDIT}
+
+    @extend_schema(request=FeedbackRemoveSerializer, responses={204: None, 409: dict})
+    def delete(self, request, pk, cpk):
+        e = _get(pk)
+        try:
+            f = e.feedback.get(pk=cpk)
+        except EmployerFeedback.DoesNotExist:
+            raise NotFound from None
+        s = FeedbackRemoveSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            services.remove_feedback(
+                actor=request.user, employer=e, feedback=f, reason=s.validated_data["reason"]
+            )
         except services.RuleViolation as exc:
             return _violation(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)

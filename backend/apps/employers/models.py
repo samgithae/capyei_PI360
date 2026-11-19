@@ -83,6 +83,42 @@ class EmployerContact(models.Model):
         return self.name
 
 
+class EmployerFeedback(models.Model):
+    """One piece of feedback an officer logged about an employer (Module C, D-013).
+
+    It always names where it came from (a call, a visit, an e-mail, a meeting) and who gave it, so
+    nothing unsourced is ever counted. The rating is a number the officer enters; the system
+    never works one out."""
+
+    EMPLOYER, YOUTH = "employer", "youth"
+    PARTIES = [(EMPLOYER, "The employer"), (YOUTH, "A young person placed there")]
+    CALL, VISIT, EMAIL, MEETING = "call", "visit", "email", "meeting"
+    SOURCES = [(CALL, "Phone call"), (VISIT, "Visit"), (EMAIL, "E-mail"), (MEETING, "Meeting")]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employer = models.ForeignKey(Employer, on_delete=models.CASCADE, related_name="feedback")
+    party = models.CharField(max_length=10, choices=PARTIES)
+    source = models.CharField(max_length=10, choices=SOURCES)
+    rating = models.PositiveSmallIntegerField()  # 1 (poor) to 5 (very good)
+    note = models.CharField(max_length=1000, blank=True)
+    given_on = models.DateField()
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-given_on", "-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(rating__gte=1, rating__lte=5), name="employer_feedback_rating"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.employer_id} {self.rating}/5 ({self.source})"
+
+
 class Opportunity(models.Model):
     """A job, internship or apprenticeship an employer offers (FR-12, FR-13).
 

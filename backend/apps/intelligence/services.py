@@ -526,6 +526,17 @@ def setting(key: str) -> int:
     return setting_values()[key]
 
 
+def review_status(active, today: date, every_days: int) -> dict | None:
+    """When the version in force is next due a look (D-009). Counted from the day it came into
+    force; a new version starts the count again. None when nothing is in force."""
+    from datetime import timedelta
+
+    if active is None or active.effective_from is None:
+        return None
+    due_on = active.effective_from.date() + timedelta(days=every_days)
+    return {"due_on": due_on.isoformat(), "overdue": today >= due_on}
+
+
 def update_settings(*, actor, values: dict) -> dict:
     """Save changed numbers. An unknown key, a non-whole number or one below the setting's
     minimum is refused and nothing is saved."""
@@ -571,6 +582,7 @@ def employer_evidence(employer_id, today: date) -> dict:
     result is "insufficient evidence", never a score, and there is no overall rating (D-027)."""
     from datetime import timedelta
 
+    from apps.employers import services as employers
     from apps.placements import services as placements
     from apps.referrals import services as referrals
 
@@ -593,7 +605,7 @@ def employer_evidence(employer_id, today: date) -> dict:
         }
 
     r = placements.followup_retention_counts(employer_id, since.date(), today)
-    retention_enough = r["checked"] >= minimum
+    retention_enough = r["checked"] >= setting("employer.min_retention_checks")
     if r["point_days"] is None or r["due"] == 0:
         retention = {
             "label": "Retention after placement",
@@ -622,6 +634,20 @@ def employer_evidence(employer_id, today: date) -> dict:
             "status": "shown" if retention_enough else "insufficient",
         }
 
+    f = employers.feedback_counts(employer_id, since.date(), setting("employer.positive_rating"))
+    feedback_enough = f["count"] >= setting("employer.min_feedback")
+    feedback = {
+        "label": "Employer feedback",
+        "source": "Feedback logged by officers (each with a stated source)",
+        "count": f["positive"],
+        "of": f["count"],
+        "text": f"{f['positive']} of {f['count']} feedback entries were positive",
+        "percent": round(f["positive"] / f["count"] * 100)
+        if feedback_enough and f["count"]
+        else None,
+        "status": ("shown" if feedback_enough else "insufficient") if f["count"] else "no_data",
+    }
+
     indicators = [
         ratio("Referrals answered", c["replied"], c["sent"], "referrals got a reply"),
         ratio("Interviews", c["interview"], c["sent"], "referrals reached an interview"),
@@ -640,15 +666,7 @@ def employer_evidence(employer_id, today: date) -> dict:
             "status": "shown" if enough and c["replied"] else "insufficient",
         },
         retention,
-        {
-            "label": "Employer feedback",
-            "source": "Not recorded yet",
-            "count": 0,
-            "of": 0,
-            "text": "No feedback data yet",
-            "percent": None,
-            "status": "no_data",
-        },
+        feedback,
     ]
     return {
         "period": {"from": since.date().isoformat(), "to": today.isoformat(), "days": days},
@@ -680,7 +698,6 @@ FLAGS = {
 # Flags that need data PI 360 does not hold yet. Listed so nobody thinks they were checked.
 NOT_CAPTURED = [
     "Missing documents (no documentation barrier is recorded yet)",
-    "Employer feedback and retention follow-ups",
 ]
 
 

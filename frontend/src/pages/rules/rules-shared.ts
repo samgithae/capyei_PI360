@@ -29,6 +29,8 @@ export interface RuleSet {
   active: VersionSummary | null;
   latest: VersionSummary | null;
   version_count: number;
+  /** When the version in force is next due a look; null when nothing is in force. */
+  review: { due_on: string; overdue: boolean } | null;
 }
 
 export interface RuleSetDetail extends RuleSet {

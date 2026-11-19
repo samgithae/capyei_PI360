@@ -6,6 +6,7 @@ import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { api, ApiError, post } from '@/lib/api';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -171,7 +172,17 @@ export function RulesPage() {
                   <TableCell>{r.module_label}</TableCell>
                   <TableCell>
                     {r.active ? (
-                      `Version ${r.active.number}`
+                      <span className="flex flex-wrap items-center gap-2">
+                        Version {r.active.number}
+                        {r.review?.overdue && (
+                          <Badge
+                            variant="secondary"
+                            title={`Due for review since ${r.review.due_on}`}
+                          >
+                            Review due
+                          </Badge>
+                        )}
+                      </span>
                     ) : (
                       <span className="text-muted-foreground">
                         Nothing in force
