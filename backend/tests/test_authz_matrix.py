@@ -247,6 +247,10 @@ MATRIX = {
     "support/queue": {"GET": "participants.view_profile"},
     "reporting/dashboard": {"GET": SIGNED_IN},
     "reporting/drilldown": {"GET": SIGNED_IN},
+    "reporting/reports": {"GET": "reports.view_aggregate"},
+    "reporting/reports/filters": {"GET": "reports.view_aggregate"},
+    "reporting/reports/<slug:slug>": {"GET": "reports.view_aggregate"},
+    "reporting/reports/<slug:slug>/export": {"POST": "reports.view_aggregate"},
     "identity/grants": {"GET": "identity.manage_roles", "POST": "identity.manage_roles"},
     "identity/grants/<int:pk>/revoke": {"POST": "identity.manage_roles"},
     "exports": {"GET": "exports.deidentified", "POST": "exports.deidentified"},
@@ -342,6 +346,7 @@ def concrete(route):
         .replace("<str:kind>", "sectors")
         .replace("<str:key>", "x")
         .replace("<slug:table>", "youth")
+        .replace("<slug:slug>", "programme-scorecard")
     )
 
 

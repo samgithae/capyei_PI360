@@ -6787,6 +6787,182 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/reporting/reports:
+    get:
+      operationId: reports_index
+      tags:
+      - reporting
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/reporting/reports/{slug}:
+    get:
+      operationId: reports_detail
+      parameters:
+      - in: query
+        name: checkin
+        schema:
+          type: string
+      - in: query
+        name: cohort
+        schema:
+          type: string
+      - in: query
+        name: county
+        schema:
+          type: string
+      - in: query
+        name: employer
+        schema:
+          type: string
+      - in: query
+        name: from
+        schema:
+          type: string
+      - in: query
+        name: gender
+        schema:
+          type: string
+      - in: query
+        name: institution
+        schema:
+          type: string
+      - in: query
+        name: pathway
+        schema:
+          type: string
+      - in: query
+        name: programme
+        schema:
+          type: string
+      - in: query
+        name: sector
+        schema:
+          type: string
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: stage
+        schema:
+          type: string
+      - in: query
+        name: to
+        schema:
+          type: string
+      tags:
+      - reporting
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/reporting/reports/{slug}/export:
+    post:
+      operationId: reports_export
+      description: |-
+        A report as a PDF or Excel file, with the filters in the query string as on the page.
+        The file is sent straight back and not stored; each export is audited.
+      parameters:
+      - in: query
+        name: checkin
+        schema:
+          type: string
+      - in: query
+        name: cohort
+        schema:
+          type: string
+      - in: query
+        name: county
+        schema:
+          type: string
+      - in: query
+        name: employer
+        schema:
+          type: string
+      - in: query
+        name: file_format
+        schema:
+          type: string
+      - in: query
+        name: from
+        schema:
+          type: string
+      - in: query
+        name: gender
+        schema:
+          type: string
+      - in: query
+        name: institution
+        schema:
+          type: string
+      - in: query
+        name: pathway
+        schema:
+          type: string
+      - in: query
+        name: programme
+        schema:
+          type: string
+      - in: query
+        name: sector
+        schema:
+          type: string
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: stage
+        schema:
+          type: string
+      - in: query
+        name: to
+        schema:
+          type: string
+      tags:
+      - reporting
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/reporting/reports/filters:
+    get:
+      operationId: reports_filters
+      description: 'Every list the filter bar offers: names and ids only.'
+      tags:
+      - reporting
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/requirement-skills:
     get:
       operationId: requirement_skills_retrieve

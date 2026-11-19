@@ -698,6 +698,33 @@ def filter_options():
     }
 
 
+def report_options():
+    """Reference lists the report filters offer, with the cohort facts the reports group by.
+    Names and ids only; no participant data."""
+    from .models import Cohort, County, Programme, Sector, TrainingInstitution
+
+    def rows(qs):
+        return [{"id": str(o.pk), "name": o.name} for o in qs]
+
+    return {
+        "programmes": rows(Programme.objects.order_by("name")),
+        "cohorts": [
+            {
+                "id": str(c.pk),
+                "name": c.name,
+                "programme_id": str(c.programme_id),
+                "institution_id": str(c.institution_id),
+                "intake_year": c.intake_year,
+                "start": c.start.isoformat() if c.start else None,
+            }
+            for c in Cohort.objects.order_by("-intake_year", "name")
+        ],
+        "institutions": rows(TrainingInstitution.objects.order_by("name")),
+        "counties": rows(County.objects.order_by("name")),
+        "sectors": rows(Sector.objects.order_by("name")),
+    }
+
+
 def normalise(text):
     """Public form of the name normaliser, for modules that match names (e.g. employers)."""
     return norm(text)

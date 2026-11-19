@@ -467,11 +467,28 @@ def for_enrollments(enrollment_ids) -> list[dict]:
 
 
 def placed_facts() -> list[dict]:
-    """Every placement mapped as a real placement: which enrollment and when it started."""
+    """Every placement mapped as a real placement: which enrollment, when it started, the pathway
+    and the employer (``employer_id`` is None until a steward links the source name)."""
     return [
-        {"enrollment_id": e, "on": d or c.date()}
-        for e, d, c in Placement.objects.filter(status="placed").values_list(
-            "enrollment_id", "start_date", "created_at"
+        {
+            "id": i,
+            "enrollment_id": e,
+            "on": d or c.date(),
+            "pathway": pw,
+            "employer_id": emp,
+            "employer_name": linked or source,
+        }
+        for i, e, d, c, pw, emp, linked, source in Placement.objects.filter(
+            status="placed"
+        ).values_list(
+            "pk",
+            "enrollment_id",
+            "start_date",
+            "created_at",
+            "pathway",
+            "employer_id",
+            "employer__name",
+            "employer_name_source",
         )
     ]
 
@@ -498,6 +515,7 @@ followup_list = _followups.list_for
 followup_log_attempt = _followups.log_attempt
 followup_retention_counts = _followups.retention_counts
 followup_steps = _followups.steps
+followup_facts = _followups.facts
 followup_unreachable = _followups.mark_unreachable
 followup_update_step = _followups.update_step
 generate_followups = _followups.generate_for

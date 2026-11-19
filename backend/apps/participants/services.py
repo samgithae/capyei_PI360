@@ -735,6 +735,39 @@ def report_facts(user) -> list[dict]:
     ]
 
 
+def report_options() -> dict:
+    """The programme, cohort, institution, county and sector lists the report filters offer
+    (reporting reaches configuration through here)."""
+    return configuration.report_options()
+
+
+def enrollment_facts(user) -> list[dict]:
+    """One small dict per enrolment of a youth the user may see: what the reports group by."""
+    from .models import ParticipantEnrollment
+
+    rows = ParticipantEnrollment.objects.filter(participant_id__in=visible_ids(user)).values_list(
+        "pk",
+        "participant_id",
+        "programme_id",
+        "cohort_course__cohort_id",
+        "institution_id",
+        "status",
+        "enrolled_on",
+    )
+    return [
+        {
+            "id": r[0],
+            "participant_id": r[1],
+            "programme_id": r[2],
+            "cohort_id": r[3],
+            "institution_id": r[4],
+            "status": r[5],
+            "enrolled_on": r[6],
+        }
+        for r in rows
+    ]
+
+
 def enrollment_owners(user) -> dict:
     """``{enrollment id: participant id}`` for youth the user may see."""
     from .models import ParticipantEnrollment

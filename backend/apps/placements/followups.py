@@ -237,6 +237,40 @@ def counts(enrollment_ids, *, assigned_to=None, today: date | None = None) -> di
     return out
 
 
+def facts() -> list[dict]:
+    """One small dict per check-in on a placement that counts as placed, for the reports. A
+    cancelled task is left out; an open or unreachable one is "due, not yet checked"."""
+    rows = (
+        FollowUp.objects.filter(placement__status=PLACED)
+        .exclude(status=FollowUp.CANCELLED)
+        .values_list(
+            "pk",
+            "placement_id",
+            "placement__enrollment_id",
+            "kind",
+            "step__offset_days",
+            "label",
+            "due_date",
+            "status",
+            "still_employed",
+        )
+    )
+    return [
+        {
+            "id": r[0],
+            "placement_id": r[1],
+            "enrollment_id": r[2],
+            "kind": r[3],
+            "offset_days": r[4],
+            "label": r[5],
+            "due_date": r[6],
+            "status": r[7],
+            "still_employed": r[8],
+        }
+        for r in rows
+    ]
+
+
 # --- working a follow-up --------------------------------------------------------------------------
 
 

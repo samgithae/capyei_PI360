@@ -43,9 +43,10 @@ import { DirectoryPage } from '@/pages/participants/directory-page';
 import { DuplicatesPage } from '@/pages/participants/duplicates-page';
 import { EditParticipant } from '@/pages/participants/participant-edit';
 import { ProfilePage } from '@/pages/participants/profile-page';
-import { PlaceholderPage } from '@/pages/placeholder-page';
 import { ReferralPage } from '@/pages/referrals/referral-page';
 import { ReferralsPage } from '@/pages/referrals/referrals-page';
+import { ReportPage } from '@/pages/reports/report-page';
+import { ReportsIndexPage } from '@/pages/reports/reports-index-page';
 import { RetentionPage } from '@/pages/retention/retention-page';
 import { RuleSetPage } from '@/pages/rules/rule-set-page';
 import { RuleSettingsPage } from '@/pages/rules/rule-settings-page';
@@ -62,10 +63,6 @@ import { MyPlacementPage } from '@/pages/youth/my-placement';
 import { PortalPage } from '@/pages/youth/portal-page';
 import { Navigate, Route, Routes } from 'react-router';
 import { Layout1 } from '@/components/layouts/layout-1';
-
-const SECTIONS: [string, string, string][] = [
-  ['/reports', 'reports.view_aggregate', 'Reports'],
-];
 
 /** A youth-only or employer-only account has no staff pages; each has its own home. */
 function Home() {
@@ -148,14 +145,12 @@ export function AppRoutingSetup() {
             path="/employer/team"
             element={<Navigate to="/employer/people" replace />}
           />
-          {SECTIONS.map(([path, permission, title]) => (
-            <Route
-              key={path}
-              element={<RequirePermission permission={permission} />}
-            >
-              <Route path={path} element={<PlaceholderPage title={title} />} />
-            </Route>
-          ))}
+          <Route
+            element={<RequirePermission permission="reports.view_aggregate" />}
+          >
+            <Route path="/reports" element={<ReportsIndexPage />} />
+            <Route path="/reports/:slug" element={<ReportPage />} />
+          </Route>
           <Route path="/dashboard/list" element={<DashboardListPage />} />
           <Route element={<RequirePermission permission="participants.view" />}>
             <Route path="/youth" element={<DirectoryPage />} />

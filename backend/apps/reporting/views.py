@@ -176,3 +176,100 @@ class TableExportView(APIView):
         resp["Cache-Control"] = "no-store"
         resp["X-Export-Rows"] = str(log.row_count)
         return resp
+
+
+# --- Stakeholder reports (Insight > Reports) ------------------------------------------------------
+
+from . import report_files, reports  # noqa: E402
+
+REPORT_PERMISSION = "reports.view_aggregate"
+REPORT_FILTER_KEYS = ["from", "to", *reports.ID_FILTERS, "pathway", "gender", "stage", "checkin"]
+
+
+def _filter_error(exc):
+    body = {"errors": [{"field": exc.field, "message": exc.message, "code": "invalid"}]}
+    return Response(body, status=status.HTTP_400_BAD_REQUEST)
+
+
+def _no_report():
+    body = {"errors": [{"field": "slug", "message": "No such report.", "code": "not_found"}]}
+    return Response(body, status=status.HTTP_404_NOT_FOUND)
+
+
+class ReportIndexView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"GET": REPORT_PERMISSION}
+
+    @extend_schema(operation_id="reports_index", responses={200: dict})
+    def get(self, request):
+        return Response({"reports": reports.index()})
+
+
+class ReportFiltersView(APIView):
+    """Every list the filter bar offers: names and ids only."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": REPORT_PERMISSION}
+
+    @extend_schema(operation_id="reports_filters", responses={200: dict})
+    def get(self, request):
+        return Response(reports.options(request.user))
+
+
+class ReportView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"GET": REPORT_PERMISSION}
+
+    @extend_schema(
+        operation_id="reports_detail",
+        parameters=[OpenApiParameter(n, str) for n in REPORT_FILTER_KEYS],
+        responses={200: dict},
+    )
+    def get(self, request, slug):
+        try:
+            report = reports.build(request.user, slug, request.query_params)
+        except reports.FilterError as exc:
+            return _filter_error(exc)
+        return _no_report() if report is None else Response(report)
+
+
+class ReportExportView(APIView):
+    """A report as a PDF or Excel file, with the filters in the query string as on the page.
+    The file is sent straight back and not stored; each export is audited."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": REPORT_PERMISSION}
+
+    @extend_schema(
+        operation_id="reports_export",
+        parameters=[
+            OpenApiParameter("file_format", str),
+            *[OpenApiParameter(n, str) for n in REPORT_FILTER_KEYS],
+        ],
+        request=None,
+        responses={200: bytes},
+    )
+    def post(self, request, slug):
+        # Not "format": DRF reads that query parameter as a request for a renderer.
+        fmt = request.query_params.get("file_format", "")
+        if fmt not in report_files.CONTENT_TYPES:
+            body = {
+                "errors": [
+                    {"field": "file_format", "message": "Choose pdf or xlsx.", "code": "invalid"}
+                ]
+            }
+            return Response(body, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            out = report_files.export_report(
+                actor=request.user, slug=slug, params=request.query_params, fmt=fmt
+            )
+        except reports.FilterError as exc:
+            return _filter_error(exc)
+        if out is None:
+            return _no_report()
+        content, name, rows = out
+        resp = HttpResponse(content, content_type=report_files.CONTENT_TYPES[fmt])
+        resp["Content-Disposition"] = f'attachment; filename="{name}"'
+        resp["Cache-Control"] = "no-store"
+        resp["X-Export-Rows"] = str(rows)
+        return resp

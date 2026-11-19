@@ -529,6 +529,26 @@ export const STAFF_GUIDES: Guide[] = [
     updated: '2026-11',
   },
   {
+    slug: 'reading-reports',
+    title: 'Reading and exporting the reports',
+    summary:
+      'Open one of the five reports, narrow it with filters, read the charts and save it as a PDF or Excel file.',
+    group: 'Referrals',
+    needs: ['reports.view_aggregate'],
+    to: { path: '/reports', label: 'Open Reports' },
+    steps: [
+      'Open Reports under Insight. There are five: Programme scorecard, Placement outcomes, Equity and reach, Retention after placement, and Employer and pipeline health. Each opens on its own page, and the buttons at the top of a report switch to the others.',
+      'Use the filters above the numbers. Choose from a list (type to search a long one such as counties or employers) or set From and To dates. Each report offers only the filters that make sense for it. The numbers, charts and tables update at once, and the chips under the filters say exactly what is applied. Clear filters returns to everything you may see.',
+      'The filters are kept in the page address. Copy the address to send the same view to a colleague, or bookmark it.',
+      'Read from the top: the tiles give the headline numbers, the charts show the pattern, and the tables list the detail. Every chart has the same figures in a table for screen readers. Charts with nothing to show say why instead of staying blank.',
+      'Under the tables, How these numbers are worked out defines each figure. A definition marked Working definition has not yet been approved by the programme, so quote it with that care. Yellow notes say what is not captured yet, for example disability.',
+      'Choose Export, then PDF document or Excel workbook. The file holds what is on screen: the filters used, the tiles, the charts, the tables and the definitions. The Excel file has one sheet per table plus a Summary, native charts and the Definitions.',
+    ],
+    why: 'The reports count the same records as the dashboard, so the numbers agree. They show true counts, not hidden small numbers, and never a youth’s name, so treat a file with the same care as the system. Retention shows a percentage only after enough check-ins are done, and a youth who could not be reached is never counted as having lost the job. Each export is logged with who made it, which report and which filters, but not the numbers.',
+    related: ['placement-outcomes', 'followups'],
+    updated: '2026-11',
+  },
+  {
     slug: 'employer-portal-accounts',
     title: 'Give an employer access to the portal',
     summary: 'Invite the first account, approve opportunities, set the rules.',

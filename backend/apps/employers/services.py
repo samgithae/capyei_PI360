@@ -22,9 +22,11 @@ from .models import (
     EmployerContact,
     EmployerCounty,
     EmployerFeedback,
+    EmployerSector,
     Opportunity,
     OpportunityCounty,
     OpportunityRequirement,
+    OpportunitySector,
 )
 
 SIMILAR = (
@@ -937,29 +939,40 @@ def compatibility_inputs(opportunity_id):
 
 def report_facts() -> dict:
     """Active employers and every live opportunity, as plain facts. An employer or opportunity
-    in several counties lists all of them (``county_ids``; empty when none is recorded)."""
-    counties = {}
+    in several counties or sectors lists all of them (``county_ids``, ``sector_ids``; empty when
+    none is recorded)."""
+    counties, sectors, opp_counties, opp_sectors = {}, {}, {}, {}
     for owner, county in EmployerCounty.objects.values_list("employer_id", "county_id"):
         counties.setdefault(owner, []).append(county)
-    opp_counties = {}
+    for owner, sector in EmployerSector.objects.values_list("employer_id", "sector_id"):
+        sectors.setdefault(owner, []).append(sector)
     for owner, county in OpportunityCounty.objects.values_list("opportunity_id", "county_id"):
         opp_counties.setdefault(owner, []).append(county)
+    for owner, sector in OpportunitySector.objects.values_list("opportunity_id", "sector_id"):
+        opp_sectors.setdefault(owner, []).append(sector)
     employers = [
-        {"id": i, "county_ids": counties.get(i, [])}
-        for i in Employer.objects.filter(
+        {"id": i, "name": n, "county_ids": counties.get(i, []), "sector_ids": sectors.get(i, [])}
+        for i, n in Employer.objects.filter(
             status=Employer.ACTIVE, archived_at__isnull=True
-        ).values_list("pk", flat=True)
+        ).values_list("pk", "name")
     ]
     opportunities = [
         {
             "id": i, "status": s, "closing": d, "employer_id": e,
-            "county_ids": opp_counties.get(i, []), "created_at": t,
+            "county_ids": opp_counties.get(i, []), "sector_ids": opp_sectors.get(i, []),
+            "created_at": t,
         }
         for i, s, d, e, t in Opportunity.objects.filter(
             archived_at__isnull=True, employer__archived_at__isnull=True
         ).values_list("pk", "status", "closing_date", "employer_id", "created_at")
     ]  # fmt: skip
-    return {"employers": employers, "opportunities": opportunities}
+    return {"employers": employers, "opportunities": opportunities, "sectors_of": sectors}
+
+
+def employer_names(ids=None) -> dict:
+    """``{employer id: name}`` for the given employers (all when none are given)."""
+    qs = Employer.objects.all() if ids is None else Employer.objects.filter(pk__in=list(ids))
+    return dict(qs.values_list("pk", "name"))
 
 
 def county_names(opportunity) -> str:
