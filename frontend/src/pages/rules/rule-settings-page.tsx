@@ -13,7 +13,7 @@ import { ErrorState, LoadingState } from '@/components/states';
 
 interface Row {
   key: string;
-  group: 'A' | 'C';
+  group: 'A' | 'C' | 'E';
   label: string;
   unit: string;
   help: string;
@@ -32,6 +32,11 @@ const GROUPS = {
     title: 'Employer evidence',
     description:
       'How much referral history an employer needs before a result is shown.',
+  },
+  E: {
+    title: 'De-identified exports',
+    description:
+      'How small a group may be before it is hidden, and how long export files are kept. Working values until CAP-YEI decides.',
   },
 };
 
@@ -86,7 +91,7 @@ export function RuleSettingsPage() {
         title="Rule settings"
         description="Starting values are filled in so the system works from day one. Change a number when CAP-YEI decides it; every change is recorded in the audit trail."
       />
-      {(['A', 'C'] as const).map((g) => (
+      {(['A', 'C', 'E'] as const).map((g) => (
         <Section
           key={g}
           title={GROUPS[g].title}

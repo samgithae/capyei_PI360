@@ -74,6 +74,21 @@ def _stalled_days():
     return intelligence.setting("support.stalled_days")
 
 
+def outcomes(user, ids, refs, can_youth=True):
+    """``(referred, placed, placement records)`` among the youth ``ids`` the user may see.
+    Shared with the exports so a number in an export is the number on the dashboard."""
+    referred = {r["participant_id"] for r in refs} & ids if can_youth else set()
+    ref_placed = {
+        r["participant_id"]
+        for r in refs
+        if r["stage"] in PLACED_STAGES or (r["stage"] == "closed" and r["placed_at"])
+    }
+    owners = participants.enrollment_owners(user) if can_youth else {}
+    recs = [p for p in placements.placed_facts() if p["enrollment_id"] in owners]
+    placed = (ref_placed & ids) | {owners[p["enrollment_id"]] for p in recs}
+    return referred, placed, recs
+
+
 def _universe(user, days, today) -> dict:
     """Every metric the user can see: ``{key: (kind, [ids])}`` plus supporting facts."""
     since = today - timedelta(days=days) if days else None
@@ -100,15 +115,7 @@ def _universe(user, days, today) -> dict:
         sets.setdefault(f"youth.county.{k}", ("youth", []))[1].append(y["id"])
 
     refs = referrals.report_facts(user) if can_ref else []
-    referred = {r["participant_id"] for r in refs} & ids if can_youth else set()
-    ref_placed = {
-        r["participant_id"]
-        for r in refs
-        if r["stage"] in PLACED_STAGES or (r["stage"] == "closed" and r["placed_at"])
-    }
-    owners = participants.enrollment_owners(user) if can_youth else {}
-    recs = [p for p in placements.placed_facts() if p["enrollment_id"] in owners]
-    placed = (ref_placed & ids) | {owners[p["enrollment_id"]] for p in recs}
+    referred, placed, recs = outcomes(user, ids, refs, can_youth)
     sets["youth.referred"] = ("youth", sorted(referred, key=str))
     sets["youth.not_referred"] = ("youth", sorted(ids - referred, key=str))
     sets["youth.placed"] = ("youth", sorted(placed, key=str))

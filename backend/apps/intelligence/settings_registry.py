@@ -10,7 +10,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Setting:
     key: str
-    group: str  # "A" or "C"
+    group: str  # "A", "C" or "E"
     label: str
     unit: str
     default: int
@@ -46,6 +46,14 @@ REGISTRY = [
     Setting(
         "employer.window_days", "C", "Period the evidence covers", "days", 180, 30,
         "Referrals sent in this many days are counted.",
+    ),
+    Setting(
+        "exports.small_cell", "E", "Smallest group an export may show", "youth", 5, 2,
+        "Counts below this are hidden and youth in smaller groups are left out. Awaiting D-045.",
+    ),
+    Setting(
+        "exports.expiry_days", "E", "Days an export file is kept", "days", 7, 1,
+        "After this the file is deleted. The log of who exported what is kept.",
     ),
 ]  # fmt: skip
 BY_KEY = {s.key: s for s in REGISTRY}

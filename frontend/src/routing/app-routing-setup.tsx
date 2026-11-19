@@ -1,6 +1,7 @@
 import { useAuth } from '@/auth/auth-context';
 import { RequireAuth, RequirePermission } from '@/auth/guards';
 import { AccountPage } from '@/pages/account/account-page';
+import { AccessGrantsPage } from '@/pages/admin/access-grants-page';
 import { PortalSettingsPage } from '@/pages/admin/portal-settings-page';
 import { REFERENCE_KINDS, ReferencePage } from '@/pages/admin/reference-page';
 import { UsersPage } from '@/pages/admin/users-page';
@@ -219,6 +220,14 @@ export function AppRoutingSetup() {
             <Route
               path="/administration/retention"
               element={<RetentionPage />}
+            />
+          </Route>
+          <Route
+            element={<RequirePermission permission="identity.manage_roles" />}
+          >
+            <Route
+              path="/administration/access-grants"
+              element={<AccessGrantsPage />}
             />
           </Route>
           <Route

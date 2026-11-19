@@ -166,6 +166,11 @@ export const MENU_SIDEBAR: MenuConfig = [
         permission: 'identity.view_users',
       },
       {
+        title: 'Access grants',
+        path: '/administration/access-grants',
+        permission: 'identity.manage_roles',
+      },
+      {
         title: 'Employer portal',
         path: '/administration/employer-portal',
         permission: 'config.view',

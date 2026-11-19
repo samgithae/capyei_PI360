@@ -117,10 +117,10 @@ forbidden_modules = ["apps.identity", "apps.participants", "apps.employers", "ap
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "CMP-12 Reporting & exports imports only its documented dependencies"
+name = "CMP-12 Reporting & exports imports only its documented dependencies (T-071: audit added, exports are logged)"
 type = "forbidden"
 source_modules = ["apps.reporting"]
-forbidden_modules = ["apps.imports", "apps.dataquality", "apps.audit", "apps.configuration", "config"]
+forbidden_modules = ["apps.imports", "apps.dataquality", "apps.configuration", "config"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]

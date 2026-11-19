@@ -27,6 +27,7 @@ ADMIN_ALSO = [
     "intelligence.view",
     "reports.view_aggregate",
     "records.archive",
+    "exports.deidentified",
 ]
 
 # Rule versions (T-047). Who approves rules is D-009; until it is answered the administrator

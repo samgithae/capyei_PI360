@@ -42,6 +42,24 @@ export const STAFF_GUIDES: Guide[] = [
     updated: '2026-11',
   },
   {
+    slug: 'grant-restricted-access',
+    title: 'Grant restricted access',
+    summary:
+      'Let one person do something sensitive, such as exporting a list with names, for a limited time.',
+    group: 'Set up',
+    needs: ['identity.manage_roles'],
+    to: { path: '/administration/access-grants', label: 'Open Access grants' },
+    steps: [
+      'Open Administration, then Access grants. The table shows every grant, who gave it, its purpose, when it ends and whether it is still active.',
+      'Choose Grant access. Pick the person, the permission and write the purpose. Choose the last day the access should work, up to a year ahead.',
+      'To take access away early, choose Withdraw on an active grant and give a reason. It stops straight away.',
+      'Access also stops by itself at the end of the day you chose. Expired and withdrawn grants stay in the table as a record.',
+    ],
+    why: 'Some permissions are too sensitive to belong to a role, so nobody has them by default. A grant ties the access to one person, a reason and an end date, and every grant and withdrawal is written to the audit trail.',
+    related: ['export-youth-list'],
+    updated: '2026-11',
+  },
+  {
     slug: 'set-up-reference-lists',
     title: 'Set up the reference lists',
     summary: 'The dropdown values every form uses.',
@@ -100,6 +118,25 @@ export const STAFF_GUIDES: Guide[] = [
     ],
     why: 'You only ever see the youth your role allows, so a search never reveals someone outside your scope. Similar-spelling results are suggestions, not confirmed matches.',
     related: ['create-youth', 'youth-workspace'],
+    updated: '2026-11',
+  },
+  {
+    slug: 'export-youth-list',
+    title: 'Export the youth list',
+    summary:
+      'Download the youth you have filtered, with their names, as a CSV or Excel file.',
+    group: 'Youth',
+    needs: ['exports.identifiable'],
+    to: { path: '/youth', label: 'Open Youth' },
+    steps: [
+      'Open Youth and set the filters you want above the table, for example County Mombasa and Status Active. You can also search by name.',
+      'Choose Export at the right end of the filter bar. The window tells you how many youth match.',
+      'Choose CSV or Excel and say what the file is for, then choose Download. The file holds every youth that matches the filters, not only the page you can see.',
+      'The columns are Name, Programme, Cohort, County, Status, Gender and Age. Phone numbers, emails, ID numbers and addresses are never included.',
+      'If you do not see the Export button, you have not been given this access. Ask an administrator to grant it (see Grant restricted access).',
+    ],
+    why: 'The file contains names, so it is a restricted permission. It is given to one person for a stated purpose and a limited time. Every export is recorded with who made it, the filters used, how many rows and the purpose, but the names are not stored anywhere except in the file you download. Keep it secure and delete it when you are done.',
+    related: ['search-youth', 'grant-restricted-access'],
     updated: '2026-11',
   },
   {

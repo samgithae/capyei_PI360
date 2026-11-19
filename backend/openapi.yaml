@@ -2241,6 +2241,129 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/exports:
+    get:
+      operationId: exports_overview
+      tags:
+      - exports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: exports_create
+      tags:
+      - exports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Export'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Export'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Export'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/exports/{id}/download:
+    get:
+      operationId: exports_download
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - exports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/exports/table/{table}:
+    post:
+      operationId: exports_table
+      description: |-
+        Export a list as filtered on screen. Filters travel in the query string, exactly as the
+        list itself takes them; the format and purpose are in the body.
+      parameters:
+      - in: query
+        name: archived
+        schema:
+          type: string
+      - in: query
+        name: cohort
+        schema:
+          type: string
+      - in: query
+        name: county
+        schema:
+          type: string
+      - in: query
+        name: programme
+        schema:
+          type: string
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+      - in: path
+        name: table
+        schema:
+          type: string
+        required: true
+      tags:
+      - exports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TableExport'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TableExport'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TableExport'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/followups:
     get:
       operationId: followups_list
@@ -2684,6 +2807,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+          description: ''
+  /api/v1/identity/grants:
+    get:
+      operationId: grants_list
+      tags:
+      - identity
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: grants_create
+      tags:
+      - identity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GrantCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GrantCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/identity/grants/{id}/revoke:
+    post:
+      operationId: grants_revoke
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - identity
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
           description: ''
   /api/v1/identity/permissions:
     get:
@@ -7771,6 +7956,18 @@ components:
         * `phone_call` - phone_call
         * `site_visit` - site_visit
         * `other` - other
+    Export:
+      type: object
+      properties:
+        dataset:
+          type: string
+          maxLength: 40
+        format:
+          type: string
+          maxLength: 10
+      required:
+      - dataset
+      - format
     FactorEnum:
       enum:
       - skill
@@ -7930,6 +8127,25 @@ components:
         * `male` - male
         * `other` - other
         * `unknown` - unknown
+    GrantCreate:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        permission:
+          type: string
+          maxLength: 60
+        purpose:
+          type: string
+          maxLength: 300
+        expires_on:
+          type: string
+          format: date
+      required:
+      - expires_on
+      - permission
+      - purpose
+      - user_id
     Health:
       type: object
       properties:
@@ -9565,6 +9781,18 @@ components:
       required:
       - source_value
       - status
+    TableExport:
+      type: object
+      properties:
+        format:
+          type: string
+          maxLength: 10
+        purpose:
+          type: string
+          maxLength: 300
+      required:
+      - format
+      - purpose
     TargetEnum:
       enum:
       - participants

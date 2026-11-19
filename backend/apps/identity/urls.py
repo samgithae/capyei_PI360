@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import auth_views as a
+from . import grant_views as g
 from . import role_views as r
 from . import user_views as u
 from .views import MeView
@@ -17,6 +18,8 @@ urlpatterns = [
     path("identity/users/<int:pk>/reset-mfa", u.UserMfaResetView.as_view()),
     path("identity/users/<int:pk>/roles", u.UserRolesView.as_view()),
     path("identity/users/<int:pk>/scopes", u.UserScopesView.as_view()),
+    path("identity/grants", g.GrantListView.as_view(), name="identity-grants"),
+    path("identity/grants/<int:pk>/revoke", g.GrantRevokeView.as_view()),
     path("auth/login", a.LoginView.as_view(), name="auth-login"),
     path("auth/logout", a.LogoutView.as_view(), name="auth-logout"),
     path("auth/mfa/setup", a.MfaSetupView.as_view(), name="auth-mfa-setup"),

@@ -316,7 +316,78 @@ from .duplicates import (  # noqa: E402
     unmerge,
 )
 
+# --- the youth directory: one filter for the table and for its export (T-071) -------------------
+
+
+class FilterError(ValueError):
+    """A filter value that is not a valid id."""
+
+
+def current_age(p: Participant):
+    """Age today from the date of birth; the source file's age only when there is none."""
+    from django.utils import timezone
+
+    dob = p.date_of_birth
+    if not dob:
+        return p.age_at_source
+    today = timezone.localdate()
+    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+
+def filtered(user, params):
+    """``(queryset, fuzzy)`` for the directory filters in ``params`` (a query dict), scoped to the
+    caller. The list page and its export both use this, so the file is exactly the table."""
+    import uuid
+
+    from . import similar
+
+    qs = Participant.objects.visible_to(user, archived=params.get("archived") == "1")
+    try:
+        if params.get("programme"):
+            qs = qs.filter(enrollments__programme_id=uuid.UUID(params["programme"]))
+        if params.get("cohort"):
+            qs = qs.filter(enrollments__cohort_course__cohort_id=uuid.UUID(params["cohort"]))
+        if params.get("county"):
+            qs = qs.filter(origin_county_id=uuid.UUID(params["county"]))
+    except ValueError:
+        raise FilterError("Invalid filter value.") from None
+    if params.get("status") in {s for s, _ in Participant.STATUSES}:
+        qs = qs.filter(status=params["status"])
+    fuzzy = False
+    if q := params.get("q", "").strip():
+        qs, fuzzy = similar.search(qs, q)
+    return qs.distinct().order_by("full_name_source", "pk"), fuzzy
+
+
+def directory_rows(user, params) -> list[dict]:
+    """The directory as plain rows for an export: the columns the table shows plus gender and
+    age. No contact details, ID numbers or addresses."""
+    qs, _fuzzy = filtered(user, params)
+    qs = qs.select_related("origin_county").prefetch_related(
+        "enrollments__programme", "enrollments__cohort_course__cohort"
+    )
+    rows = []
+    for p in qs:
+        enrollments = list(p.enrollments.all())
+        rows.append(
+            {
+                "name": p.full_name_source,
+                "gender": p.get_gender_display(),
+                "age": current_age(p),
+                "programme": ", ".join(sorted({e.programme.name for e in enrollments})),
+                "cohort": ", ".join(sorted({e.cohort_course.cohort.name for e in enrollments})),
+                "county": p.origin_county.name if p.origin_county_id else "",
+                "status": p.get_status_display(),
+            }
+        )
+    return rows
+
+
 __all__ = [
+    "FilterError",
+    "current_age",
+    "directory_rows",
+    "filtered",
     "DuplicateFailure",
     "PhotoError",
     "ProfileError",

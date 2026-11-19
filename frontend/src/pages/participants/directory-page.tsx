@@ -28,6 +28,7 @@ import {
   useArchiveFlow,
   useSelection,
 } from '@/components/shared/bulk';
+import { ExportButton } from '@/components/shared/export-button';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
 import { AddYouth } from './add-youth';
@@ -185,6 +186,12 @@ export function DirectoryPage() {
                 Clear
               </Button>
             )}
+            <ExportButton
+              table="youth"
+              params={params}
+              noun="youth"
+              total={data?.total}
+            />
           </>
         }
         footer={

@@ -34,13 +34,7 @@ def _visible(request, archived=False):
     return Participant.objects.visible_to(request.user, archived=archived)
 
 
-def current_age(p):
-    """Age today from the date of birth; the source file's age only when there is none."""
-    dob = p.date_of_birth
-    if not dob:
-        return p.age_at_source
-    today = timezone.localdate()
-    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+current_age = services.current_age
 
 
 def _summary(p):
@@ -268,22 +262,10 @@ class ParticipantListView(APIView):
     )
     def get(self, request):
         g = request.query_params
-        qs = _visible(request, archived=g.get("archived") == "1")
         try:
-            if g.get("programme"):
-                qs = qs.filter(enrollments__programme_id=uuid.UUID(g["programme"]))
-            if g.get("cohort"):
-                qs = qs.filter(enrollments__cohort_course__cohort_id=uuid.UUID(g["cohort"]))
-            if g.get("county"):
-                qs = qs.filter(origin_county_id=uuid.UUID(g["county"]))
-        except ValueError:
-            raise serializers.ValidationError({"filter": ["Invalid filter value."]}) from None
-        if g.get("status") in {s for s, _ in Participant.STATUSES}:
-            qs = qs.filter(status=g["status"])
-        fuzzy = False
-        if q := g.get("q", "").strip():
-            qs, fuzzy = similar.search(qs, q)
-        qs = qs.distinct().order_by("full_name_source", "pk")
+            qs, fuzzy = services.filtered(request.user, g)
+        except services.FilterError as exc:
+            raise serializers.ValidationError({"filter": [str(exc)]}) from None
         size = page_size_of(g)
         try:
             offset = max(int(g.get("offset", 0)), 0)

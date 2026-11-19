@@ -122,6 +122,42 @@ export async function apiFile(
   return { blob: await res.blob(), filename: named?.[1] ?? 'CV.pdf' };
 }
 
+/** POST a JSON body and get a file back (a table export). Same session cookie and CSRF header. */
+export async function postFile(
+  path: string,
+  body: unknown,
+): Promise<{ blob: Blob; filename: string }> {
+  const token = readCookie('csrftoken');
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'X-CSRFToken': decodeURIComponent(token) } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let parsed: { errors?: FieldError[]; detail?: string } = {};
+    try {
+      parsed = await res.json();
+    } catch {
+      /* not JSON */
+    }
+    if (res.status === 401)
+      window.dispatchEvent(new Event(UNAUTHENTICATED_EVENT));
+    throw new ApiError(
+      res.status,
+      parsed.errors?.[0]?.message ?? parsed.detail ?? res.statusText,
+      parsed.errors ?? [],
+    );
+  }
+  const named = /filename="?([^";]+)"?/.exec(
+    res.headers.get('Content-Disposition') ?? '',
+  );
+  return { blob: await res.blob(), filename: named?.[1] ?? 'export' };
+}
+
 /** Remove a record or file: DELETE with the CSRF header, no body expected back. */
 export const del = (path: string) => api<void>(path, { method: 'DELETE' });
 
