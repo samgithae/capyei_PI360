@@ -54,6 +54,8 @@ DEFAULT_ROLES = [
             "identity.manage_users",
             "identity.manage_roles",
             "audit.view",
+            "retention.view",
+            "retention.manage",
             "config.view",
             "config.manage",
             "config.manage_protected",

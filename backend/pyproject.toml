@@ -103,6 +103,13 @@ forbidden_modules = ["apps.identity", "apps.referrals", "apps.intelligence", "ap
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
+name = "Data retention imports only imports and audit services (T-073)"
+type = "forbidden"
+source_modules = ["apps.retention"]
+forbidden_modules = ["apps.identity", "apps.participants", "apps.employers", "apps.referrals", "apps.placements", "apps.casework", "apps.portal", "apps.employer_portal", "apps.intelligence", "apps.dataquality", "apps.reporting", "apps.platform", "apps.configuration", "config"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
 name = "CMP-11 Data quality & duplicates imports only its documented dependencies"
 type = "forbidden"
 source_modules = ["apps.dataquality"]

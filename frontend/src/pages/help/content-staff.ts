@@ -22,6 +22,26 @@ export const STAFF_GUIDES: Guide[] = [
     updated: '2026-11',
   },
   {
+    slug: 'data-retention',
+    title: 'Set how long data is kept',
+    summary:
+      'Choose how long imported source rows keep their values, approve the period, and run or preview the clean-up.',
+    group: 'Set up',
+    needs: ['retention.view'],
+    to: { path: '/administration/retention', label: 'Open Data retention' },
+    steps: [
+      'Open Administration, then Data retention. Each kind of data is listed with what clearing it removes, what stays, its period and its state: No period set, Waiting for approval or Active.',
+      'Choose Set period. Enter the number of days to keep the values after the import batch was signed off, and write the basis (the policy, agreement or decision the period comes from). There is a minimum, shown on the form. Saving a period, or changing one, withdraws any earlier approval.',
+      'Choose Approve. Nothing is ever cleared until a period exists and has been approved. Withdraw approval at any time, with a reason, to stop the job for that kind of data.',
+      'Choose Dry run to see how many rows each approved rule would clear. A dry run changes nothing and is listed under Recent runs.',
+      'Choose Apply now, then confirm, to clear the values for good. Only batches whose reconciliation was signed off, and only after the period has passed, are touched. Row numbers, outcomes, error messages, the cohort code, the re-upload check and the sign-off stay, so reconciliation still balances. A cleared batch can no longer be re-checked against its file.',
+      'The same job can run on a schedule from the server with the command run_retention. It previews unless it is given --apply, and it uses the same approved periods.',
+    ],
+    why: 'Personal values should not be kept longer than needed, but clearing them is permanent. So each period needs a written basis and a separate approval, every run is recorded with counts only, and an unsigned batch is never touched because it can still be rolled back.',
+    related: ['import-youth-from-sheet'],
+    updated: '2026-11',
+  },
+  {
     slug: 'set-up-reference-lists',
     title: 'Set up the reference lists',
     summary: 'The dropdown values every form uses.',

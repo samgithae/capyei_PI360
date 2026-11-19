@@ -216,6 +216,11 @@ export const MENU_SIDEBAR: MenuConfig = [
         permission: 'config.view',
       },
       {
+        title: 'Data retention',
+        path: '/administration/retention',
+        permission: 'retention.view',
+      },
+      {
         title: 'Skills',
         path: '/administration/skills',
         permission: 'config.view',

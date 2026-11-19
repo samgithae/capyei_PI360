@@ -95,6 +95,8 @@ class ImportRow(models.Model):
     diff = models.JSONField(default=list)  # field-by-field differences from the stored record
     committed = models.BooleanField(default=False)
     record_id = models.CharField(max_length=40, blank=True)
+    # Set by the retention job (T-073) once the row's values have been cleared.
+    reduced_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [

@@ -734,6 +734,12 @@ def recheck(*, actor, batch) -> ImportBatch:
     """Re-run the checks on held rows after the steward mapped a status or loaded people, so
     rows can move from held to ready without uploading the file again."""
     _need_placements(batch)
+    if batch.rows.filter(reduced_at__isnull=False).exists():
+        raise ImportFailure(
+            "This batch's source values were removed under the retention rule, so its rows "
+            "cannot be checked again. Upload the file again.",
+            "status",
+        )
     moved = 0
     for row in batch.rows.filter(outcome=ImportRow.HELD):
         checked = placement_rows.check_row(row.clean)
@@ -806,3 +812,35 @@ def promote_extra(*, actor, programme_code, columns) -> ImportBatch:
         file_name=f"promote-extra-{code.lower()}.csv",
         data=buf.getvalue().encode("utf-8"),
     )
+
+
+# --- retention (T-073) -----------------------------------------------------------------------
+
+
+def _due_rows(cutoff):
+    """Rows of batches whose reconciliation was signed off on or before ``cutoff`` and whose
+    values are still held. An unsigned batch is never due: it can still be rolled back."""
+    return ImportRow.objects.filter(batch__signoff__created_at__lte=cutoff, reduced_at__isnull=True)
+
+
+def retention_count(cutoff) -> dict:
+    rows = _due_rows(cutoff)
+    return {"rows": rows.count(), "batches": rows.values("batch").distinct().count()}
+
+
+def retention_reduce(cutoff, chunk=1000) -> dict:
+    """Clear the personal values of every due row, keeping what the reconciliation, the error
+    report and the re-upload check still need. Returns counts only."""
+    done = 0
+    while True:
+        rows = list(_due_rows(cutoff).order_by("pk")[:chunk])
+        if not rows:
+            return {"rows": done}
+        now = timezone.now()
+        for r in rows:
+            cohort = (r.clean or {}).get("cohort_code")  # the control totals read this
+            r.raw, r.diff, r.reduced_at = {}, [], now
+            r.clean = {"cohort_code": cohort} if cohort else {}
+        ImportRow.objects.bulk_update(rows, ["raw", "clean", "diff", "reduced_at"])
+        RecordLineage.objects.filter(row_id__in=[r.pk for r in rows]).update(before={}, after={})
+        done += len(rows)

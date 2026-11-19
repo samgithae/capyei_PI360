@@ -6388,6 +6388,147 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/retention:
+    get:
+      operationId: retention_overview
+      tags:
+      - retention
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/retention/{code}:
+    put:
+      operationId: retention_set_period
+      parameters:
+      - in: path
+        name: code
+        schema:
+          type: string
+        required: true
+      tags:
+      - retention
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Period'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Period'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Period'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/retention/{code}/approve:
+    post:
+      operationId: retention_approve
+      parameters:
+      - in: path
+        name: code
+        schema:
+          type: string
+        required: true
+      tags:
+      - retention
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/retention/{code}/revoke:
+    post:
+      operationId: retention_revoke
+      parameters:
+      - in: path
+        name: code
+        schema:
+          type: string
+        required: true
+      tags:
+      - retention
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Reason'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Reason'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/retention/run:
+    post:
+      operationId: retention_run
+      tags:
+      - retention
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Run'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Run'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Run'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/rules:
     get:
       operationId: rules_list
@@ -8849,6 +8990,20 @@ components:
         * `self_employment` - self_employment
         * `work_based_learning` - work_based_learning
         * `further_training` - further_training
+    Period:
+      type: object
+      properties:
+        period_days:
+          type: integer
+          maximum: 36500
+          minimum: 1
+          nullable: true
+        basis:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - period_days
     Permission:
       type: object
       properties:
@@ -9255,6 +9410,15 @@ components:
       - code
       - module
       - name
+    Run:
+      type: object
+      properties:
+        apply:
+          type: boolean
+          default: false
+        confirm:
+          type: boolean
+          default: false
     ScopeItem:
       type: object
       properties:

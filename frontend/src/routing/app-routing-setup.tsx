@@ -41,6 +41,7 @@ import { ProfilePage } from '@/pages/participants/profile-page';
 import { PlaceholderPage } from '@/pages/placeholder-page';
 import { ReferralPage } from '@/pages/referrals/referral-page';
 import { ReferralsPage } from '@/pages/referrals/referrals-page';
+import { RetentionPage } from '@/pages/retention/retention-page';
 import { RuleSetPage } from '@/pages/rules/rule-set-page';
 import { RuleSettingsPage } from '@/pages/rules/rule-settings-page';
 import { RuleVersionPage } from '@/pages/rules/rule-version-page';
@@ -212,6 +213,12 @@ export function AppRoutingSetup() {
             <Route
               path="/administration/employer-portal"
               element={<PortalSettingsPage />}
+            />
+          </Route>
+          <Route element={<RequirePermission permission="retention.view" />}>
+            <Route
+              path="/administration/retention"
+              element={<RetentionPage />}
             />
           </Route>
           <Route

@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "apps.placements",
     "apps.intelligence",
     "apps.imports",
+    "apps.retention",
     "apps.dataquality",
     "apps.reporting",
 ]

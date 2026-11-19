@@ -19,6 +19,8 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("identity.manage_users", "Create, edit and suspend staff", "Administration"),
     Permission("identity.manage_roles", "Manage roles and scopes", "Administration"),
     Permission("audit.view", "View the audit log", "Administration"),
+    Permission("retention.view", "View data-retention rules and runs", "Administration"),
+    Permission("retention.manage", "Set, approve and run data-retention rules", "Administration"),
     Permission("config.view", "View configuration", "Administration"),
     Permission("config.manage", "Change configuration", "Administration"),
     Permission("config.manage_protected", "Change protected settings", "Administration"),
