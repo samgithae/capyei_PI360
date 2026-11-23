@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PI 360 Test Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a single reading column with a sticky progress bar; each step is a row you mark pass, fail or unclear. */
+:root {
+  --bg: #f6f7f5;
+  --surface: #ffffff;
+  --ink: #1b2a2a;
+  --muted: #5d6b6a;
+  --line: #dbe1de;
+  --accent: #0d6b66;
+  --accent-soft: #dff0ee;
+  --good: #1f7a3d;
+  --good-soft: #e1f3e6;
+  --bad: #b3261e;
+  --bad-soft: #fbe5e3;
+  --warn: #8a5a00;
+  --warn-soft: #fbefd0;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101817; --surface: #17211f; --ink: #e6efed; --muted: #9fb1ae; --line: #2a3a37;
+    --accent: #5cc8c0; --accent-soft: #173533;
+    --good: #6fd08c; --good-soft: #173323;
+    --bad: #ff8f86; --bad-soft: #3a1b19;
+    --warn: #f0c35a; --warn-soft: #3a2f12;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101817; --surface: #17211f; --ink: #e6efed; --muted: #9fb1ae; --line: #2a3a37;
+  --accent: #5cc8c0; --accent-soft: #173533;
+  --good: #6fd08c; --good-soft: #173323;
+  --bad: #ff8f86; --bad-soft: #3a1b19;
+  --warn: #f0c35a; --warn-soft: #3a2f12;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.55 var(--font-body); }
+.wrap { max-width: 860px; margin: 0 auto; padding: 0 16px 80px; }
+header { padding: 32px 0 20px; }
+h1 { font: 700 34px/1.1 var(--font-head); margin: 0 0 8px; text-wrap: balance; }
+h2 { font: 700 22px/1.2 var(--font-head); margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0; max-width: 65ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 16px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 14px; }
+.meta b { color: var(--ink); font-weight: 600; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-top: 16px; }
+.panel h3 { font: 600 14px/1.2 var(--font-body); margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; }
+.scroll { overflow-x: auto; }
+code { font: 500 13px var(--font-mono); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+
+.bar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 12px 0; border-bottom: 1px solid var(--line); }
+.bar-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.counts { display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; }
+.chip { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-variant-numeric: tabular-nums; }
+.chip.pass { background: var(--good-soft); color: var(--good); border-color: transparent; }
+.chip.fail { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.chip.unclear { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.track { height: 6px; background: var(--line); border-radius: 3px; margin-top: 10px; overflow: hidden; display: flex; }
+.track i { display: block; height: 100%; }
+.track .p { background: var(--good); } .track .f { background: var(--bad); } .track .u { background: var(--warn); }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+button { font: 500 14px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 0; }
+nav.toc a { font-size: 13px; text-decoration: none; color: var(--accent); padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+
+section.part { margin-top: 32px; }
+.part-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin-bottom: 4px; }
+.part-head .who { color: var(--muted); font-size: 14px; }
+.steps { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.step { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.step[data-s="pass"] { border-left-color: var(--good); }
+.step[data-s="fail"] { border-left-color: var(--bad); }
+.step[data-s="unclear"] { border-left-color: var(--warn); }
+.step-top { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.step-main { flex: 1 1 360px; min-width: 0; }
+.num { font: 500 13px var(--font-mono); color: var(--muted); margin-right: 8px; }
+.do { margin: 0; }
+.expect { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+.expect b { color: var(--accent); font-weight: 600; }
+.marks { display: flex; gap: 6px; }
+.marks button { padding: 4px 10px; font-size: 13px; }
+.marks button[aria-pressed="true"].pass { background: var(--good); color: var(--bg); border-color: var(--good); }
+.marks button[aria-pressed="true"].fail { background: var(--bad); color: var(--bg); border-color: var(--bad); }
+.marks button[aria-pressed="true"].unclear { background: var(--warn); color: var(--bg); border-color: var(--warn); }
+.note { width: 100%; margin-top: 10px; font: 400 14px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; resize: vertical; min-height: 56px; }
+.note[hidden] { display: none; }
+.gaps li { margin: 4px 0; }
+footer { margin-top: 40px; color: var(--muted); font-size: 14px; }
+@media (max-width: 480px) { h1 { font-size: 28px; } }
+@media (prefers-reduced-motion: no-preference) { .track i { transition: width .2s; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>PI 360 test walkthrough</h1>
+  <p class="lede">One pass through every part of the app, in the order the work happens. Mark each step pass, fail or unclear, and add a note when it is not a pass.</p>
+  <ul class="meta">
+    <li><b>32 steps</b> in 9 parts</li>
+    <li><b>About 90 minutes</b></li>
+    <li>Web <code>localhost:5174</code>, API <code>localhost:8010</code>, Postgres dev database</li>
+    <li>Synthetic data only</li>
+  </ul>
+  <div class="panel">
+    <h3>Who to sign in as</h3>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Login</th><th>Role</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td>Your own account</td><td>Administrator</td><td>Settings, rules, access grants, retention</td></tr>
+        <tr><td><code>dev.steward</code></td><td>Data steward</td><td>Youth, employers, data quality, imports</td></tr>
+        <tr><td><code>dev.officer</code></td><td>Placement officer</td><td>Referrals, placements, follow-ups (own caseload only)</td></tr>
+        <tr><td><code>dev.viewer</code></td><td>Manager</td><td>Oversight, reopening</td></tr>
+        <tr><td>M&amp;E analyst (create one)</td><td>M&amp;E analyst</td><td>Reports only, no records</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="expect" style="margin-bottom:0">Passwords for the <code>dev.*</code> logins are at the top of <code>backend/scripts/seed_dev.py</code>.</p>
+  </div>
+  <nav class="toc" id="toc" aria-label="Parts"></nav>
+</header>
+
+<div class="bar" role="region" aria-label="Progress">
+  <div class="bar-row">
+    <div class="counts" id="counts" aria-live="polite"></div>
+    <div class="tools">
+      <button type="button" id="copy" class="primary">Copy results</button>
+      <button type="button" id="reset">Reset all</button>
+    </div>
+  </div>
+  <div class="track" id="track" aria-hidden="true"><i class="p"></i><i class="f"></i><i class="u"></i></div>
+</div>
+
+<main id="parts"></main>
+
+<section class="part">
+  <h2>Known gaps, not bugs</h2>
+  <div class="panel">
+    <ul class="gaps">
+      <li>No disability data. Retention figures need real check-ins. Metric definitions are marked "working".</li>
+      <li>Rule weights and thresholds are placeholders until CAP-YEI approves them.</li>
+      <li>YDM is not built. The MIS adapter is not built. Production import is blocked by the data protection decision.</li>
+      <li>The debug-only MFA bypass is still in the code and must be removed before go-live.</li>
+    </ul>
+  </div>
+</section>
+<footer>Your marks and notes are kept in this browser only. Use Copy results to send them to someone.</footer>
+</div>
+
+<script>
+var PARTS = [
+ {id:"setup", title:"Set up", who:"Administrator · 10 min", steps:[
+  ["Administration > Programmes, Cohorts, Courses, Cohort courses, Institutions, Sectors. Add one of each, or use the Import button (download template, Preview, confirm).","Preview saves nothing; error rows are listed by row number."],
+  ["Administration > Youth records. Switch on consent tracking.","A consent card and a \"No consent\" badge now appear on youth."],
+  ["Administration > Follow-up schedule. Check the defaults: 30 days, 90 days, 6, 12 and 24 months.","The five steps are listed and editable."]
+ ]},
+ {id:"youth", title:"Youth", who:"Data steward · 15 min", steps:[
+  ["Youth > Add youth. Enter \"Grace Atieno\" with county, sub-county, ward, a phone, an e-mail, cohort and course.","Each geography list follows the one before it."],
+  ["Add \"Grace Atieno\" again.","A duplicate warning at the name step and again at Review. It never shows the phone or birth date."],
+  ["Open the youth. Edit Skills and readiness (qualification, two skills, experience, availability) and Verify one entry. Set consent to Given.","Entries show their source and a Verified badge."],
+  ["Youth > Import: upload a small file of skills, one fact per row, matched by enrollment number.","Imported facts show \"import\" and are unverified."],
+  ["Duplicates: merge or dismiss the seeded \"Grace Akinyi\" pair. Data quality: open a rule (for example no county) and fix one youth.","The fix is kept as a correction (was, now, who, when). You can export corrections."],
+  ["Imports: upload a messy sheet, then upload it again.","Validation, match review and a reconciliation report. The second upload shows differences, not duplicates."]
+ ]},
+ {id:"employers", title:"Employers and opportunities", who:"Data steward · 10 min", steps:[
+  ["Employers > Add employer \"Safaricom Ltd\", then \"Safaricom Limited\".","A similar-name warning. Save anyway works."],
+  ["Opportunities > Add. Create a job with two mandatory and one preferred structured requirement (a skill, a minimum qualification, months). Open it.","Opening needs a closing date and an active employer."],
+  ["Close the opportunity, then reopen it.","Closed and expired opportunities are locked until reopened."]
+ ]},
+ {id:"rules", title:"Rules", who:"Administrator · 10 min", steps:[
+  ["Rules > Compatibility. Copy the active version, Edit draft (four steps), set the numbers, Send for review, Approve, Activate.","Approve is refused while any number is undecided. The old version becomes Retired. History shows who and when."],
+  ["Rules > Settings (Support priority and Employer reliability). Change a number.","The change is audited."]
+ ]},
+ {id:"referrals", title:"Referral to placement", who:"Placement officer · 15 min", steps:[
+  ["Open the opportunity and read Suggested youth.","Groups: eligible, eligible with unknowns, not eligible, with what is missing."],
+  ["Refer the youth and move it Submitted, Under review, Interview, Selected, Placed. Refer a second youth and end it as Rejected.","A reason code is compulsory. One live referral per youth per opportunity. History is append-only; a correction needs a written note."],
+  ["On the Selected referral click Record placement, enter a start date and save. Record the same placement again.","The form is pre-filled. The second attempt shows a duplicate warning with \"record anyway\"."],
+  ["Placements: verify the placement. Follow-ups: open the new check-ins and log an attempt, a response and a \"still employed\" answer.","Check-ins exist at 30 days, 90 days and so on."],
+  ["Sign in as dev.officer and look for a youth outside their caseload.","The youth does not exist for them."]
+ ]},
+ {id:"cases", title:"Cases and support priority", who:"Officer and Manager · 10 min", steps:[
+  ["Support priority: read the flags, then click Mark reviewed on one.","Unsuccessful or stalled referrals and ready-but-never-referred youth are listed. The reviewed flag pauses."],
+  ["Cases: create an intervention with an owner and due date, add a note, close it.","An activity timeline. Overdue items are highlighted."],
+  ["Employer page: log employer feedback (1 to 5, with a source).","The evidence card shows \"Insufficient evidence\" until the minimums are met. Retention counts completed check-ins only."]
+ ]},
+ {id:"insight", title:"Insight", who:"Administrator and M&E analyst · 15 min", steps:[
+  ["Overview: click a tile.","It opens the exact list of records it counts."],
+  ["Reports: open each of the five (Programme scorecard, Placement outcomes, Equity and reach, Retention, Employer and pipeline). Change filters and read \"How these numbers are worked out\".","Numbers change with the filters. Many tiles show n/a or 0 because the dev data is sparse."],
+  ["Export a PDF and an Excel file from a report.","Excel has Summary, one sheet per table and Definitions. The Excel download has not been clicked through in the UI before, so write down what you see."],
+  ["Sign in as the M&E analyst.","Reports open, but there are no youth records."],
+  ["Youth > Export. Grant yourself exports.identifiable under Administration > Access grants, tick or untick fields, download.","A grant and a stated purpose are required."]
+ ]},
+ {id:"portals", title:"Portals (optional)", who:"Staff and invited users · 10 min", steps:[
+  ["On a youth, Send invite. Read the link from the API log (change the port to 5174 if needed). Sign in as the youth.","Consent notice first, then My profile, My opportunities, My placement. No scores or staff notes."],
+  ["Administration > Employer portal: invite an employer contact and check their dashboard, opportunities and referrals.","The employer sees only their own company."]
+ ]},
+ {id:"safety", title:"Safety and housekeeping", who:"Administrator · 5 min", steps:[
+  ["Administration > Data retention.","Dry run by default. Nothing is cleared and no period is approved."],
+  ["Help centre: open \"Reading and exporting the reports\" and one other guide.","Both open and read clearly."],
+  ["Check the audit trail on a rule version and on a youth. Switch to dark mode and a narrow window on two pages.","Who and when are recorded. Layouts hold up."]
+ ]}
+];
+
+var KEY = "pi360-walkthrough-v1";
+var state = {};
+try { state = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { state = {}; }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+var all = [], n = 0, root = document.getElementById("parts"), toc = document.getElementById("toc");
+PARTS.forEach(function (p, pi) {
+  var sec = document.createElement("section");
+  sec.className = "part"; sec.id = p.id;
+  var html = '<div class="part-head"><h2>Part ' + (pi + 1) + '. ' + esc(p.title) + '</h2><span class="who">' + esc(p.who) + '</span></div><ol class="steps">';
+  p.steps.forEach(function (s) {
+    n++;
+    all.push({ n: n, part: p.title, do: s[0], expect: s[1] });
+    html += '<li class="step" id="s' + n + '" data-n="' + n + '"><div class="step-top"><div class="step-main">' +
+      '<p class="do"><span class="num">' + n + '</span>' + esc(s[0]) + '</p>' +
+      '<p class="expect"><b>Expect</b> ' + esc(s[1]) + '</p></div>' +
+      '<div class="marks" role="group" aria-label="Result for step ' + n + '">' +
+      '<button type="button" class="pass" data-m="pass" aria-pressed="false">Pass</button>' +
+      '<button type="button" class="fail" data-m="fail" aria-pressed="false">Fail</button>' +
+      '<button type="button" class="unclear" data-m="unclear" aria-pressed="false">Unclear</button></div></div>' +
+      '<textarea class="note" id="note' + n + '" placeholder="What happened?" aria-label="Note for step ' + n + '" hidden></textarea></li>';
+  });
+  html += '</ol>';
+  sec.innerHTML = html;
+  root.appendChild(sec);
+  var a = document.createElement("a"); a.href = "#" + p.id; a.textContent = (pi + 1) + ". " + p.title; toc.appendChild(a);
+});
+
+function render(i) {
+  var el = document.getElementById("s" + i), r = state[i] || {};
+  el.setAttribute("data-s", r.m || "");
+  el.querySelectorAll(".marks button").forEach(function (b) { b.setAttribute("aria-pressed", String(r.m === b.getAttribute("data-m"))); });
+  var ta = document.getElementById("note" + i);
+  ta.hidden = !(r.m === "fail" || r.m === "unclear" || (r.t && r.t.length));
+  if (ta.value !== (r.t || "")) ta.value = r.t || "";
+}
+function summary() {
+  var c = { pass: 0, fail: 0, unclear: 0 };
+  all.forEach(function (s) { var r = state[s.n]; if (r && r.m) c[r.m]++; });
+  var left = all.length - c.pass - c.fail - c.unclear, t = all.length;
+  document.getElementById("counts").innerHTML =
+    '<span class="chip pass">' + c.pass + ' pass</span><span class="chip fail">' + c.fail + ' fail</span>' +
+    '<span class="chip unclear">' + c.unclear + ' unclear</span><span class="chip">' + left + ' left of ' + t + '</span>';
+  var bars = document.querySelectorAll("#track i");
+  bars[0].style.width = (c.pass / t * 100) + "%"; bars[1].style.width = (c.fail / t * 100) + "%"; bars[2].style.width = (c.unclear / t * 100) + "%";
+}
+all.forEach(function (s) { render(s.n); });
+summary();
+
+root.addEventListener("click", function (e) {
+  var b = e.target.closest(".marks button"); if (!b) return;
+  var i = b.closest(".step").getAttribute("data-n"), m = b.getAttribute("data-m");
+  var r = state[i] || {};
+  r.m = (r.m === m) ? "" : m;
+  state[i] = r; save(); render(i); summary();
+});
+root.addEventListener("input", function (e) {
+  if (!e.target.classList.contains("note")) return;
+  var i = e.target.closest(".step").getAttribute("data-n");
+  var r = state[i] || {}; r.t = e.target.value; state[i] = r; save();
+});
+
+document.getElementById("reset").addEventListener("click", function (e) {
+  var b = e.currentTarget;
+  if (b.getAttribute("data-armed") !== "1") { b.setAttribute("data-armed", "1"); b.textContent = "Click again to clear"; setTimeout(function () { b.removeAttribute("data-armed"); b.textContent = "Reset all"; }, 3000); return; }
+  state = {}; save(); all.forEach(function (s) { render(s.n); }); summary();
+  b.removeAttribute("data-armed"); b.textContent = "Reset all";
+});
+
+document.getElementById("copy").addEventListener("click", function (e) {
+  var b = e.currentTarget, lines = ["PI 360 test walkthrough results"], c = { pass: 0, fail: 0, unclear: 0 };
+  all.forEach(function (s) { var r = state[s.n]; if (r && r.m) c[r.m]++; });
+  lines.push(c.pass + " pass, " + c.fail + " fail, " + c.unclear + " unclear, " + (all.length - c.pass - c.fail - c.unclear) + " not tested", "");
+  all.forEach(function (s) {
+    var r = state[s.n];
+    if (r && (r.m === "fail" || r.m === "unclear")) {
+      lines.push("Step " + s.n + " (" + s.part + ") " + r.m.toUpperCase() + ": " + s.do);
+      if (r.t) lines.push("  Note: " + r.t);
+    }
+  });
+  var text = lines.join("\n");
+  function done(ok) { b.textContent = ok ? "Copied" : "Copy blocked"; setTimeout(function () { b.textContent = "Copy results"; }, 2000); }
+  try { navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); }); } catch (err) { done(false); }
+});
+</script>
+</body>
+</html>
