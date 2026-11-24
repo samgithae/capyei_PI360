@@ -98,7 +98,7 @@ function ChartCard({ chart }: { chart: Chart }) {
       <CardHeader>
         <CardTitle>{chart.title}</CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="relative overflow-hidden p-4">
         {empty ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             {chart.empty || 'Nothing to show for these filters.'}
@@ -279,7 +279,7 @@ export function ReportView({ report }: { report: Report }) {
       )}
 
       {report.tiles.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {report.tiles.map((t) => (
             <TileCard key={t.id} tile={t} />
           ))}
@@ -301,7 +301,7 @@ export function ReportView({ report }: { report: Report }) {
       )}
 
       {report.charts.length > 0 && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {report.charts.map((c) => (
             <ChartCard key={c.id} chart={c} />
           ))}
