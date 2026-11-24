@@ -316,7 +316,7 @@ export function OverviewPage() {
 
         {d && t && (
           <>
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
               {d.can.youth && (
                 <Stat
                   icon={<Users className="size-5" />}
@@ -367,7 +367,7 @@ export function OverviewPage() {
                 <h3 className="mb-3 text-sm font-semibold text-foreground">
                   Needs attention
                 </h3>
-                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
                   {d.alerts.map((a) => {
                     const v = ALERT_ICON[a.key] ?? {
                       icon: <AlertTriangle className="size-5" />,
@@ -410,7 +410,7 @@ export function OverviewPage() {
               </div>
             )}
 
-            <div className="grid gap-5 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
               {d.can.youth && (
                 <DataCard
                   title="From registration to placement"
@@ -536,7 +536,7 @@ export function OverviewPage() {
               </DataCard>
             )}
 
-            <div className="grid gap-5 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {d.can.employers && (
                 <DataCard
                   title="Recent opportunities"
@@ -566,7 +566,7 @@ export function OverviewPage() {
               )}
             </div>
 
-            <div className="grid gap-5 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {d.can.youth && d.age.length > 0 && (
                 <DataCard title="Age of registered youth">
                   <Bars rows={d.age} period={period} />
