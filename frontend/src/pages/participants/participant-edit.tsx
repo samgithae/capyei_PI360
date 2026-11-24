@@ -16,6 +16,7 @@ import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
 import { CvProfile } from './cv/cv-profile';
 import { splitName } from './split-name';
+import { DisabilityCard } from './workspace/disability-card';
 import { IdentityHeader } from './workspace/header';
 import type { Detail as WorkspaceDetail } from './workspace/types';
 import { VerificationTab } from './workspace/verification-tab';
@@ -137,9 +138,7 @@ function OfferingFields({
   onChange: (cohortId: string, courseId: string) => void;
 }) {
   const cohort = filters?.cohorts.find((c) => c.id === cohortId);
-  const project = filters?.projects.find(
-    (p) => p.id === cohort?.project_id,
-  );
+  const project = filters?.projects.find((p) => p.id === cohort?.project_id);
   const offerings = useQuery({
     queryKey: ['offerings', cohortId],
     enabled: canPickCourse && !!cohortId,
@@ -540,6 +539,8 @@ export function EditParticipant() {
                     </div>
                   </div>
                 </Section>
+
+                <DisabilityCard participantId={v.id} />
 
                 <Section title="Current residence">
                   <div className="grid gap-4 sm:grid-cols-3">

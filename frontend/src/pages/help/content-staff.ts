@@ -578,6 +578,23 @@ export const STAFF_GUIDES: Guide[] = [
     updated: '2026-11',
   },
   {
+    slug: 'disability-answer',
+    title: 'Record whether a youth has a disability',
+    summary:
+      'Ask the youth and record Yes or No, with a short description if Yes. Only people with the special permission can see or change it.',
+    group: 'Youth',
+    needs: ['participants.view_disability'],
+    to: { path: '/youth', label: 'Open Youth' },
+    steps: [
+      'Open the youth’s Edit Profile page. The Disability card sits below Personal details. If you do not see it, either you do not have the disability permission or the feature is not switched on yet.',
+      'Ask the youth, then choose Yes or No. If Yes, you may add a short description (for example the adjustment they need). Do not record a diagnosis or anything you were not told. Choose Save answer.',
+      'There is no “prefer not to say”. If the youth would rather not answer, leave it as Not recorded. You can set it back to Not recorded if it was entered by mistake; the description is removed too.',
+    ],
+    why: 'Disability is sensitive, so it is kept out of the youth list, the profile page, exports and the CV. Only people given the disability permission can open it, and every time someone opens or changes it the audit log records who and when, but never the answer. Reports will show it only as counts, with small groups hidden, once CAP-YEI has approved how.',
+    related: ['review-list'],
+    updated: '2026-11',
+  },
+  {
     slug: 'followups',
     title: 'Follow up a youth after a placement',
     summary:

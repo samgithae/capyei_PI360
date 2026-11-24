@@ -31,6 +31,11 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("participants.edit", "Edit participants", "Participants"),
     Permission("participants.view_contact", "View participant contact details", "Participants"),
     Permission(
+        "participants.view_disability",
+        "View and record whether a participant has a disability (every access is logged)",
+        "Participants",
+    ),
+    Permission(
         "participants.view_profile", "View education, work history and activity", "Participants"
     ),
     Permission("participants.import", "Import participants", "Participants"),

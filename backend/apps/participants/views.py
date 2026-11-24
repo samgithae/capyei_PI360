@@ -17,8 +17,9 @@ from apps.api.archive import ARCHIVE, BulkArchiveView
 from apps.api.pagination import page_size_of
 from apps.audit import services as audit
 from apps.configuration import services as configuration
+from apps.configuration.flags import FlagGate
 
-from . import corrections, review_flag, services, similar
+from . import corrections, disability, review_flag, services, similar
 from .models import (
     Participant,
     ParticipantContact,
@@ -724,6 +725,55 @@ class ResidenceView(APIView):
                     after={"county_id": str(county_id or "")},
                 )
         return Response(_detail(p, request.user))
+
+
+class DisabilitySerializer(serializers.Serializer):
+    disability = serializers.ChoiceField(choices=Participant.DISABILITY_VALUES)
+    description = serializers.CharField(max_length=300, allow_blank=True, required=False)
+
+
+class DisabilityView(APIView):
+    """Read or record whether a youth has a disability (NEW-040, NEW-073). Behind the flag
+    ``participants.disability`` (off: 404) and the permission ``participants.view_disability``;
+    reading also needs ``participants.view`` and writing ``participants.edit``. Every call is
+    written to the audit log without the answer."""
+
+    permission_classes = [HasPermission, FlagGate]
+    required_permission = {"GET": VIEW, "PUT": EDIT}
+    required_flag = disability.FLAG
+
+    def _youth(self, request, pk):
+        if not has_permission(request.user, disability.PERMISSION):
+            raise PermissionDenied
+        try:
+            return _visible(request, archived=None).get(pk=pk)
+        except Participant.DoesNotExist:
+            raise NotFound from None
+
+    @extend_schema(operation_id="participants_disability_get", responses={200: dict})
+    def get(self, request, pk):
+        return Response(disability.read(actor=request.user, p=self._youth(request, pk)))
+
+    @extend_schema(
+        operation_id="participants_disability_set",
+        request=DisabilitySerializer,
+        responses={200: dict},
+    )
+    def put(self, request, pk):
+        p = self._youth(request, pk)
+        s = DisabilitySerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        try:
+            doc = disability.write(
+                actor=request.user,
+                p=p,
+                answer=d["disability"],
+                description=d.get("description", ""),
+            )
+        except disability.DisabilityError as e:
+            raise serializers.ValidationError({e.field: str(e)}) from None
+        return Response(doc)
 
 
 class ParticipantArchiveView(BulkArchiveView):

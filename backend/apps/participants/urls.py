@@ -26,6 +26,7 @@ urlpatterns = [
     path("participants/review/mark", v.ParticipantReviewBulkView.as_view()),
     path("participants/<uuid:pk>/review", v.ParticipantReviewView.as_view()),
     path("participants/<uuid:pk>/contacts", v.ContactsView.as_view()),
+    path("participants/<uuid:pk>/disability", v.DisabilityView.as_view()),
     path("participants/<uuid:pk>/consent", v.ConsentView.as_view()),
     path("participants/skills", sk.StaffSearch.as_view()),
     path("participants/skills/categories", sk.StaffCategories.as_view()),

@@ -5097,6 +5097,71 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/participants/{id}/disability:
+    get:
+      operationId: participants_disability_get
+      description: |-
+        Read or record whether a youth has a disability (NEW-040, NEW-073). Behind the flag
+        ``participants.disability`` (off: 404) and the permission ``participants.view_disability``;
+        reading also needs ``participants.view`` and writing ``participants.edit``. Every call is
+        written to the audit log without the answer.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    put:
+      operationId: participants_disability_set
+      description: |-
+        Read or record whether a youth has a disability (NEW-040, NEW-073). Behind the flag
+        ``participants.disability`` (off: 404) and the permission ``participants.view_disability``;
+        reading also needs ``participants.view`` and writing ``participants.edit``. Every call is
+        written to the audit log without the answer.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Disability'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Disability'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Disability'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/{id}/enrollments:
     post:
       operationId: participants_enrollment_add
@@ -8897,6 +8962,26 @@ components:
           maxLength: 500
       required:
       - reason
+    Disability:
+      type: object
+      properties:
+        disability:
+          $ref: '#/components/schemas/DisabilityEnum'
+        description:
+          type: string
+          maxLength: 300
+      required:
+      - disability
+    DisabilityEnum:
+      enum:
+      - not_recorded
+      - 'yes'
+      - 'no'
+      type: string
+      description: |-
+        * `not_recorded` - Not recorded
+        * `yes` - Yes
+        * `no` - No
     DuplicateReason:
       type: object
       properties:

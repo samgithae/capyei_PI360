@@ -77,6 +77,23 @@ class Participant(models.Model):
     )
     review_reason = models.CharField(max_length=20, blank=True)  # a code from review.REASONS
     review_since = models.DateTimeField(null=True, blank=True)
+    # Disability (D-082, NEW-040). Yes / No only, with an optional description when Yes; a record
+    # nobody has asked about stays "not_recorded" and nothing is inferred. Held only while the flag
+    # ``participants.disability`` is on, read and written only with the permission
+    # ``participants.view_disability``, and never part of lists, exports, the audit values or the
+    # detail payload (see disability.py).
+    DISABILITY_NOT_RECORDED, DISABILITY_YES, DISABILITY_NO = "not_recorded", "yes", "no"
+    DISABILITY_VALUES = [
+        (DISABILITY_NOT_RECORDED, "Not recorded"),
+        (DISABILITY_YES, "Yes"),
+        (DISABILITY_NO, "No"),
+    ]
+    disability = models.CharField(
+        max_length=12, choices=DISABILITY_VALUES, default=DISABILITY_NOT_RECORDED
+    )
+    disability_description = models.CharField(max_length=300, blank=True)
+    disability_recorded_at = models.DateTimeField(null=True, blank=True)
+    disability_source = models.CharField(max_length=10, blank=True)  # staff | self | import
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
