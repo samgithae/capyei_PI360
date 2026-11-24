@@ -77,19 +77,21 @@ export function IdentityHeader({
           <img
             src={apiUrl(`/participants/${p.id}/photo`)}
             alt={`Photo of ${p.name}`}
-            className="size-24 shrink-0 rounded-full border border-border object-cover"
+            className="size-16 shrink-0 rounded-full border border-border object-cover sm:size-24"
           />
         ) : (
           <div
             aria-hidden
-            className="flex size-24 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+            className="flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground sm:size-24"
           >
             <UserRound className="size-10" />
           </div>
         )}
-        <div className="min-w-0 flex-1 space-y-2">
+        <div className="min-w-[min(100%,12rem)] flex-1 space-y-2">
           <div>
-            <h1 className="text-2xl font-semibold break-words">{p.name}</h1>
+            <h1 className="text-xl font-semibold break-words sm:text-2xl">
+              {p.name}
+            </h1>
             {headline && (
               <p className="text-base break-words text-muted-foreground">
                 {headline}
@@ -139,7 +141,7 @@ export function IdentityHeader({
             </Link>
           </Button>
         ) : (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             {onRefer && can('referrals.edit') && !p.archived && (
               <Button onClick={onRefer}>
                 <Send /> Refer to Opportunity

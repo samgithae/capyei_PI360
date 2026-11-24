@@ -40,7 +40,7 @@ export function Main() {
       </a>
       {!isMobile && <Sidebar />}
 
-      <div className="wrapper flex grow flex-col">
+      <div className="wrapper flex min-w-0 grow flex-col">
         <Header />
 
         <main id="main-content" className="grow pt-5" tabIndex={-1}>
