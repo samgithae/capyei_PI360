@@ -2457,7 +2457,7 @@ paths:
         schema:
           type: string
       - in: query
-        name: programme
+        name: project
         schema:
           type: string
       - in: query
@@ -3851,11 +3851,11 @@ paths:
   /api/v1/imports/extra:
     get:
       operationId: imports_extra_summary
-      description: 'Which extra labels the people of one programme carry (stage E:
-        promote extras).'
+      description: 'Which extra labels the people of one project carry (stage E: promote
+        extras).'
       parameters:
       - in: query
-        name: programme
+        name: project
         schema:
           type: string
         required: true
@@ -4827,11 +4827,15 @@ paths:
         schema:
           type: string
       - in: query
-        name: programme
+        name: project
         schema:
           type: string
       - in: query
         name: q
+        schema:
+          type: string
+      - in: query
+        name: review
         schema:
           type: string
       - in: query
@@ -5433,6 +5437,90 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/{id}/review:
+    get:
+      operationId: participants_review_history
+      description: |-
+        The review flag on one youth (D-084). GET the history; POST an officer flag (reason
+        required); DELETE marks it reviewed. Blocks nothing.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: participants_review_create
+      description: |-
+        The review flag on one youth (D-084). GET the history; POST an officer flag (reason
+        required); DELETE marks it reviewed. Blocks nothing.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewNote'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewNote'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewNote'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: participants_review_destroy
+      description: |-
+        The review flag on one youth (D-084). GET the history; POST an officer flag (reason
+        required); DELETE marks it reviewed. Blocks nothing.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/{id}/support-review:
     post:
       operationId: support_review
@@ -5697,6 +5785,35 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/participants/duplicates/{id}/complete:
+    post:
+      operationId: participants_duplicates_complete_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/participants/duplicates/{id}/dismiss:
     post:
       operationId: participants_duplicates_dismiss_create
@@ -5740,6 +5857,9 @@ paths:
   /api/v1/participants/duplicates/{id}/merge:
     post:
       operationId: participants_duplicates_merge_create
+      description: |-
+        Merge, or, while a critical conflict remains, save the merge as pending resolution
+        (202, with the conflicts). Nothing moves until it is completed.
       parameters:
       - in: path
         name: id
@@ -5761,6 +5881,102 @@ paths:
             schema:
               $ref: '#/components/schemas/Merge'
         required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '202':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/duplicates/{id}/resolve:
+    post:
+      operationId: participants_duplicates_resolve_create
+      description: |-
+        An authorised officer resolves the running-placement conflict that holds a merge: they
+        need the merge permission and the right to edit placements. The choice is kept with the
+        merge (who, when, why, what).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MergeResolve'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MergeResolve'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MergeResolve'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/duplicates/{id}/review:
+    get:
+      operationId: participants_duplicates_review_retrieve
+      description: |-
+        What a merge into the chosen survivor would do: values filled automatically, real
+        conflicts to choose, and critical conflicts that hold the merge (NEW-077).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: survivor
+        schema:
+          type: string
+        required: true
+      tags:
+      - participants
       security:
       - cookieAuth: []
       responses:
@@ -5940,6 +6156,35 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/Bulk'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/participants/review/mark:
+    post:
+      operationId: participants_review_mark_create
+      description: Mark many youth reviewed at once. Ids outside the caller's scope
+        are ignored.
+      tags:
+      - participants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewBulk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewBulk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewBulk'
         required: true
       security:
       - cookieAuth: []
@@ -6175,6 +6420,47 @@ paths:
       - cookieAuth: []
       responses:
         '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/placements/{id}/change-employer:
+    post:
+      operationId: placements_change_employer
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - placements
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlacementChangeEmployer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlacementChangeEmployer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlacementChangeEmployer'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
           content:
             application/json:
               schema:
@@ -6735,6 +7021,222 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/registrations:
+    get:
+      operationId: registrations_list
+      description: 'Stewards (all-scope roles): the queue of self-registrations and
+        its counts.'
+      tags:
+      - registrations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/registrations/{id}:
+    delete:
+      operationId: registrations_delete
+      description: Administrators delete a rejected or expired request.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - registrations
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/registrations/{id}/create:
+    post:
+      operationId: registrations_create
+      description: Make a new youth record from the sign-up. Needs the right to add
+        youth.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - registrations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Decision'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Decision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Decision'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/registrations/{id}/link:
+    post:
+      operationId: registrations_link
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - registrations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Decision'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Decision'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Decision'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/registrations/{id}/matches:
+    get:
+      operationId: registrations_matches
+      description: Who already on file looks like this sign-up (only people the officer
+        may see).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - registrations
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/registrations/{id}/reject:
+    post:
+      operationId: registrations_reject
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - registrations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reject'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Reject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Reject'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/registrations/submit:
+    post:
+      operationId: registrations_submit
+      description: 'Unauthenticated, rate-limited per IP and flag-gated: 404 while
+        sign-up is off.'
+      tags:
+      - registrations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Register'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Register'
+        required: true
+      security:
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/registrations/verify:
+    post:
+      operationId: registrations_verify
+      description: 'Unauthenticated, rate-limited per IP and flag-gated: 404 while
+        sign-up is off.'
+      tags:
+      - registrations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Token'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Token'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Token'
+        required: true
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
   /api/v1/reporting/dashboard:
     get:
       operationId: reporting_dashboard
@@ -6839,7 +7341,7 @@ paths:
         schema:
           type: string
       - in: query
-        name: programme
+        name: project
         schema:
           type: string
       - in: query
@@ -6915,7 +7417,7 @@ paths:
         schema:
           type: string
       - in: query
-        name: programme
+        name: project
         schema:
           type: string
       - in: query
@@ -8373,6 +8875,20 @@ components:
       description: |-
         * `ok` - ok
         * `unavailable` - unavailable
+    Decision:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+        participant_id:
+          type: string
+          format: uuid
+        confirm_similar:
+          type: boolean
+          default: false
+      required:
+      - reason
     Decline:
       type: object
       properties:
@@ -8654,18 +9170,42 @@ components:
       - reason
     FollowUpComplete:
       type: object
+      description: |-
+        Send ``outcome`` (NEW-034). ``still_employed`` alone is the form before it, still accepted:
+        it records the answer without changing the placements.
       properties:
+        outcome:
+          default: ''
+          oneOf:
+          - $ref: '#/components/schemas/OutcomeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         still_employed:
           type: boolean
+          nullable: true
         evidence_source:
           $ref: '#/components/schemas/EvidenceSourceEnum'
         note:
           type: string
           default: ''
           maxLength: 2000
+        leaving_reason_id:
+          type: string
+          format: uuid
+          nullable: true
+        left_on:
+          type: string
+          format: date
+          nullable: true
+        observations:
+          type: string
+          default: ''
+          maxLength: 2000
+        new_job:
+          allOf:
+          - $ref: '#/components/schemas/NewJob'
+          nullable: true
       required:
       - evidence_source
-      - still_employed
     FollowUpKindEnum:
       enum:
       - early
@@ -8913,6 +9453,40 @@ components:
       required:
       - reason
       - survivor
+    MergeResolve:
+      type: object
+      properties:
+        action:
+          $ref: '#/components/schemas/MergeResolveActionEnum'
+        placement_id:
+          type: string
+          format: uuid
+        keep_id:
+          type: string
+          format: uuid
+          nullable: true
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        exit_reason:
+          type: string
+          maxLength: 200
+        reason:
+          type: string
+          maxLength: 500
+      required:
+      - action
+      - placement_id
+      - reason
+    MergeResolveActionEnum:
+      enum:
+      - end
+      - same
+      type: string
+      description: |-
+        * `end` - end
+        * `same` - same
     MfaCode:
       type: object
       properties:
@@ -8960,6 +9534,58 @@ components:
         * `costs` - costs
         * `wellbeing` - wellbeing
         * `other` - other
+    NewJob:
+      type: object
+      description: The work a youth moved to, found at a follow-up (NEW-034).
+      properties:
+        business_activity:
+          type: string
+          maxLength: 200
+        operational_status:
+          oneOf:
+          - $ref: '#/components/schemas/OperationalStatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        business_evidence:
+          type: string
+          maxLength: 2000
+        monthly_income:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        employment_type_id:
+          type: string
+          format: uuid
+          nullable: true
+        salary_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        salary_band_id:
+          type: string
+          format: uuid
+          nullable: true
+        pathway:
+          $ref: '#/components/schemas/PathwayEnum'
+        start_date:
+          type: string
+          format: date
+        employer_id:
+          type: string
+          format: uuid
+          nullable: true
+        employer_name_source:
+          type: string
+          maxLength: 255
+        designation:
+          type: string
+          maxLength: 255
+        benefits:
+          type: string
+          maxLength: 2000
+      required:
+      - start_date
     Note:
       type: object
       properties:
@@ -8967,6 +9593,16 @@ components:
           type: string
           default: ''
           maxLength: 2000
+    OperationalStatusEnum:
+      enum:
+      - operating
+      - not_operating
+      - closed
+      type: string
+      description: |-
+        * `operating` - operating
+        * `not_operating` - not_operating
+        * `closed` - closed
     OpportunityCreate:
       type: object
       properties:
@@ -9022,6 +9658,18 @@ components:
         * `internship` - Internship
         * `apprenticeship` - Apprenticeship
         * `other` - Other
+    OutcomeEnum:
+      enum:
+      - same_employer
+      - changed_employer
+      - self_employed
+      - left_employment
+      type: string
+      description: |-
+        * `same_employer` - same_employer
+        * `changed_employer` - changed_employer
+        * `self_employed` - self_employed
+        * `left_employment` - left_employment
     OwnContact:
       type: object
       properties:
@@ -9696,7 +10344,38 @@ components:
           $ref: '#/components/schemas/ParticipantStatusEnum'
     PatchedPlacementUpdate:
       type: object
+      description: |-
+        D-080 / B27 (NEW-071): only for the self-employment pathway; the service refuses them on
+        any other. monthly_income needs the restricted economic-data grant.
       properties:
+        business_activity:
+          type: string
+          maxLength: 200
+        operational_status:
+          oneOf:
+          - $ref: '#/components/schemas/OperationalStatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        business_evidence:
+          type: string
+          maxLength: 2000
+        monthly_income:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        employment_type_id:
+          type: string
+          format: uuid
+          nullable: true
+        salary_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        salary_band_id:
+          type: string
+          format: uuid
+          nullable: true
         pathway:
           $ref: '#/components/schemas/PathwayEnum'
         start_date:
@@ -9851,9 +10530,100 @@ components:
       - active
       - id
       - name
+    PlacementChangeEmployer:
+      type: object
+      description: End the running placement and start the next one (D-081).
+      properties:
+        business_activity:
+          type: string
+          maxLength: 200
+        operational_status:
+          oneOf:
+          - $ref: '#/components/schemas/OperationalStatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        business_evidence:
+          type: string
+          maxLength: 2000
+        monthly_income:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        employment_type_id:
+          type: string
+          format: uuid
+          nullable: true
+        salary_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        salary_band_id:
+          type: string
+          format: uuid
+          nullable: true
+        end_date:
+          type: string
+          format: date
+        start_date:
+          type: string
+          format: date
+        pathway:
+          $ref: '#/components/schemas/PathwayEnum'
+        employer_id:
+          type: string
+          format: uuid
+          nullable: true
+        employer_name_source:
+          type: string
+          default: ''
+          maxLength: 255
+        designation:
+          type: string
+          default: ''
+          maxLength: 255
+        benefits:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - end_date
+      - pathway
+      - start_date
     PlacementCreate:
       type: object
+      description: |-
+        D-080 / B27 (NEW-071): only for the self-employment pathway; the service refuses them on
+        any other. monthly_income needs the restricted economic-data grant.
       properties:
+        business_activity:
+          type: string
+          maxLength: 200
+        operational_status:
+          oneOf:
+          - $ref: '#/components/schemas/OperationalStatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        business_evidence:
+          type: string
+          maxLength: 2000
+        monthly_income:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        employment_type_id:
+          type: string
+          format: uuid
+          nullable: true
+        salary_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        salary_band_id:
+          type: string
+          format: uuid
+          nullable: true
         participant_id:
           type: string
           format: uuid
@@ -9889,9 +10659,6 @@ components:
           type: string
           default: ''
           maxLength: 2000
-        confirm_duplicate:
-          type: boolean
-          default: false
       required:
       - participant_id
       - pathway
@@ -9989,7 +10756,7 @@ components:
     Promote:
       type: object
       properties:
-        programme_code:
+        project_code:
           type: string
           maxLength: 20
         columns:
@@ -9998,7 +10765,7 @@ components:
             type: string
       required:
       - columns
-      - programme_code
+      - project_code
     Reason:
       type: object
       properties:
@@ -10118,6 +10885,48 @@ components:
         * `no_response` - no_response
         * `placed` - placed
         * `closed` - closed
+    Register:
+      type: object
+      properties:
+        given_name:
+          type: string
+          maxLength: 100
+        family_name:
+          type: string
+          maxLength: 100
+        date_of_birth:
+          type: string
+          format: date
+        gender:
+          type: string
+          maxLength: 20
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          maxLength: 20
+        programme_code:
+          type: string
+          maxLength: 40
+        enrollment_no:
+          type: string
+          maxLength: 60
+        consent:
+          type: boolean
+      required:
+      - consent
+      - date_of_birth
+      - email
+      - family_name
+      - given_name
+    Reject:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+      - reason
     Requirement:
       type: object
       properties:
@@ -10197,6 +11006,29 @@ components:
           maxLength: 500
       required:
       - reason
+    ReviewBulk:
+      type: object
+      properties:
+        note:
+          type: string
+          default: ''
+          maxLength: 500
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 500
+          minItems: 1
+      required:
+      - ids
+    ReviewNote:
+      type: object
+      properties:
+        note:
+          type: string
+          default: ''
+          maxLength: 500
     Role:
       type: object
       properties:
@@ -10278,13 +11110,13 @@ components:
       - value
     ScopeItemKindEnum:
       enum:
-      - programme
+      - project
       - cohort
       - region
       - officer
       type: string
       description: |-
-        * `programme` - programme
+        * `project` - project
         * `cohort` - cohort
         * `region` - region
         * `officer` - officer

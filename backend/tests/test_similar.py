@@ -104,7 +104,7 @@ def test_matches_say_who_to_tell_apart(db, make_user):
     c = client_for(make_user("steward", "Data steward"))
     found = check(c, name="Grace Atieno")
     assert found[0]["county"] == kisumu.name
-    assert found[0]["programmes"] == []
+    assert found[0]["projects"] == []
 
 
 def test_search_matches_words_in_any_order_and_ids(people, make_user):

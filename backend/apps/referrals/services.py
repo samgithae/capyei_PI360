@@ -70,6 +70,17 @@ def referred_participant_ids(opportunity_id) -> set:
     )
 
 
+def active_opportunities(participant_id) -> dict:
+    """{opportunity id: referral id} for this youth's referrals still in progress. Used when two
+    records of one youth are merged (NEW-077): both may not hold an active one to the same post."""
+    return {
+        str(o): str(r)
+        for r, o in Referral.objects.filter(
+            participant_id=participant_id, stage__in=Referral.ACTIVE
+        ).values_list("pk", "opportunity_id")
+    }
+
+
 def _check_no_other_active(referral):
     clash = Referral.objects.filter(
         participant_id=referral.participant_id,

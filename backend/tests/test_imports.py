@@ -13,7 +13,7 @@ from apps.configuration.models import (
     CohortCourse,
     County,
     Course,
-    Programme,
+    Project,
     TrainingInstitution,
 )
 from apps.imports import services
@@ -22,7 +22,7 @@ from apps.participants.models import Participant, ParticipantEnrollment
 
 COLUMNS = {
     "Name": "full_name",
-    "Prog": "programme_code",
+    "Prog": "project_code",
     "Cohort": "cohort_code",
     "Course": "course_code",
     "EnrolNo": "enrollment_no",
@@ -40,13 +40,13 @@ GOOD = [
 
 @pytest.fixture
 def world(db):
-    prog = Programme.objects.create(code="P1", name="Programme One")
+    prog = Project.objects.create(code="P1", name="Project One")
     inst = TrainingInstitution.objects.create(
         code="I1", name="College", county=County.objects.get(code="01")
     )
-    course = Course.objects.create(programme=prog, code="C1", name="Course")
+    course = Course.objects.create(project=prog, code="C1", name="Course")
     cohort = Cohort.objects.create(
-        programme=prog, institution=inst, code="K1", name="Cohort 1", intake_year=2025,
+        project=prog, institution=inst, code="K1", name="Cohort 1", intake_year=2025,
         batch_no=1, phase="1",
     )  # fmt: skip
     CohortCourse.objects.create(cohort=cohort, course=course)
@@ -113,7 +113,7 @@ def test_commit_creates_and_is_idempotent(template, steward):
 def test_bad_rows_are_held_and_the_rest_load(template, steward):
     rows = [
         *GOOD,
-        "No Programme,ZZ,K1,C1,E-010,F,20,01",
+        "No Project,ZZ,K1,C1,E-010,F,20,01",
         ",P1,K1,C1,E-011,F,20,01",
         "Dup Of One,P1,K1,C1,E-001,F,20,01",
     ]
@@ -122,7 +122,7 @@ def test_bad_rows_are_held_and_the_rest_load(template, steward):
     load(steward, b)
     assert Participant.objects.count() == 3
     held = {r.row_no: r.errors[0]["field"] for r in b.rows.filter(outcome="held")}
-    assert held == {4: "programme_code", 5: "full_name", 6: "enrollment_no"}
+    assert held == {4: "project_code", 5: "full_name", 6: "enrollment_no"}
 
 
 @pytest.mark.django_db
@@ -260,7 +260,7 @@ def test_error_report_lists_rows_without_their_values(template, steward):
     b = upload(steward, template, "Secret Name,ZZ,K1,C1,E-1,F,20,01")
     report = services.error_report(b)
     assert report.startswith("row,severity,field,message")
-    assert "1,error,programme_code" in report
+    assert "1,error,project_code" in report
     assert "Secret Name" not in report
 
 
@@ -338,7 +338,7 @@ def test_contract_lists_columns_rules_and_gaps(world, steward):
     t = MappingTemplate(source="gap", version=1, columns={"N": "full_name"})  # not saved
     c = services.contract(t)
     assert c["columns"] == [{"source_column": "N", "field": "full_name", "required": True}]
-    assert "programme_code" in c["required_fields_not_mapped"]
+    assert "project_code" in c["required_fields_not_mapped"]
     assert c["rules"]
 
 
@@ -365,7 +365,7 @@ def test_rollback_blocked_after_a_merge(template, steward):
 
     k1 = Cohort.objects.get(code="K1")
     k2 = Cohort.objects.create(
-        programme=k1.programme, institution=k1.institution, code="K2", name="Cohort 2",
+        project=k1.project, institution=k1.institution, code="K2", name="Cohort 2",
         intake_year=2025, batch_no=2, phase="1",
     )  # fmt: skip
     CohortCourse.objects.create(cohort=k2, course=Course.objects.get(code="C1"))
@@ -396,7 +396,7 @@ def test_api_reconciliation_and_contract(template, steward):
 
 @pytest.mark.django_db
 def test_inspect_suggests_mapping_and_finds_fitting_template(template, steward):
-    head = "Full Name,Programme,Cohort,Course,Enrolment No,Notes\n"
+    head = "Full Name,Project,Cohort,Course,Enrolment No,Notes\n"
     data = (head + "Test One,P1,K1,C1,E-001,\nTest Two,P1,K1,C1,E-002,\n").encode()
     seen = services.inspect(file_name="x.csv", data=data)
     assert seen["row_count"] == 2
@@ -407,7 +407,7 @@ def test_inspect_suggests_mapping_and_finds_fitting_template(template, steward):
     assert seen["matching_templates"] == []  # the saved one expects other headers
     assert not seen["already_loaded"]
     assert seen["sample"]["Full Name"] == "Test One" and seen["sample"]["Notes"] == ""
-    assert {"programme_code", "cohort_code", "course_code"} <= set(seen["reference_codes"])
+    assert {"project_code", "cohort_code", "course_code"} <= set(seen["reference_codes"])
     ok = services.inspect(file_name="f.csv", data=csv_bytes(*GOOD))
     assert ok["matching_templates"] == [str(template.pk)]
     assert Participant.objects.count() == 0 and ImportBatch.objects.count() == 0
@@ -466,7 +466,7 @@ def test_cohort_defaults_fill_empty_cells_only(template, steward):
         template=template,
         file_name="d.csv",
         data=csv_bytes(*rows),
-        defaults={"programme_code": "P1", "cohort_code": "K1", "course_code": "C1"},
+        defaults={"project_code": "P1", "cohort_code": "K1", "course_code": "C1"},
     )
     assert b.counts["create"] == 2 and b.counts["held"] == 0
     assert b.defaults["cohort_code"] == "K1"
@@ -491,7 +491,7 @@ def test_template_may_omit_defaultable_columns_but_upload_then_needs_defaults(wo
         template=t,
         file_name="n.csv",
         data=data,
-        defaults={"programme_code": "P1", "cohort_code": "K1", "course_code": "C1"},
+        defaults={"project_code": "P1", "cohort_code": "K1", "course_code": "C1"},
     )
     assert b.counts["create"] == 1
     with pytest.raises(services.ImportFailure, match="Cannot set a default"):
@@ -538,16 +538,16 @@ def test_any_other_column_can_be_kept_as_extra_data_and_county_by_name(template,
 
 
 def test_unknown_cohort_is_proposed_then_created_on_confirmed_approval(steward):
-    from apps.configuration.models import Cohort, County, Course, Programme, TrainingInstitution
+    from apps.configuration.models import Cohort, County, Course, Project, TrainingInstitution
     from apps.participants.models import ParticipantEnrollment
 
-    Programme.objects.create(code="GB", name="Go Blue")
+    Project.objects.create(code="GB", name="Go Blue")
     County.objects.get_or_create(code="01", defaults={"name": "Mombasa"})
     tpl = services.create_template(
         actor=steward,
         source="proposal",
         columns={
-            "n": "full_name", "p": "programme_code", "c": "cohort_code", "k": "course_code",
+            "n": "full_name", "p": "project_code", "c": "cohort_code", "k": "course_code",
             "e": "enrollment_no", "y": "county_code",
         },
     )  # fmt: skip
@@ -579,13 +579,13 @@ def test_unknown_cohort_is_proposed_then_created_on_confirmed_approval(steward):
 
 
 def test_unparseable_cohort_still_blocks(steward):
-    from apps.configuration.models import Programme
+    from apps.configuration.models import Project
 
-    Programme.objects.create(code="GB", name="Go Blue")
+    Project.objects.create(code="GB", name="Go Blue")
     tpl = services.create_template(
         actor=steward,
         source="noproposal",
-        columns={"n": "full_name", "p": "programme_code", "c": "cohort_code",
+        columns={"n": "full_name", "p": "project_code", "c": "cohort_code",
                  "k": "course_code", "e": "enrollment_no"},
     )  # fmt: skip
     b = services.upload(

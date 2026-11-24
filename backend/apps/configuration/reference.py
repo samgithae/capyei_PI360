@@ -26,18 +26,18 @@ KINDS = {
         fields=("kind",),
         fks={"county": "counties", "ward": "wards"},
     ),
-    "programmes": Kind(m.Programme, "Programme", fields=("funder", "start", "end", "status")),
+    "projects": Kind(m.Project, "Project", fields=("funder", "start", "end", "status")),
     "courses": Kind(
         m.Course,
         "Course",
         fields=("level",),
-        fks={"programme": "programmes", "default_sector": "sectors"},
+        fks={"project": "projects", "default_sector": "sectors"},
     ),
     "cohorts": Kind(
         m.Cohort,
         "Cohort",
         fields=("intake_year", "batch_no", "phase", "year_of_study", "start", "end", "status"),
-        fks={"programme": "programmes", "institution": "institutions"},
+        fks={"project": "projects", "institution": "institutions"},
     ),
     "cohort-courses": Kind(
         m.CohortCourse,
@@ -57,5 +57,8 @@ KINDS = {
     "referral-reasons": Kind(
         m.ReferralReason, "Referral reason", fields=("applies_to", "needs_note")
     ),
+    "employment-types": Kind(m.EmploymentType, "Employment type", fields=("self_employment",)),
+    "leaving-reasons": Kind(m.LeavingReason, "Reason for leaving", fields=("needs_note",)),
+    "salary-bands": Kind(m.SalaryBand, "Salary band", fields=("min_amount", "max_amount")),
 }
 OPTIONAL_FKS = {"ward", "default_sector"}

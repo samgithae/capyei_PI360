@@ -9,7 +9,7 @@ export interface ExportFieldGroup {
 
 /**
  * The field picker in the Export dialog: every field the table can hold, grouped by where it comes
- * from (the youth's own record, contact, address, programme, education, work, readiness, referrals
+ * from (the youth's own record, contact, address, project, education, work, readiness, referrals
  * and placements). The caller owns the selection; the dialog starts with everything ticked.
  */
 export function ExportFields({

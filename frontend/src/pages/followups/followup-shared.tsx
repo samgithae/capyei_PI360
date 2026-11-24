@@ -1,10 +1,18 @@
 import { useState } from 'react';
 import {
   asOptions,
+  businessBody,
+  BusinessFields,
+  emptyBusiness,
+  emptyWork,
   errorText,
   Required,
+  SELF_EMPLOYMENT,
   useOwners,
+  usePlacementOptions,
   useRefreshCases,
+  workBody,
+  WorkFields,
   type Option,
 } from '@/pages/cases/case-shared';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -52,6 +60,14 @@ export interface FollowUpAttempt {
 export interface FollowUpDetail extends FollowUpRow {
   response_note: string;
   still_employed: boolean | null;
+  // NEW-034: what the youth is doing now. Blank on check-ins closed before it.
+  outcome: FollowUpOutcome | '';
+  outcome_label: string;
+  leaving_reason_id: string | null;
+  leaving_reason: string;
+  left_on: string | null;
+  observations: string;
+  new_placement_id: string | null;
   evidence_source: string;
   evidence_source_label: string;
   closed_at: string | null;
@@ -72,9 +88,21 @@ export interface FollowUpSummary {
   unreachable: number;
   by_kind: Record<string, { label: string; open: number; done: number }>;
 }
+export type FollowUpOutcome =
+  | 'same_employer'
+  | 'changed_employer'
+  | 'self_employed'
+  | 'left_employment';
+export interface LeavingReason {
+  id: string;
+  name: string;
+  needs_note: boolean;
+}
 export interface FollowUpOptions {
   methods: Option[];
   sources: Option[];
+  outcomes: Option[];
+  leaving_reasons: LeavingReason[];
 }
 export interface ScheduleStep {
   id: string;
@@ -245,7 +273,9 @@ export function AttemptDialog({
   );
 }
 
-/** Record the youth's answer and how it was confirmed; this closes the check-in. */
+/** Record what the youth is doing now and how it was confirmed; this closes the check-in.
+ * A change of work is recorded here too (NEW-034): leaving ends the placement, and a new job
+ * or business starts one linked to it, so retention can tell same from other employer. */
 export function CompleteDialog({
   open,
   onOpenChange,
@@ -257,17 +287,52 @@ export function CompleteDialog({
 }) {
   const refresh = useRefreshCases();
   const options = useFollowUpOptions(open);
-  const [employed, setEmployed] = useState('');
+  const placementOptions = usePlacementOptions(open);
+  const [outcome, setOutcome] = useState('');
   const [source, setSource] = useState('');
   const [note, setNote] = useState('');
+  const [reason, setReason] = useState('');
+  const [leftOn, setLeftOn] = useState('');
+  const [observations, setObservations] = useState('');
+  // "Already on the Placements page": link the running placement instead of adding one.
+  const [alreadyRecorded, setAlreadyRecorded] = useState(false);
+  const [start, setStart] = useState('');
+  const [employer, setEmployer] = useState('');
+  const [designation, setDesignation] = useState('');
+  const [work, setWork] = useState(() => emptyWork());
+  const [business, setBusiness] = useState(() => emptyBusiness());
   const [error, setError] = useState('');
+
+  const moved = outcome === 'changed_employer' || outcome === 'self_employed';
+  const left = outcome === 'left_employment';
+  const running = !followup.placement_ended;
+  const pathway = outcome === 'self_employed' ? SELF_EMPLOYMENT : 'wage';
+  const reasons = options.data?.leaving_reasons ?? [];
+  const needsNote = reasons.find((r) => r.id === reason)?.needs_note ?? false;
+
   const save = useMutation({
-    mutationFn: () =>
-      post(`/followups/${followup.id}/complete`, {
-        still_employed: employed === 'yes',
+    mutationFn: () => {
+      const body: Record<string, unknown> = {
+        outcome,
         evidence_source: source,
         note,
-      }),
+        observations,
+      };
+      if (left || moved) body.left_on = leftOn || null;
+      if (left || moved) body.leaving_reason_id = reason || null;
+      if (moved && !alreadyRecorded)
+        body.new_job = {
+          pathway,
+          start_date: start,
+          designation,
+          ...(pathway === SELF_EMPLOYMENT
+            ? {}
+            : { employer_name_source: employer }),
+          ...businessBody(pathway, business),
+          ...workBody(pathway, work, placementOptions.data),
+        };
+      return post(`/followups/${followup.id}/complete`, body);
+    },
     onSuccess: () => {
       toast.success('Check-in completed.');
       refresh();
@@ -275,6 +340,20 @@ export function CompleteDialog({
     },
     onError: (e) => setError(errorText(e)),
   });
+
+  const check = () => {
+    if (!outcome) return 'Say what the youth is doing now.';
+    if (!source) return 'Say how you confirmed it.';
+    if (left && !reason) return 'Choose the reason for leaving.';
+    if ((left || (moved && running)) && !leftOn)
+      return 'Give the date they left the placement.';
+    if (needsNote && !observations.trim() && !note.trim())
+      return 'This reason needs a short explanation in the observations.';
+    if (moved && !alreadyRecorded && !start)
+      return 'Give the start date of the new work.';
+    return '';
+  };
+
   return (
     <FormModal
       open={open}
@@ -285,34 +364,137 @@ export function CompleteDialog({
       pending={save.isPending}
       error={error}
       onSubmit={() => {
-        if (!employed)
-          return setError('Say whether they are still in the placement.');
-        if (!source) return setError('Say how you confirmed it.');
+        const problem = check();
+        if (problem) return setError(problem);
         setError('');
         save.mutate();
       }}
     >
       <div className="space-y-1.5">
         <Label>
-          Still in the placement?
+          What are they doing now?
           <Required />
         </Label>
         <SelectField
-          label="Choose answer"
-          value={employed}
-          options={[
-            { id: 'yes', name: 'Yes, still in the placement' },
-            { id: 'no', name: 'No, no longer' },
-          ]}
-          onChange={setEmployed}
+          label="Choose outcome"
+          value={outcome}
+          options={asOptions(options.data?.outcomes)}
+          onChange={setOutcome}
         />
-        {employed === 'no' && (
-          <p className="text-xs text-muted-foreground">
-            This only records the answer. To end the placement, or record a move
-            to a new employer, use the Placements page.
+        {outcome === 'same_employer' && !running && (
+          <p className="text-xs text-destructive">
+            This placement has already ended, so they cannot still be in it.
           </p>
         )}
       </div>
+
+      {(left || moved) && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>
+                Reason for leaving
+                {left && <Required />}
+              </Label>
+              <SelectField
+                label="Choose reason"
+                value={reason}
+                options={reasons.map((r) => ({ id: r.id, name: r.name }))}
+                onChange={setReason}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="fu-left-on">
+                Date they left
+                {(left || running) && <Required />}
+              </Label>
+              <Input
+                id="fu-left-on"
+                type="date"
+                value={leftOn}
+                onChange={(e) => setLeftOn(e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {running
+              ? `Saving ends the placement at ${followup.employer || 'the employer'} on this date.`
+              : 'This check-in’s placement has already ended. If the youth has another placement still running, it ends on this date, so the date is needed then.'}
+          </p>
+        </>
+      )}
+
+      {moved && (
+        <fieldset className="space-y-3 rounded-md border p-3">
+          <legend className="px-1 text-sm font-medium">
+            {outcome === 'self_employed' ? 'The business' : 'The new job'}
+          </legend>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={alreadyRecorded}
+              onChange={(e) => setAlreadyRecorded(e.target.checked)}
+            />
+            Already added on the Placements page: link it instead
+          </label>
+          {!alreadyRecorded && (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="fu-start">
+                    Start date
+                    <Required />
+                  </Label>
+                  <Input
+                    id="fu-start"
+                    type="date"
+                    value={start}
+                    onChange={(e) => setStart(e.target.value)}
+                  />
+                </div>
+                {outcome === 'changed_employer' && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="fu-employer">Employer name</Label>
+                    <Input
+                      id="fu-employer"
+                      maxLength={255}
+                      value={employer}
+                      onChange={(e) => setEmployer(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="fu-designation">
+                  {outcome === 'self_employed' ? 'Role' : 'Job title'}
+                </Label>
+                <Input
+                  id="fu-designation"
+                  maxLength={255}
+                  value={designation}
+                  onChange={(e) => setDesignation(e.target.value)}
+                />
+              </div>
+              <WorkFields
+                id="fu-work"
+                pathway={pathway}
+                value={work}
+                onChange={setWork}
+                options={placementOptions.data}
+              />
+              {outcome === 'self_employed' && (
+                <BusinessFields
+                  id="fu-business"
+                  value={business}
+                  onChange={setBusiness}
+                  options={placementOptions.data}
+                />
+              )}
+            </>
+          )}
+        </fieldset>
+      )}
+
       <div className="space-y-1.5">
         <Label>
           How did you confirm it?
@@ -323,6 +505,19 @@ export function CompleteDialog({
           value={source}
           options={asOptions(options.data?.sources)}
           onChange={setSource}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="fu-observations">
+          Observations{needsNote ? '' : ' (optional)'}
+          {needsNote && <Required />}
+        </Label>
+        <Textarea
+          id="fu-observations"
+          maxLength={2000}
+          placeholder="What you learned about how they are doing."
+          value={observations}
+          onChange={(e) => setObservations(e.target.value)}
         />
       </div>
       <div className="space-y-1.5">

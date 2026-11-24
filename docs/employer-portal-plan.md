@@ -1,6 +1,7 @@
 # Employer portal: implementation plan
 
-Status: **proposal, nothing built.** Written 2026-11-16 for review before any code.
+Status: **built and pushed (all six phases, 2026-11-16 to 2026-11-17).** This file is the original proposal plus
+its decisions table; for the current state of the code see `PROJECT.md` section 4. Written 2026-11-16.
 
 ## 1. What is being asked
 

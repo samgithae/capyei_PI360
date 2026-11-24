@@ -18,7 +18,7 @@ import {
 export interface CodeOption {
   code: string;
   name: string;
-  programme?: string;
+  project?: string;
 }
 
 /** A searchable drop-down: type part of a code or a name to narrow a long list. The list is
@@ -83,7 +83,7 @@ export function CodePicker({
               )}
               {options.map((o) => (
                 <CommandItem
-                  key={`${o.programme ?? ''}/${o.code}`}
+                  key={`${o.project ?? ''}/${o.code}`}
                   value={`${o.code} ${o.name}`}
                   onSelect={() => {
                     onChange(o.code);

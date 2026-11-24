@@ -109,13 +109,13 @@ CAP-YEI organisation with branch protection and required CI checks.
 
 - Roles are data (editable by an Administrator); the permission catalogue is in code (`apps/identity/catalogue.py`).
 - Restricted permissions (`restricted.*`, `exports.identifiable`) are never in a role; they are granted per user with a purpose and an expiry.
-- Record scope (all / assigned programme, cohort, region, officer) is applied through `apps.api.access`; out-of-scope records return 404.
+- Record scope (all / assigned project, cohort, region, officer) is applied through `apps.api.access`; out-of-scope records return 404.
 - API views are deny-by-default: declare `required_permission`. `tests/test_authz_matrix.py` fails if a route is not classified.
 
 ## Reference data, flags and protected settings (T-038, T-057, T-039)
 
 - **Reference data** lives in `apps.configuration` (sectors, the 47 seeded counties, sub-counties,
-  wards, institutions, programmes, courses, cohorts, cohort-courses). Records are deactivated,
+  wards, institutions, projects, courses, cohorts, cohort-courses). Records are deactivated,
   never deleted; a code never changes; a rename keeps history in `ReferenceLabel`; source
   spellings resolve through approved `ReferenceAlias` rows. API: `/api/v1/config/reference/<kind>`.
 - **Feature flags** are off unless a row exists and the environment (`APP_ENV`) and role audience
@@ -144,7 +144,7 @@ CAP-YEI organisation with branch protection and required CI checks.
 - **Templates** map source column headers to target fields and are versioned: a change is a new version.
 - **Upload** (`.csv` or `.xlsx`, up to the `import.max_upload_mb` setting) parses and validates only. It writes batch and row
   records and changes no participant. Re-uploading a file with the same hash is flagged (`duplicate_of`) and loads nothing new.
-- **Rows** are `create`, `update` (same programme + enrollment number), `held` (with reasons) or `skip` (already loaded).
+- **Rows** are `create`, `update` (same project + enrollment number), `held` (with reasons) or `skip` (already loaded).
 - **Commit** needs approval first. It runs in chunks of 500, one transaction each; a failed chunk rolls back alone and the batch
   is `partially_committed`; calling commit again resumes. Every change is written to `record_lineage` with before/after.
 - **Rollback** (with a reason) undoes a batch unless a later batch changed the same records.
@@ -156,10 +156,10 @@ CAP-YEI organisation with branch protection and required CI checks.
 ## Participant directory (T-058, T-043 core)
 
 API (all record-scoped; out-of-scope ids return 404):
-- `GET /api/v1/participants` - directory; filters `q` (name or enrollment no.), `programme`, `cohort`, `county`, `status`, `offset` (page size 50). With `cohort` set it is the cohort roster.
+- `GET /api/v1/participants` - directory; filters `q` (name or enrollment no.), `project`, `cohort`, `county`, `status`, `offset` (page size 50). With `cohort` set it is the cohort roster.
 - `GET /api/v1/participants/<id>` - profile with enrollment history and residences; `contacts` only with `participants.view_contact`.
 - `PATCH /api/v1/participants/<id>` - edit names, gender, status (`participants.edit`, audited).
-- `GET /api/v1/participants/filters` - programme, cohort and county options.
+- `GET /api/v1/participants/filters` - project, cohort and county options.
 
 UI: `/youth` (directory and roster via the cohort filter, filters kept in the URL) and `/youth/:id` (profile).
 
@@ -211,7 +211,7 @@ Not built: working anything out from the rules (T-060 Module B, T-063 Module A, 
 
 Lives in `apps/participants` (`duplicates.py`, `duplicate_views.py`) and `apps/imports`. Permissions: `duplicates.review` (see the queue, scan, dismiss, history) and `duplicates.merge` (merge, undo).
 
-Detection (`participants.services.scan`): proposes pairs, never merges. Rules (proposals until D-004): same normalised name + same phone (0.95), nearly the same name (>= 0.88) + same phone (0.85), same name in the same programme with different enrollment numbers (0.80). Phones compare on their last 9 digits; a phone shared by more than 20 people is ignored. Scanning is repeatable and never reopens a dismissed pair. An import commit scans the records it created, so possible duplicates are queued for a steward right after a load (the lightweight quarantine; the full wizard is T-059).
+Detection (`participants.services.scan`): proposes pairs, never merges. Rules (proposals until D-004): same normalised name + same phone (0.95), nearly the same name (>= 0.88) + same phone (0.85), same name in the same project with different enrollment numbers (0.80). Phones compare on their last 9 digits; a phone shared by more than 20 people is ignored. Scanning is repeatable and never reopens a dismissed pair. An import commit scans the records it created, so possible duplicates are queued for a steward right after a load (the lightweight quarantine; the full wizard is T-059).
 
 Merge: the steward picks the surviving record and, per field, whose value to keep. Enrollments, contacts, source identifiers and residences move to the survivor; the other record stays in the database, hidden (`merged_into`), with a full snapshot so **Undo** restores it exactly. Blocked when both people are enrolled in the same course offering, and an import rollback is blocked while merges touch its records. A reason is required and every merge and undo is audited.
 
@@ -247,11 +247,11 @@ A loaded import batch can be signed off once by the data owner (`POST /api/v1/im
 
 ## Cohort defaults (wizard step 4)
 
-Programme, cohort and course may be left out of a mapping and set once per file instead (`defaults` on `POST /imports/batches`, stored on the batch). A default fills empty cells only, never a value in the file. A mapping that omits one of them needs a default at upload time. Everything else required (name, enrollment number) must still be a mapped column.
+Project, cohort and course may be left out of a mapping and set once per file instead (`defaults` on `POST /imports/batches`, stored on the batch). A default fills empty cells only, never a value in the file. A mapping that omits one of them needs a default at upload time. Everything else required (name, enrollment number) must still be a mapped column.
 
 ### Field-difference review (wizard step 6)
 
-When a file row matches a stored person (same programme + enrollment number), validation compares the file with the stored record and keeps the differences on the row (`ImportRow.diff`, migration `imports.0004`). The review table lists them as "In PI 360" vs "In the file". Compared: name, gender, age, status, county, phone, email; a field is compared only when the file supplies a usable value, so blanks and "unknown" never show. This is **read-only**: D-059 means imports never update, so nothing is applied and there is no accept/reject yet (that arrives only if updates are approved). The differences are the steward's conflict list (spec 15 §5).
+When a file row matches a stored person (same project + enrollment number), validation compares the file with the stored record and keeps the differences on the row (`ImportRow.diff`, migration `imports.0004`). The review table lists them as "In PI 360" vs "In the file". Compared: name, gender, age, status, county, phone, email; a field is compared only when the file supplies a usable value, so blanks and "unknown" never show. This is **read-only**: D-059 means imports never update, so nothing is applied and there is no accept/reject yet (that arrives only if updates are approved). The differences are the steward's conflict list (spec 15 §5).
 
 ### Go Blue dry run (T-086)
 
@@ -259,14 +259,14 @@ When a file row matches a stored person (same programme + enrollment number), va
 
 ### Import wizard: seeing your data and the reference codes
 
-On "Say what each column means" every column shows the value from the first data row of your file, so you can tell what it holds. Programme, cohort and course are reference-data codes, not usually sheet columns: the wizard gives "Cohort defaults" as three searchable drop-downs (type part of a code or name). Cohort and course lists narrow to the chosen programme.
+On "Say what each column means" every column shows the value from the first data row of your file, so you can tell what it holds. Project, cohort and course are reference-data codes, not usually sheet columns: the wizard gives "Cohort defaults" as three searchable drop-downs (type part of a code or name). Cohort and course lists narrow to the chosen project.
 
-A cohort or course may also be given by its exact name (case, spacing and punctuation ignored) instead of its code, when the name is unique within the programme.
+A cohort or course may also be given by its exact name (case, spacing and punctuation ignored) instead of its code, when the name is unique within the project.
 
 ### Placement import and promoting extra data (T-087)
 
-Imports > New import > "Placements" loads outcomes for people already on file (matched by programme and enrollment number). After validation a steward settles employer name groups (link, create or keep apart) and maps status values (or loads the proposed map), re-checks, approves and loads. Placements are append-only; rollback removes what the batch created and is refused once a placement is verified. Imports > "Placements from extra data" does the same from placement columns already stored as extra data: choose a programme, say what each label means, and validate. Working decisions D-061, D-011, D-064, D-066 and D-063 are recorded in planning doc 15 §8 and await CAP-YEI confirmation.
+Imports > New import > "Placements" loads outcomes for people already on file (matched by project and enrollment number). After validation a steward settles employer name groups (link, create or keep apart) and maps status values (or loads the proposed map), re-checks, approves and loads. Placements are append-only; rollback removes what the batch created and is refused once a placement is verified. Imports > "Placements from extra data" does the same from placement columns already stored as extra data: choose a project, say what each label means, and validate. Working decisions D-061, D-011, D-064, D-066 and D-063 are recorded in planning doc 15 §8 and await CAP-YEI confirmation.
 
 ### Importing any column (extra data)
 
-Every column in a file can be imported. Core fields (name, enrollment number, programme, cohort, course, gender, age, county, phone, email, status) go to their proper place. Any other column is mapped to "Keep as extra data" and stored on the enrollment under its own label (`ParticipantEnrollment.extra`), shown on the profile as "Other details from the source file". The wizard suggests this by default for unrecognised columns that contain data, so nothing is dropped unless you choose Ignore. A county may be a name or a code. Extra data is excluded from rules and reports until a column is promoted to a real field (T-075; placements and employers are covered in the next section); no data migration is needed to add new columns to a file.
+Every column in a file can be imported. Core fields (name, enrollment number, project, cohort, course, gender, age, county, phone, email, status) go to their proper place. Any other column is mapped to "Keep as extra data" and stored on the enrollment under its own label (`ParticipantEnrollment.extra`), shown on the profile as "Other details from the source file". The wizard suggests this by default for unrecognised columns that contain data, so nothing is dropped unless you choose Ignore. A county may be a name or a code. Extra data is excluded from rules and reports until a column is promoted to a real field (T-075; placements and employers are covered in the next section); no data migration is needed to add new columns to a file.

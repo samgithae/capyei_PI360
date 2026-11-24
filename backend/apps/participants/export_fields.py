@@ -153,11 +153,11 @@ FIELDS: list[tuple[str, str, list[Field]]] = [
     ),
     (
         "enrolment",
-        "Programme and cohort",
+        "Project and cohort",
         [
-            Field("programme", "Programme",
-                  lambda p: _join(sorted({e.programme.name for e in _enrolments(p)})),
-                  prefetch=("enrollments__programme",)),
+            Field("project", "Project",
+                  lambda p: _join(sorted({e.project.name for e in _enrolments(p)})),
+                  prefetch=("enrollments__project",)),
             Field("cohort", "Cohort",
                   lambda p: _join(sorted({e.cohort_course.cohort.name for e in _enrolments(p)})),
                   prefetch=("enrollments__cohort_course__cohort",)),

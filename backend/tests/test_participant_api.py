@@ -9,7 +9,7 @@ from apps.configuration.models import (
     CohortCourse,
     County,
     Course,
-    Programme,
+    Project,
     TrainingInstitution,
 )
 from apps.identity import services as identity
@@ -25,16 +25,16 @@ def world(db):
     )
     out = {}
     for n in ("1", "2"):
-        prog = Programme.objects.create(code=f"P{n}", name=f"Programme {n}")
-        course = Course.objects.create(programme=prog, code=f"C{n}", name=f"Course {n}")
+        prog = Project.objects.create(code=f"P{n}", name=f"Project {n}")
+        course = Course.objects.create(project=prog, code=f"C{n}", name=f"Course {n}")
         cohort = Cohort.objects.create(
-            programme=prog, institution=inst, code=f"K{n}", name=f"Cohort {n}",
+            project=prog, institution=inst, code=f"K{n}", name=f"Cohort {n}",
             intake_year=2025, batch_no=int(n), phase="1",
         )  # fmt: skip
         cc = CohortCourse.objects.create(cohort=cohort, course=course)
         p = Participant.objects.create(full_name_source=f"Person {n}", gender="female")
         ParticipantEnrollment.objects.create(
-            participant=p, cohort_course=cc, programme=prog, institution=inst,
+            participant=p, cohort_course=cc, project=prog, institution=inst,
             source_enrollment_no=f"E{n}",
         )  # fmt: skip
         ParticipantContact.objects.create(
@@ -101,7 +101,7 @@ def test_edit_is_audited_and_needs_permission(world, make_user):
 
 def test_filter_options(world, make_user):
     d = client_for(make_user("steward", "Data steward")).get(f"{URL}/filters").json()
-    assert len(d["programmes"]) == 2 and len(d["cohorts"]) == 2 and d["counties"]
+    assert len(d["projects"]) == 2 and len(d["cohorts"]) == 2 and d["counties"]
 
 
 def test_add_youth_creates_enrollment_contact_and_audit(world, make_user):
@@ -137,7 +137,7 @@ def test_add_youth_creates_enrollment_contact_and_audit(world, make_user):
     assert r.status_code == 201, r.content
     p = Participant.objects.get(full_name_source="Amina Test")
     e = p.enrollments.get()
-    assert e.programme_id == cc.cohort.programme_id
+    assert e.project_id == cc.cohort.project_id
     assert e.extra == {"Guardian": "Mum"} and e.source_qualification_code == "Q1"
     assert p.residences.get().ward_source == "Tudor" and p.given_name == "Amina"
     assert p.source_identifiers.get().identifier == "K-9"
@@ -145,7 +145,7 @@ def test_add_youth_creates_enrollment_contact_and_audit(world, make_user):
     event = AuditEvent.objects.filter(action="participant.created", object_id=str(p.pk)).get()
     assert "0711000000" not in str(event.after)
     assert event.after["contact_kinds"] == ["phone"]
-    # same enrollment number in the same programme is refused
+    # same enrollment number in the same project is refused
     r = c.post(
         URL,
         {
@@ -187,7 +187,7 @@ def test_enrollment_can_move_to_another_cohort_course(world, make_user):
     assert r.status_code == 200, r.content
     e.refresh_from_db()
     assert e.cohort_course_id == cc2.pk
-    assert e.programme.code == "P2"  # programme follows the cohort
+    assert e.project.code == "P2"  # project follows the cohort
     row = r.json()["enrollments"][0]
     assert row["cohort"] == "Cohort 2" and row["cohort_course_id"] == str(cc2.pk)
     assert AuditEvent.objects.filter(action="participant.enrollment_edited").exists()
@@ -204,7 +204,7 @@ def test_enrollment_move_rejects_unknown_and_clashing_number(world, make_user):
         content_type="application/json",
     )
     assert bad.status_code == 400
-    # Person 2 already holds number E1 in Programme 2; moving Person 1 there must clash.
+    # Person 2 already holds number E1 in Project 2; moving Person 1 there must clash.
     ParticipantEnrollment.objects.filter(participant=world["2"][0]).update(
         source_enrollment_no="E1"
     )
@@ -212,7 +212,7 @@ def test_enrollment_move_rejects_unknown_and_clashing_number(world, make_user):
     clash = c.patch(url, {"cohort_course_id": str(cc2.pk)}, content_type="application/json")
     assert clash.status_code == 400
     e.refresh_from_db()
-    assert e.programme.code == "P1"
+    assert e.project.code == "P1"
 
 
 def test_filter_options_cohorts_name_their_institution(world, make_user):

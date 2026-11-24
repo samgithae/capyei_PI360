@@ -398,7 +398,7 @@ TABLES = {
     "youth": {
         "label": "Youth",
         "slug": "youth",
-        "filters": ("q", "programme", "cohort", "county", "status", "archived"),
+        "filters": ("q", "project", "cohort", "county", "status", "archived"),
         "note": PEOPLE_NOTE,
         "groups": lambda: youth_groups(),
         "rows": lambda user, params, keys: youth_rows(user, params, keys),
@@ -572,7 +572,7 @@ TABLES = {
                 "Which record",
                 ("name", "Youth"),
                 ("enrollment_no", "MIS enrolment number"),
-                ("programme", "Programme"),
+                ("project", "Project"),
             ),
             _group(
                 "fix",

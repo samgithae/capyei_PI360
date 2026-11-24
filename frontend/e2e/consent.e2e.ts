@@ -12,7 +12,7 @@ test('consent tracking is off until an administrator turns it on, and goes away 
   await expect(page.getByRole('link', { name: 'Person 10' })).toBeVisible();
   await expect(page.getByText('No consent')).toHaveCount(0);
   await page.getByRole('link', { name: 'Person 10' }).click();
-  await page.getByRole('tab', { name: 'Programme & Account' }).click();
+  await page.getByRole('tab', { name: 'Project & Account' }).click();
   await expect(page.getByText('Privacy notice and consent')).toHaveCount(0);
 
   // Turn it on.
@@ -27,7 +27,7 @@ test('consent tracking is off until an administrator turns it on, and goes away 
   await page.goto('/youth');
   await expect(page.getByText('No consent').first()).toBeVisible();
   await page.getByRole('link', { name: 'Person 10' }).click();
-  await page.getByRole('tab', { name: 'Programme & Account' }).click();
+  await page.getByRole('tab', { name: 'Project & Account' }).click();
   await expect(page.getByText('Privacy notice and consent')).toBeVisible();
 
   // Record consent.

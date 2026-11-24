@@ -73,8 +73,8 @@ export function ReportPage() {
         const next = new URLSearchParams(prev);
         if (value) next.set(key, value);
         else next.delete(key);
-        // A cohort belongs to one programme; changing the programme drops a stale cohort.
-        if (key === 'programme' || key === 'institution') next.delete('cohort');
+        // A cohort belongs to one project; changing the project drops a stale cohort.
+        if (key === 'project' || key === 'institution') next.delete('cohort');
         return next;
       },
       { replace: true },
@@ -85,10 +85,10 @@ export function ReportPage() {
 
   const cohorts = useMemo(() => {
     const all = options.data?.cohorts ?? [];
-    const p = search.get('programme');
+    const p = search.get('project');
     const i = search.get('institution');
     return all.filter(
-      (c) => (!p || c.programme_id === p) && (!i || c.institution_id === i),
+      (c) => (!p || c.project_id === p) && (!i || c.institution_id === i),
     );
   }, [options.data, search]);
 

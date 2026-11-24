@@ -23,7 +23,7 @@ from apps.configuration.models import (
     CohortCourse,
     County,
     Course,
-    Programme,
+    Project,
     Sector,
     TrainingInstitution,
 )
@@ -50,12 +50,12 @@ inst, _ = TrainingInstitution.objects.get_or_create(
 )
 Sector.objects.get_or_create(code="ICT", defaults={"name": "ICT"})
 for n in ("1", "2"):
-    prog, _ = Programme.objects.get_or_create(code=f"P{n}", defaults={"name": f"Programme {n}"})
+    prog, _ = Project.objects.get_or_create(code=f"P{n}", defaults={"name": f"Project {n}"})
     course, _ = Course.objects.get_or_create(
-        programme=prog, code=f"C{n}", defaults={"name": f"Course {n}"}
+        project=prog, code=f"C{n}", defaults={"name": f"Course {n}"}
     )
     cohort, _ = Cohort.objects.get_or_create(
-        programme=prog,
+        project=prog,
         institution=inst,
         code=f"K{n}",
         defaults=dict(name=f"Cohort {n}", intake_year=2025, batch_no=int(n), phase="1"),
@@ -70,7 +70,7 @@ for n in ("1", "2"):
         ParticipantEnrollment.objects.create(
             participant=p,
             cohort_course=cc,
-            programme=prog,
+            project=prog,
             institution=inst,
             source_enrollment_no=f"E{n}{i}",
         )
@@ -78,7 +78,7 @@ for n in ("1", "2"):
             participant=p, kind="phone", value=f"07000000{n}{i}", is_primary=True
         )
 
-# A deliberate duplicate pair (same person registered in both programmes) for T-041 testing.
+# A deliberate duplicate pair (same person registered in both projects) for T-041 testing.
 for n, age in (("1", 24), ("2", 25)):
     if ParticipantEnrollment.objects.filter(source_enrollment_no=f"ED{n}").exists():
         continue
@@ -89,7 +89,7 @@ for n, age in (("1", 24), ("2", 25)):
     ParticipantEnrollment.objects.create(
         participant=p,
         cohort_course=cc,
-        programme=cc.cohort.programme,
+        project=cc.cohort.project,
         institution=inst,
         source_enrollment_no=f"ED{n}",
     )
@@ -98,6 +98,35 @@ for n, age in (("1", 24), ("2", 25)):
         kind="phone",
         value="0711 222 333" if n == "1" else "+254711222333",
         is_primary=True,
+    )
+# NEW-077: a second duplicate pair where both records have a running placement at the same
+# employer from the same date, so merging it waits under "Waiting on conflicts". Synthetic.
+from datetime import date as _date  # noqa: E402
+
+from apps.placements import services as _placements  # noqa: E402
+
+for n, cohort in (("3", "K1"), ("4", "K2")):
+    if ParticipantEnrollment.objects.filter(source_enrollment_no=f"ED{n}").exists():
+        continue
+    cc = CohortCourse.objects.get(cohort__code=cohort)
+    p = Participant.objects.create(full_name_source="Brian Otieno", gender="male", age_at_source=27)
+    e = ParticipantEnrollment.objects.create(
+        participant=p,
+        cohort_course=cc,
+        project=cc.cohort.project,
+        institution=inst,
+        source_enrollment_no=f"ED{n}",
+    )
+    ParticipantContact.objects.create(
+        participant=p, kind="phone", value="0722 333 444", is_primary=True
+    )
+    _placements.record_manual(
+        actor=None,
+        enrollment_id=e.pk,
+        pathway="wage",
+        start_date=_date(2026, 3, 2),
+        employer_name_source="Synthetic Bakery",
+        designation="Baker assistant",
     )
 # Referral workflow (T-046): a placement officer with a caseload, a manager over that caseload,
 # and an employer with open opportunities. All synthetic.
@@ -175,6 +204,26 @@ for _mail, _name, _role, _owner in (
     _row.token_hash = hashlib.sha256(_token.encode()).hexdigest()
     _row.save(update_fields=["token_hash"])
     portal_employer.activate(token=_token, password="dev-employer-password-1")  # noqa: S106
+# Demo salary bands, for trying the salary form only. CAP-YEI has not given the real ranges, so
+# these are invented, are never seeded by a migration, and are named DEMO so nobody mistakes them.
+from decimal import Decimal  # noqa: E402
+
+from apps.configuration.models import SalaryBand, norm  # noqa: E402
+
+for _code, _name, _lo, _hi in (
+    ("DEMO-1", "DEMO: under 15,000", None, "14999.99"),
+    ("DEMO-2", "DEMO: 15,000 to 29,999", "15000", "29999.99"),
+    ("DEMO-3", "DEMO: 30,000 and above", "30000", None),
+):
+    SalaryBand.objects.get_or_create(
+        code=_code,
+        defaults={
+            "name": _name,
+            "name_normalised": norm(_name),
+            "min_amount": Decimal(_lo) if _lo else None,
+            "max_amount": Decimal(_hi) if _hi else None,
+        },
+    )
 # Draft rule versions for the product owner to review (T-048). Safe to run again.
 from apps.intelligence import initial_rules  # noqa: E402
 

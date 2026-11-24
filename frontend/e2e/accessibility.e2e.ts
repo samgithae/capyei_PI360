@@ -18,7 +18,7 @@ const SCREENS: [
   path: string,
   ready: string | RegExp,
 ][] = [
-  ['admin', '/', 'Programme dashboard'],
+  ['admin', '/', 'Project dashboard'],
   ['steward', '/youth', 'Youth'],
   ['steward', '/data-quality', 'Data quality'],
   ['steward', '/duplicates', 'Duplicates'],

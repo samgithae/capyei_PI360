@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { useAuth } from '@/auth/auth-context';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { api } from '@/lib/api';
+import { api, post } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,10 +41,11 @@ interface Row {
   gender: string;
   age: number | null;
   status: string;
+  review?: string;
   consent?: string;
   archived: boolean;
   county: string;
-  programmes: string[];
+  projects: string[];
   cohorts: string[];
 }
 interface Page {
@@ -55,10 +57,10 @@ interface Page {
 interface Option {
   id: string;
   name: string;
-  programme_id?: string;
+  project_id?: string;
 }
 interface Options {
-  programmes: Option[];
+  projects: Option[];
   cohorts: Option[];
   counties: Option[];
 }
@@ -66,10 +68,11 @@ interface Options {
 const STATUSES = ['active', 'completed', 'withdrawn', 'unknown'];
 const FILTERS = [
   'q',
-  'programme',
+  'project',
   'cohort',
   'county',
   'status',
+  'review',
   'archived',
 ] as const;
 
@@ -105,8 +108,7 @@ export function DirectoryPage() {
     setParams(next);
   };
   const cohorts = (options.data?.cohorts ?? []).filter(
-    (c) =>
-      !params.get('programme') || c.programme_id === params.get('programme'),
+    (c) => !params.get('project') || c.project_id === params.get('project'),
   );
   const data = page.data;
   const selection = useSelection(
@@ -119,6 +121,19 @@ export function DirectoryPage() {
     nounPlural: 'participants',
     queryKeys: ['participants'],
     onDone: selection.clear,
+  });
+  const qc = useQueryClient();
+  const [reviewError, setReviewError] = useState('');
+  const markReviewed = useMutation({
+    mutationFn: (ids: string[]) =>
+      post<{ marked: number }>('/participants/review/mark', { ids }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['participants'] });
+      void qc.invalidateQueries({ queryKey: ['participant'] });
+      selection.clear();
+      setReviewError('');
+    },
+    onError: () => setReviewError('Could not mark them reviewed. Try again.'),
   });
   const filtered = FILTERS.some((f) => params.get(f));
 
@@ -153,10 +168,10 @@ export function DirectoryPage() {
               onSubmit={(v) => set('q', v)}
             />
             <FilterSelect
-              label="All programmes"
-              value={params.get('programme') ?? ''}
-              options={options.data?.programmes ?? []}
-              onChange={(v) => set('programme', v)}
+              label="All projects"
+              value={params.get('project') ?? ''}
+              options={options.data?.projects ?? []}
+              onChange={(v) => set('project', v)}
             />
             <FilterSelect
               label="All cohorts"
@@ -176,6 +191,13 @@ export function DirectoryPage() {
               options={STATUSES.map((s) => ({ id: s, name: s }))}
               onChange={(v) => set('status', v)}
               className="w-36 capitalize"
+            />
+            <FilterSelect
+              label="Any review state"
+              value={params.get('review') ?? ''}
+              options={[{ id: 'needs_review', name: 'Needs review' }]}
+              onChange={(v) => set('review', v)}
+              className="w-44"
             />
             {canArchive && (
               <ShowArchived
@@ -231,6 +253,26 @@ export function DirectoryPage() {
             No exact match for “{params.get('q')}”. Showing similar names.
           </p>
         )}
+        {canEdit && selection.selected.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-2 text-sm">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={markReviewed.isPending}
+              onClick={() => markReviewed.mutate(selection.selected)}
+            >
+              Mark reviewed
+            </Button>
+            <span className="text-muted-foreground">
+              Clears the review flag on the selected youth that have one.
+            </span>
+            {reviewError && (
+              <span role="alert" className="text-destructive">
+                {reviewError}
+              </span>
+            )}
+          </div>
+        )}
         {data && data.results.length > 0 && (
           <BulkBar
             count={selection.selected.length}
@@ -246,9 +288,11 @@ export function DirectoryPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40">
-                {canArchive && <SelectAllHead selection={selection} />}
+                {(canArchive || canEdit) && (
+                  <SelectAllHead selection={selection} />
+                )}
                 <TableHead>Name</TableHead>
-                <TableHead>Programme</TableHead>
+                <TableHead>Project</TableHead>
                 <TableHead>Cohort</TableHead>
                 <TableHead>County</TableHead>
                 <TableHead>Status</TableHead>
@@ -265,7 +309,7 @@ export function DirectoryPage() {
                     selection.isSelected(p.id) ? 'selected' : undefined
                   }
                 >
-                  {canArchive && (
+                  {(canArchive || canEdit) && (
                     <TableCell>
                       <RowCheckbox
                         selection={selection}
@@ -282,11 +326,16 @@ export function DirectoryPage() {
                       {p.name}
                     </Link>
                   </TableCell>
-                  <TableCell>{p.programmes.join(', ')}</TableCell>
+                  <TableCell>{p.projects.join(', ')}</TableCell>
                   <TableCell>{p.cohorts.join(', ')}</TableCell>
                   <TableCell>{p.county}</TableCell>
                   <TableCell>
                     <ParticipantStatus status={p.status} />
+                    {p.review === 'needs_review' && (
+                      <Badge variant="warning" className="ms-2">
+                        Needs review
+                      </Badge>
+                    )}
                     {p.consent === 'not_recorded' && (
                       <Badge variant="warning" className="ms-2">
                         No consent

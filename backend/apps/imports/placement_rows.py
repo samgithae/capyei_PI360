@@ -1,6 +1,6 @@
 """Placement import profile (T-087 stage D): template target ``placements``.
 
-A file row says "this trainee (programme + enrollment number) had this outcome with this
+A file row says "this trainee (project + enrollment number) had this outcome with this
 organisation". Rows for people not already on file are held (doc 21 §5.6). A status value that no
 steward has mapped holds the row (D-061). The organisation text is kept as reported; it becomes an
 employer link only through a steward's cluster decision, made before or after loading (ADR-020:
@@ -15,7 +15,7 @@ from apps.placements import services as placements
 
 # Field -> required?
 FIELDS = {
-    "programme_code": True,
+    "project_code": True,
     "enrollment_no": True,
     "placement_status": True,
     "organisation": False,
@@ -27,9 +27,10 @@ FIELDS = {
     "contact_phone": False,
     "contact_email": False,
 }
-DEFAULTABLE = ("programme_code",)
+DEFAULTABLE = ("project_code",)
 SYNONYMS = {
-    "programme": "programme_code", "program": "programme_code", "enrollmentno": "enrollment_no",
+    "project": "project_code", "program": "project_code", "enrollmentno": "enrollment_no",
+    "programme": "project_code", "programmecode": "project_code",  # old name (D-070)
     "enrollmentnumber": "enrollment_no", "enrolmentno": "enrollment_no",
     "status": "placement_status", "organization": "organisation", "employer": "organisation",
     "orgphysicaladdress": "address", "organisationaddress": "address",
@@ -47,7 +48,12 @@ IMPORT_RULES = [
     "The organisation is kept as written. It is linked to an employer only when a steward "
     "decides its name group.",
     "An unreadable date warns and the placement is kept without a date.",
+    "A youth has one running placement at a time (D-081). A row that would start a second one "
+    "is held for review, not loaded: end the running placement in PI360 (or record Changed "
+    "employer), then re-check the batch. Within one file, only the first such row for a youth "
+    "is loaded. (Working rule until CAP-YEI answers C-3.)",
 ]
+HOLD_SECOND_RUNNING = "second_running"
 _DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%d %b %Y", "%d %B %Y")
 
 
@@ -77,9 +83,9 @@ def check_row(raw: dict) -> participants.Checked:
         c[f] = _text(raw, f)
         if required and not c[f]:
             out.errors.append({"field": f, "message": "Required."})
-    if c["programme_code"] and c["enrollment_no"]:
-        out.source_key = f"{c['programme_code'].upper()}|{c['enrollment_no']}"
-        eid = participants.find_enrollment(c["programme_code"], c["enrollment_no"])
+    if c["project_code"] and c["enrollment_no"]:
+        out.source_key = f"{c['project_code'].upper()}|{c['enrollment_no']}"
+        eid = participants.find_enrollment(c["project_code"], c["enrollment_no"])
         if eid is None:
             out.errors.append(
                 {
@@ -105,6 +111,10 @@ def check_row(raw: dict) -> participants.Checked:
                     "message": "A referral outcome, not a placement; skipped.",
                 }
             )
+        elif mapping.status == placements.PLACED and (eid := c.get("_refs", {}).get("enrollment")):
+            c["_youth"] = str(placements.youth_of(eid))  # one running placement per youth
+            if running := placements.running_for_youth(eid):
+                out.errors.append(second_running(running))
     if c["placement_date"]:
         d = parse_date(c["placement_date"])
         if d is None:
@@ -122,6 +132,22 @@ def check_row(raw: dict) -> participants.Checked:
             {"field": "contact_email", "message": "Email looks invalid; stored as received."}
         )
     return out
+
+
+def second_running(running=None) -> dict:
+    """The hold for a row that would give a youth a second running placement (D-081, C-3)."""
+    if running is None:
+        where = "an earlier row in this file"
+    else:
+        who = running.employer.name if running.employer_id else running.employer_name_source
+        since = running.start_date.strftime("%d %b %Y") if running.start_date else "unknown date"
+        where = f"a running placement{f' with {who}' if who else ''} since {since}"
+    return {
+        "field": "placement_status",
+        "code": HOLD_SECOND_RUNNING,
+        "message": f"Held for review: this youth already has {where}. End it (or record "
+        "Changed employer) in PI360, then re-check the batch.",
+    }
 
 
 def commit_row(clean: dict, *, actor, row_id: int):

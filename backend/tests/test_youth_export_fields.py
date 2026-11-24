@@ -60,7 +60,7 @@ def admin(make_user):
         actor=user,
         user=user,
         permission="exports.identifiable",
-        purpose="Programme reporting",
+        purpose="Project reporting",
         expires_at=timezone.now() + timedelta(days=3),
     )
     return user
@@ -145,7 +145,7 @@ def test_every_field_is_exported_by_default_including_related_ones(admin, full):
     )
     assert row["Source IDs"] == "TVET: T-77"
     assert row["Assigned officer"] == "wanjiru"
-    assert row["Programme"] and row["Cohort"] and row["Course"] and row["Training institution"]
+    assert row["Project"] and row["Cohort"] and row["Course"] and row["Training institution"]
     assert (
         row["Highest qualification"] == "Diploma: Food Production (Mombasa TTI, 2024, Test credit)"
     )
@@ -182,7 +182,7 @@ def test_a_choice_narrows_the_columns_and_keeps_catalogue_order(admin, full):
 
 @pytest.mark.django_db
 def test_one_row_per_youth_however_many_related_records(admin, full, make_user):  # noqa: F811
-    rows = as_dicts(post(admin, fields=["name", "skills", "work_experience", "programme"]))
+    rows = as_dicts(post(admin, fields=["name", "skills", "work_experience", "project"]))
     assert len(rows) == 1
 
 

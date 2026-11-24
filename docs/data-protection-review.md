@@ -68,3 +68,7 @@ Status: **not reviewed.** Same rules as above: a person must work through this b
 - No employer-side data export or deletion request flow.
 - Employers cannot reset a forgotten password by themselves; staff or the company admin send a new invite.
 - Interview dates are shown to the company only; the youth is not notified by the system.
+
+---
+
+Further addendum for the 23 November 2026 CAP-YEI changes (items 24 to 34): see `docs/capyei-dpia-addendum.md`.

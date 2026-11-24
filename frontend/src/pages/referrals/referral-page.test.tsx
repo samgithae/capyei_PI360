@@ -129,15 +129,14 @@ describe('Record placement from a referral', () => {
     ).toBeNull();
   });
 
-  it('warns when the youth already has a placement there, and records it only on confirming', async () => {
-    const warning =
-      'This youth already has a placement running with Java House - Ruiru, since 01 Mar 2026.';
+  it('shows the refusal for a second running placement, with what to do instead', async () => {
+    const refusal =
+      'This youth already has a running placement with Test Employer, since 01 Mar 2026. End it first, or use Changed employer.';
     post.mockRejectedValueOnce(
-      new ApiError(409, warning, [
-        { field: 'employer_id', message: warning, code: 'possible_duplicate' },
+      new ApiError(409, refusal, [
+        { field: '', message: refusal, code: 'active_placement' },
       ]),
     );
-    post.mockResolvedValueOnce({});
     show('selected');
     fireEvent.click(
       await screen.findByRole('button', { name: /record placement/i }),
@@ -150,12 +149,9 @@ describe('Record placement from a referral', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Record' }));
 
-    expect(await screen.findByText(warning)).toBeTruthy();
+    expect(await screen.findByText(refusal)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /record anyway/i })).toBeNull();
     expect(post).toHaveBeenCalledTimes(1);
     expect(post.mock.calls[0][1]).not.toHaveProperty('confirm_duplicate');
-
-    fireEvent.click(screen.getByRole('button', { name: /record anyway/i }));
-    await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-    expect(post.mock.calls[1][1]).toMatchObject({ confirm_duplicate: true });
   });
 });

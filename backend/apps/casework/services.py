@@ -22,7 +22,11 @@ PATHWAY_NAMES = dict(placements.Placement.PATHWAYS)
 FOLLOWUP_KINDS = dict(placements.FollowUpStep.KINDS)
 FOLLOWUP_STATUSES = dict(placements.FollowUp.STATUSES)
 FOLLOWUP_METHODS = dict(placements.FollowUpAttempt.METHODS)
+FOLLOWUP_OUTCOMES = dict(placements.FollowUp.OUTCOMES)
 SOURCE_NAMES = dict(placements.Placement.SOURCES)
+OPERATIONAL_NAMES = dict(placements.Placement.OPERATIONAL_STATUSES)
+# Self-employment income is economic data (G9, D-090 pending): grant-only, never by role.
+INCOME_PERMISSION = "restricted.view_background"
 FLAG_LIMIT = 10
 FOLLOWUP_LIMIT = 50
 
@@ -47,8 +51,9 @@ def _owners(user) -> dict:
     return participants.enrollment_owners(user)
 
 
-def _row(p, names: dict, owners: dict) -> dict:
+def _row(p, names: dict, owners: dict, types: dict | None = None) -> dict:
     pid = owners.get(p.enrollment_id)
+    type_id = str(p.employment_type_id) if p.employment_type_id else None
     return {
         "id": str(p.pk),
         "participant_id": str(pid) if pid else None,
@@ -71,6 +76,14 @@ def _row(p, names: dict, owners: dict) -> dict:
         "verification_source": p.verification_source,
         "verification_source_label": SOURCE_NAMES.get(p.verification_source, ""),
         "imported": p.source_row_id is not None,
+        # NEW-071: the self-employment outcome's own facts (business name is "employer").
+        "business_activity": p.business_activity,
+        "operational_status": p.operational_status,
+        "operational_status_label": OPERATIONAL_NAMES.get(p.operational_status, ""),
+        "business_evidence": p.business_evidence,
+        # NEW-035: the employment type (B25), shown to everyone who sees the placement.
+        "employment_type_id": type_id,
+        "employment_type": (types or {}).get(type_id, "") if type_id else "",
     }
 
 
@@ -78,7 +91,13 @@ def rows_for(user, placement_list, owners=None) -> list[dict]:
     owners = _owners(user) if owners is None else owners
     pids = {owners.get(p.enrollment_id) for p in placement_list} - {None}
     names = participants.names(pids)
-    return [_row(p, names, owners) for p in placement_list]
+    types = {}
+    if any(p.employment_type_id for p in placement_list):
+        types = {
+            r["id"]: r["name"]
+            for r in placements.outcome_list("employment-types", include_inactive=True)
+        }
+    return [_row(p, names, owners, types) for p in placement_list]
 
 
 def list_placements(user, *, pathway="", state="", employer_id=None, q="", participant_id=None,
@@ -218,10 +237,22 @@ def get_placement(user, placement_id):
 
 def detail(user, p, *, can_edit: bool) -> dict:
     row = rows_for(user, [p])[0]
+    income = can_see_income(user)
     return {
         **row,
         "benefits": p.benefits,
+        # Shown only to a holder of the grant; others see neither the amount nor whether it exists.
+        "monthly_income": (
+            str(p.monthly_income) if income and p.monthly_income is not None else None
+        ),
+        # The salary and its band are economic data too (A3): the same grant.
+        "salary_amount": str(p.salary_amount) if income and p.salary_amount is not None else None,
+        "salary_band_id": str(p.salary_band_id) if income and p.salary_band_id else None,
+        "salary_band": (
+            placements.outcome_name("salary-bands", p.salary_band_id) if income else ""
+        ),
         "can": {
+            "income": income,
             "edit": can_edit and not row["imported"],
             "end": can_edit and p.end_date is None,
             "verify": can_edit,
@@ -238,6 +269,8 @@ def _wrap(call, **kwargs):
         return call(**kwargs)
     except placements.FollowUpError as exc:
         raise Violation(exc.field, exc.message, exc.code) from exc
+    except placements.ActivePlacementExists as exc:
+        raise Violation("", str(exc), "active_placement") from exc
     except placements.PlacementError as exc:
         raise Violation("", str(exc)) from exc
 
@@ -272,32 +305,31 @@ def enrollment_choices(user, participant_id) -> list:
     return [str(e) for e in participants.enrollment_ids(participant_id)]
 
 
-def create_placement(
-    *,
-    actor,
-    participant_id,
-    enrollment_id=None,
-    employer_id=None,
-    confirm_duplicate=False,
-    **fields,
-):
+def can_see_income(user) -> bool:
+    return has_permission(user, INCOME_PERMISSION)
+
+
+ECONOMIC_FIELDS = ("monthly_income", "salary_amount", "salary_band_id")
+
+
+def _check_income(actor, fields: dict):
+    """Writing the income, salary or band (even clearing one) needs the grant; the backend
+    enforces it."""
+    given = [f for f in ECONOMIC_FIELDS if f in fields]
+    if given and not can_see_income(actor):
+        raise Violation(
+            given[0], "You need the restricted economic-data grant to record income or salary.",
+            "forbidden",
+        )  # fmt: skip
+
+
+def create_placement(*, actor, participant_id, enrollment_id=None, employer_id=None, **fields):
+    """D-081 (PI360-NEW-070): refused while the youth has a running placement; the officer ends
+    it first or uses Changed employer. An episode entered with its end date is history and is
+    always allowed."""
+    _check_income(actor, fields)
     _check_employer(employer_id)
     enrollment = _enrollment_for(actor, participant_id, enrollment_id)
-    if not confirm_duplicate and not fields.get("end_date"):
-        twin = placements.running_with_employer(
-            enrollment,
-            employer_id=employer_id,
-            employer_name=fields.get("employer_name_source", ""),
-        )
-        if twin:
-            who = twin.employer.name if twin.employer_id else twin.employer_name_source
-            since = twin.start_date.strftime("%d %b %Y") if twin.start_date else "an unknown date"
-            raise Violation(
-                "employer_id",
-                f"This youth already has a placement running with {who}, since {since}. "
-                "Record another only if it is a separate job or spell.",
-                "possible_duplicate",
-            )
     return _wrap(
         placements.record_manual, actor=actor, enrollment_id=enrollment,
         employer_id=employer_id, **fields,
@@ -305,6 +337,7 @@ def create_placement(
 
 
 def update_placement(*, actor, placement, **changes):
+    _check_income(actor, changes)
     if changes.get("employer_id"):
         _check_employer(changes["employer_id"])
     return _wrap(placements.update_episode, actor=actor, placement_id=placement.pk, **changes)
@@ -314,6 +347,15 @@ def end_placement(*, actor, placement, end_date, exit_reason=""):
     return _wrap(
         placements.end_episode, actor=actor, placement_id=placement.pk, end_date=end_date,
         exit_reason=exit_reason,
+    )  # fmt: skip
+
+
+def change_employer(*, actor, placement, employer_id=None, **fields):
+    _check_income(actor, fields)
+    _check_employer(employer_id)
+    return _wrap(
+        placements.change_employer, actor=actor, placement_id=placement.pk,
+        employer_id=employer_id, **fields,
     )  # fmt: skip
 
 
@@ -406,6 +448,14 @@ def followup_detail(user, f, *, can_edit: bool, can_assign: bool) -> dict:
         **row,
         "response_note": f.response_note,
         "still_employed": f.still_employed,
+        # NEW-034: what the check-in found. Blank outcome = recorded before NEW-034.
+        "outcome": f.outcome,
+        "outcome_label": FOLLOWUP_OUTCOMES.get(f.outcome, ""),
+        "leaving_reason_id": str(f.leaving_reason_id) if f.leaving_reason_id else None,
+        "leaving_reason": placements.outcome_name("leaving-reasons", f.leaving_reason_id),
+        "left_on": f.left_on.isoformat() if f.left_on else None,
+        "observations": f.observations,
+        "new_placement_id": str(f.new_placement_id) if f.new_placement_id else None,
         "evidence_source": f.evidence_source,
         "evidence_source_label": SOURCE_NAMES.get(f.evidence_source, ""),
         "closed_at": f.closed_at.isoformat() if f.closed_at else None,
@@ -435,6 +485,10 @@ def log_attempt(*, actor, followup, **fields):
 
 
 def complete_followup(*, actor, followup, **fields):
+    """The new work recorded from a follow-up follows the same salary rule as a placement."""
+    _check_income(actor, fields.get("new_job") or {})
+    if (fields.get("new_job") or {}).get("employer_id"):
+        _check_employer(fields["new_job"]["employer_id"])
     return _wrap(placements.followup_complete, actor=actor, followup_id=followup.pk, **fields)
 
 

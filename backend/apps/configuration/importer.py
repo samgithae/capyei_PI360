@@ -1,4 +1,4 @@
-"""Bulk-load reference records from a CSV or Excel file (programmes, cohorts, courses,
+"""Bulk-load reference records from a CSV or Excel file (projects, cohorts, courses,
 cohort courses, training institutions, sectors).
 
 Add-only and safe to run twice: a row whose record already exists is skipped, never changed.
@@ -19,7 +19,7 @@ from .models import (
     CohortCourse,
     County,
     Course,
-    Programme,
+    Project,
     QualificationLevel,
     Sector,
     Skill,
@@ -33,6 +33,9 @@ MAX_BYTES = 5 * 1024 * 1024
 ERROR_CAP = 200
 
 # kind -> list of (field, required, accepted header spellings). Parents are named by code or name.
+# "Programme" was the old name (D-070); old files and templates keep working.
+PROJECT_ALIASES = ("project code", "programme", "programme code")
+
 COLUMNS = {
     "sectors": [("code", True, ()), ("name", True, ())],
     "qualification-levels": [
@@ -47,7 +50,7 @@ COLUMNS = {
         ("kind", False, ("type",)),
         ("county", True, ("county code", "county name")),
     ],
-    "programmes": [
+    "projects": [
         ("code", True, ()),
         ("name", True, ()),
         ("funder", False, ()),
@@ -58,14 +61,14 @@ COLUMNS = {
     "courses": [
         ("code", True, ()),
         ("name", True, ()),
-        ("programme", True, ("programme code",)),
+        ("project", True, PROJECT_ALIASES),
         ("level", False, ()),
         ("default_sector", False, ("sector", "sector code")),
     ],
     "cohorts": [
         ("code", True, ()),
         ("name", True, ()),
-        ("programme", True, ("programme code",)),
+        ("project", True, PROJECT_ALIASES),
         ("institution", True, ("institution code", "training institution", "centre")),
         ("intake_year", True, ("intake year", "year")),
         ("batch_no", True, ("batch", "batch no", "batch number")),
@@ -76,7 +79,7 @@ COLUMNS = {
         ("status", False, ()),
     ],
     "cohort-courses": [
-        ("programme", False, ("programme code",)),
+        ("project", False, PROJECT_ALIASES),
         ("cohort", True, ("cohort code",)),
         ("course", True, ("course code",)),
         ("capacity", False, ()),
@@ -89,9 +92,9 @@ EXAMPLE = {
     "qualification-levels": ["Q05", "Diploma", "5"],
     "skills": ["SK01", "Customer service", "Service"],
     "institutions": ["I01", "Example VTC", "vtc", "Nairobi"],
-    "programmes": [
+    "projects": [
         "P01",
-        "Example Programme",
+        "Example Project",
         "Example funder",
         "2025-01-01",
         "2027-12-31",
@@ -221,7 +224,7 @@ def _row_values(key, row):
     for field, required, _ in COLUMNS[key]:
         raw = row.get(field, "")
         if raw == "":
-            if required and field != "programme":
+            if required and field != "project":
                 raise ConfigError(field, f"{field.replace('_', ' ')} is required.")
             continue
         data[field] = (
@@ -244,8 +247,8 @@ def _load_row(key, actor, row):
         if model.objects.filter(code__iexact=d["code"]).exists():
             return "skipped"
         create_reference(actor=actor, key=key, data=d)
-    elif key == "programmes":
-        if Programme.objects.filter(code__iexact=d["code"]).exists():
+    elif key == "projects":
+        if Project.objects.filter(code__iexact=d["code"]).exists():
             return "skipped"
         create_reference(actor=actor, key=key, data=d)
     elif key == "institutions":
@@ -254,26 +257,26 @@ def _load_row(key, actor, row):
         d["county"] = str(_find(County, "county", d["county"]).pk)
         create_reference(actor=actor, key=key, data=d)
     elif key == "courses":
-        prog = _find(Programme, "programme", d["programme"])
-        if Course.objects.filter(programme=prog, code__iexact=d["code"]).exists():
+        prog = _find(Project, "project", d["project"])
+        if Course.objects.filter(project=prog, code__iexact=d["code"]).exists():
             return "skipped"
-        d["programme"] = str(prog.pk)
+        d["project"] = str(prog.pk)
         if "default_sector" in d:
             d["default_sector"] = str(_find(Sector, "sector", d["default_sector"]).pk)
         create_reference(actor=actor, key=key, data=d)
     elif key == "cohorts":
-        prog = _find(Programme, "programme", d["programme"])
-        if Cohort.objects.filter(programme=prog, code__iexact=d["code"]).exists():
+        prog = _find(Project, "project", d["project"])
+        if Cohort.objects.filter(project=prog, code__iexact=d["code"]).exists():
             return "skipped"
-        d["programme"] = str(prog.pk)
+        d["project"] = str(prog.pk)
         d["institution"] = str(_find(TrainingInstitution, "institution", d["institution"]).pk)
         create_reference(actor=actor, key=key, data=d)
     else:  # cohort-courses
         scope = {}
-        if "programme" in d:
-            scope = {"programme": _find(Programme, "programme", d["programme"])}
+        if "project" in d:
+            scope = {"project": _find(Project, "project", d["project"])}
         cohort = _find(Cohort, "cohort", d["cohort"], **scope)
-        course = _find(Course, "course", d["course"], programme=cohort.programme)
+        course = _find(Course, "course", d["course"], project=cohort.project)
         if CohortCourse.objects.filter(cohort=cohort, course=course).exists():
             return "skipped"
         create_reference(

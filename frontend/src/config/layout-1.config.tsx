@@ -14,6 +14,7 @@ import {
   Scale,
   Settings,
   ShieldCheck,
+  UserPlus,
   UserRound,
   Users,
 } from 'lucide-react';
@@ -90,6 +91,12 @@ export const MENU_SIDEBAR: MenuConfig = [
     title: 'Duplicates',
     icon: GitMerge,
     path: '/duplicates',
+    permission: 'duplicates.review',
+  },
+  {
+    title: 'Self-registrations',
+    icon: UserPlus,
+    path: '/registrations',
     permission: 'duplicates.review',
   },
   {
@@ -188,8 +195,8 @@ export const MENU_SIDEBAR: MenuConfig = [
         permission: 'config.view',
       },
       {
-        title: 'Programmes',
-        path: '/administration/programmes',
+        title: 'Projects',
+        path: '/administration/projects',
         permission: 'config.view',
       },
       {
@@ -230,6 +237,21 @@ export const MENU_SIDEBAR: MenuConfig = [
       {
         title: 'Follow-up schedule',
         path: '/administration/followup-schedule',
+        permission: 'config.view',
+      },
+      {
+        title: 'Employment types',
+        path: '/administration/employment-types',
+        permission: 'config.view',
+      },
+      {
+        title: 'Reasons for leaving',
+        path: '/administration/leaving-reasons',
+        permission: 'config.view',
+      },
+      {
+        title: 'Salary bands',
+        path: '/administration/salary-bands',
         permission: 'config.view',
       },
       {

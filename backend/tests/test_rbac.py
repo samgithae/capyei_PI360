@@ -267,7 +267,7 @@ def test_scope_is_or_within_a_kind_and_across_kinds(make_user, people):
 
 def test_scope_kind_the_model_cannot_use_denies(make_user, people):
     o = make_user("officer", "Placement officer")
-    services.set_scopes(actor=None, user=o, scopes=[("programme", "p1")])
+    services.set_scopes(actor=None, user=o, scopes=[("project", "p1")])
     assert visible(o, people) == []
 
 

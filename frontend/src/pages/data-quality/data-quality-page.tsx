@@ -34,7 +34,7 @@ interface QualityRecord {
   id: string;
   name: string;
   county: string;
-  programmes: string[];
+  projects: string[];
   enrollment_numbers: string[];
   issues: { code: string; label: string; fix: string }[];
 }
@@ -52,7 +52,7 @@ interface Correction {
   state: string;
   state_label: string;
   enrollment_no: string;
-  programme: string;
+  project: string;
   corrected_by: string;
   corrected_at: string;
   conflict: { value: string; batch: string; at: string } | null;
@@ -186,7 +186,7 @@ function RecordsToFix() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Youth</TableHead>
-                  <TableHead>Programme</TableHead>
+                  <TableHead>Project</TableHead>
                   <TableHead>County</TableHead>
                   <TableHead>What to fix</TableHead>
                 </TableRow>
@@ -202,7 +202,7 @@ function RecordsToFix() {
                         {r.name}
                       </Link>
                     </TableCell>
-                    <TableCell>{r.programmes.join(', ') || '-'}</TableCell>
+                    <TableCell>{r.projects.join(', ') || '-'}</TableCell>
                     <TableCell>{r.county || '-'}</TableCell>
                     <TableCell className="space-x-1">
                       {r.issues.map((i) => (
@@ -250,7 +250,7 @@ function CorrectionRow({ c, onDone }: { c: Correction; onDone: () => void }) {
           </Link>
           {c.enrollment_no && (
             <span className="text-sm text-muted-foreground">
-              {c.programme} {c.enrollment_no}
+              {c.project} {c.enrollment_no}
             </span>
           )}
           <Badge variant="secondary">{c.state_label}</Badge>

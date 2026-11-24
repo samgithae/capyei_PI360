@@ -3,7 +3,7 @@
 One function, :func:`build`, turns the stored records into a plain document that the screen and the
 PDF both draw. It is the only place that decides what a CV contains, so the two cannot drift.
 
-Never in a CV: National ID, date of birth, gender, programme or enrollment data, officer, status,
+Never in a CV: National ID, date of birth, gender, project or enrollment data, officer, status,
 verification marks, scores, referrals or any internal id. Contact details are included only when
 the caller may see them. Entries are ordered most recent first; a section with nothing in it is an
 empty list (the screen and the PDF both leave it out)."""

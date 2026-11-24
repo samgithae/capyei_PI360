@@ -1,7 +1,7 @@
 """Bulk-load capability facts (qualifications, skills, experience, availability) from a file.
 
-One row per fact. Youth are found by their source enrollment number (add a programme code when
-the same number is used in more than one programme) and only if the user may see them. Facts are
+One row per fact. Youth are found by their source enrollment number (add a project code when
+the same number is used in more than one project) and only if the user may see them. Facts are
 recorded as source "import", unverified. Add-only and safe to run twice: a fact the youth already
 has is skipped, never changed. A dry run does everything except keep the result."""
 
@@ -27,10 +27,10 @@ from .models import (
 )
 
 ERROR_CAP = 200
-HEADER = ["enrollment_no", "programme", "type", "value", "detail", "months", "year", "grade"]
+HEADER = ["enrollment_no", "project", "type", "value", "detail", "months", "year", "grade"]
 ALIASES = {
     "enrollment_no": ("enrollment no", "enrolment no", "enrollment number", "enrollment"),
-    "programme": ("programme code",),
+    "project": ("project code", "programme", "programme code"),  # old name (D-070)
     "type": ("kind", "fact"),
     "value": ("item", "name"),
     "detail": ("extra", "notes"),
@@ -118,24 +118,22 @@ def _participant(user, row, cache):
     number = row["enrollment_no"]
     if not number:
         raise RowError("enrollment_no", "Enrollment number is required.")
-    programme = row.get("programme", "")
-    key = (number.casefold(), programme.casefold())
+    project = row.get("project", "")
+    key = (number.casefold(), project.casefold())
     if key not in cache:
         qs = ParticipantEnrollment.objects.filter(
             source_enrollment_no__iexact=number,
             participant__in=Participant.objects.visible_to(user).values("pk"),
         )
-        if programme:
-            qs = qs.filter(programme__code__iexact=programme)
+        if project:
+            qs = qs.filter(project__code__iexact=project)
         ids = set(qs.values_list("participant_id", flat=True)[:2])
         cache[key] = ids
     ids = cache[key]
     if not ids:
         raise RowError("enrollment_no", f"No youth you can see has enrollment number '{number}'.")
     if len(ids) > 1:
-        raise RowError(
-            "enrollment_no", f"'{number}' matches more than one youth; add the programme."
-        )
+        raise RowError("enrollment_no", f"'{number}' matches more than one youth; add the project.")
     return Participant.objects.get(pk=next(iter(ids)))
 
 

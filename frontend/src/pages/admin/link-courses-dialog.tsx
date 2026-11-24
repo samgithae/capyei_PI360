@@ -14,21 +14,21 @@ interface Ref {
   name?: string;
   code?: string;
   active: boolean;
-  programme?: unknown;
+  project?: unknown;
   [k: string]: unknown;
 }
 
 /**
  * Add cohort courses in bulk: pick one cohort, then tap every course it runs.
- * Courses from the cohort's own programme come first; others stay available
- * and are labelled with their programme.
+ * Courses from the cohort's own project come first; others stay available
+ * and are labelled with their project.
  */
 export function LinkCoursesDialog({
   open,
   onOpenChange,
   cohorts,
   courses,
-  programmes,
+  projects,
   links,
   onDone,
 }: {
@@ -36,7 +36,7 @@ export function LinkCoursesDialog({
   onOpenChange: (open: boolean) => void;
   cohorts: Ref[];
   courses: Ref[];
-  programmes: Ref[];
+  projects: Ref[];
   /** Existing cohort-course records, so already-offered courses are shown as such. */
   links: Ref[];
   onDone: () => void;
@@ -56,8 +56,8 @@ export function LinkCoursesDialog({
     onOpenChange(o);
   };
 
-  const programmeName = (id: unknown) =>
-    programmes.find((p) => p.id === id)?.name ?? '';
+  const projectName = (id: unknown) =>
+    projects.find((p) => p.id === id)?.name ?? '';
   const chosen = cohorts.find((c) => c.id === cohort);
   const offered = new Set(
     links.filter((l) => l.cohort === cohort && l.active).map((l) => l.course),
@@ -66,8 +66,8 @@ export function LinkCoursesDialog({
   const usable = courses
     .filter((c) => c.active)
     .filter((c) => !q || (c.name ?? '').toLowerCase().includes(q));
-  const own = usable.filter((c) => c.programme === chosen?.programme);
-  const other = usable.filter((c) => c.programme !== chosen?.programme);
+  const own = usable.filter((c) => c.project === chosen?.project);
+  const other = usable.filter((c) => c.project !== chosen?.project);
 
   const toggle = (id: string) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -142,7 +142,7 @@ export function LinkCoursesDialog({
             .filter((c) => c.active)
             .map((c) => ({
               id: c.id,
-              name: `${c.name} (${programmeName(c.programme) || c.code})`,
+              name: `${c.name} (${projectName(c.project) || c.code})`,
             }))}
           onChange={(v) => {
             setCohort(v);
@@ -182,14 +182,14 @@ export function LinkCoursesDialog({
           <div className="max-h-64 space-y-3 overflow-y-auto">
             <div>
               <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                {programmeName(chosen?.programme) || 'This programme'}
+                {projectName(chosen?.project) || 'This project'}
               </p>
               <div className="flex flex-wrap gap-2">
                 {own.length ? (
                   own.map(pill)
                 ) : (
                   <span className="text-xs text-muted-foreground">
-                    No courses in this programme yet.
+                    No courses in this project yet.
                   </span>
                 )}
               </div>
@@ -197,11 +197,11 @@ export function LinkCoursesDialog({
             {other.length > 0 && (
               <div>
                 <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                  Other programmes
+                  Other projects
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {other.map((c) => (
-                    <span key={c.id} title={programmeName(c.programme)}>
+                    <span key={c.id} title={projectName(c.project)}>
                       {pill(c)}
                     </span>
                   ))}

@@ -215,45 +215,75 @@ def test_a_new_episode_never_overwrites_an_earlier_one(officer, youth, enrollmen
     assert sum(r["current"] for r in rows) == 1  # derived: only the running one counts
 
 
-def test_a_second_running_placement_with_the_same_employer_needs_confirming(
-    officer, youth, enrollment
-):
+def test_a_second_running_placement_is_refused(officer, youth, enrollment):
+    """D-081 (PI360-NEW-070): one running placement per youth, with any employer."""
     c = client_for(officer)
     assert place(c, youth).status_code == 201
-    # the same name typed differently is still the same employer
-    r = place(c, youth, employer_name_source="  acme   TRADERS ")
-    assert r.status_code == 409, r.content
-    err = r.json()["errors"][0]
-    assert err["code"] == "possible_duplicate" and "Acme Traders" in err["message"]
+    for other in ("Acme Traders", "Beta Ltd"):
+        r = place(c, youth, employer_name_source=other)
+        assert r.status_code == 409, r.content
+        err = r.json()["errors"][0]
+        assert err["code"] == "active_placement"
+        assert "Acme Traders" in err["message"] and "Changed employer" in err["message"]
+    # the old override is gone: it cannot be confirmed past the rule
+    assert place(c, youth, confirm_duplicate=True).status_code == 409
     assert Placement.objects.count() == 1
-    # staff who know it is a separate spell can record it anyway
-    assert place(c, youth, confirm_duplicate=True).status_code == 201
-    assert Placement.objects.count() == 2
 
 
-def test_the_duplicate_warning_ignores_ended_spells_other_employers_and_past_episodes(
-    officer, youth, enrollment
-):
+def test_past_episodes_and_ended_spells_are_always_allowed(officer, youth, enrollment):
     c = client_for(officer)
     first = place(c, youth).json()["id"]
-    # a different employer is not a duplicate
-    assert place(c, youth, employer_name_source="Beta Ltd").status_code == 201
-    # a spell that is already over (it carries an end date) is not a duplicate either
+    # a spell that is already over (it carries an end date) is history, not a second running one
     past = place(c, youth, start_date="2025-01-01", end_date="2025-06-01")
     assert past.status_code == 201, past.content
-    # once the running one ends, the same employer can be recorded again without a warning
+    # once the running one ends, a new one can start
     c.post(f"{PL}/{first}/end", {"end_date": "2026-06-01"}, content_type=JSON)
     assert place(c, youth, start_date="2026-07-01").status_code == 201
 
 
-def test_the_warning_matches_a_register_employer_by_id(officer, youth, enrollment):
+def test_the_rule_covers_all_of_a_youths_enrollments(officer, youth, enrollment, world):  # noqa: F811
+    from apps.placements import services as placements
+
+    second = enrol(world, youth, idx=1)
+    placements.record(
+        actor=None, enrollment_id=second.pk, source_status="Employment",
+        pathway="wage", status="placed", employer_name_source="Acme Traders",
+    )  # fmt: skip
+    r = place(client_for(officer), youth, enrollment_id=str(enrollment.pk))
+    assert r.status_code == 409 and r.json()["errors"][0]["code"] == "active_placement"
+
+
+def test_changed_employer_ends_the_old_and_starts_the_new(officer, youth, enrollment):
     c = client_for(officer)
-    e = Employer.objects.create(name="Java House")
-    kw = {"employer_id": str(e.pk), "employer_name_source": ""}
-    assert place(c, youth, **kw).status_code == 201
-    r = place(c, youth, **kw)
-    assert r.status_code == 409 and r.json()["errors"][0]["code"] == "possible_duplicate"
-    assert "Java House" in r.json()["errors"][0]["message"]
+    old = place(c, youth).json()["id"]
+    e = Employer.objects.create(name="Beta Ltd")
+    url = f"{PL}/{old}/change-employer"
+    body = {"end_date": "2026-06-30", "start_date": "2026-07-01", "pathway": "wage",
+            "employer_id": str(e.pk), "designation": "Cashier"}  # fmt: skip
+    r = c.post(url, body, content_type=JSON)
+    assert r.status_code == 201, r.content
+    new = r.json()
+    assert new["current"] and new["id"] != old
+    ended = Placement.objects.get(pk=old)
+    assert ended.end_date == date(2026, 6, 30) and ended.exit_reason == "Changed employer"
+    assert Placement.objects.filter(status="placed", end_date__isnull=True).count() == 1
+    assert AuditEvent.objects.filter(action="placement.employer_changed", object_id=new["id"])
+    # the old one has ended, so it cannot be changed again
+    assert c.post(url, body, content_type=JSON).status_code == 409
+
+
+def test_changed_employer_is_all_or_nothing(officer, youth, enrollment):
+    c = client_for(officer)
+    old = place(c, youth).json()["id"]
+    # the new job cannot start before the old one ended: nothing changes
+    bad = {"end_date": "2026-06-30", "start_date": "2026-06-01", "pathway": "wage",
+           "employer_name_source": "Beta Ltd"}  # fmt: skip
+    assert c.post(f"{PL}/{old}/change-employer", bad, content_type=JSON).status_code == 409
+    # a wage job needs an employer: the old one must not be left ended
+    nobody = {"end_date": "2026-06-30", "start_date": "2026-07-01", "pathway": "wage"}
+    assert c.post(f"{PL}/{old}/change-employer", nobody, content_type=JSON).status_code == 409
+    assert Placement.objects.get(pk=old).end_date is None
+    assert Placement.objects.count() == 1
 
 
 def test_verify_records_how_and_editing_clears_it(officer, youth, enrollment):
@@ -283,7 +313,7 @@ def test_placement_scope_and_filters(officer, youth, stranger, enrollment, world
 
     placements.record(actor=None, enrollment_id=other.pk, source_status="Employment")
     c = client_for(officer)
-    place(c, youth)
+    place(c, youth, end_date="2026-05-01")  # ended: one running placement per youth (D-081)
     place(c, youth, pathway="self_employment", employer_name_source="Own stall")
     body = c.get(PL).json()
     assert body["total"] == 2  # the stranger's episode is out of scope
@@ -293,7 +323,7 @@ def test_placement_scope_and_filters(officer, youth, stranger, enrollment, world
     assert c.get(f"{PL}?state=unverified").json()["total"] == 2
     s = c.get(f"{PL}/summary").json()
     assert (
-        s["total"] == 2 and s["current"] == 2 and s["by_pathway"]["self_employment"]["current"] == 1
+        s["total"] == 2 and s["current"] == 1 and s["by_pathway"]["self_employment"]["current"] == 1
     )
     gone = Placement.objects.filter(enrollment=other).first()
     assert c.get(f"{PL}/{gone.pk}").status_code == 404

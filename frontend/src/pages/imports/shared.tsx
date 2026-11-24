@@ -37,7 +37,7 @@ export interface Inspection {
   sample: Record<string, string>;
   reference_codes: Record<
     string,
-    { code: string; name: string; programme?: string }[]
+    { code: string; name: string; project?: string }[]
   >;
   already_loaded: boolean;
   target?: string;

@@ -49,7 +49,7 @@ def admin(make_user):
 
 @pytest.fixture
 def ann(world):  # noqa: F811
-    """A youth that came from the MIS: Programme One, number E1."""
+    """A youth that came from the MIS: Project One, number E1."""
     p = Participant.objects.create(
         full_name_source="Ann Wanjiru",
         gender="female",
@@ -67,13 +67,13 @@ def patch(user, path, body):
 
 
 def clean_row(**kw):
-    """What the importer hands over for the row of programme P1 number E1."""
+    """What the importer hands over for the row of project P1 number E1."""
     c = County.objects.get(code="01")
     row = {
         "full_name": "Ann Wanjiru", "gender": "female", "age": 20, "status": "enrolled",
         "county_code": "01", "phone": "", "email": "", "source_id": "", "enrollment_no": "E1",
-        "programme_code": "P1", "cohort_code": "K1", "course_code": "C1", "extra": {},
-        "_refs": {"offering": None, "programme": None, "county": str(c.pk)},
+        "project_code": "P1", "cohort_code": "K1", "course_code": "C1", "extra": {},
+        "_refs": {"offering": None, "project": None, "county": str(c.pk)},
     }  # fmt: skip
     row.update(kw)
     return row
@@ -81,7 +81,7 @@ def clean_row(**kw):
 
 def run_import(world, **kw):  # noqa: F811
     row = clean_row(**kw)
-    row["_refs"]["programme"] = world["progs"][0].pk
+    row["_refs"]["project"] = world["progs"][0].pk
     if "county" in kw:
         row["_refs"]["county"] = kw["county"]
     return participants.import_participant(row, batch_ref="batch-0001")
@@ -285,7 +285,7 @@ def test_list_filters_by_state_and_counts_the_waiting_ones(admin, ann, disputed)
     row = body["results"][0]
     assert (row["field_label"], row["was"], row["now"]) == ("Gender", "Female", "Male")
     assert row["conflict"]["value"] == "Female" and row["enrollment_no"] == "E1"
-    assert row["programme"] == "Programme One"
+    assert row["project"] == "Project One"
     assert get("?state=confirmed")["total"] == 1
     assert get("?state=all")["total"] == 2
     assert get("?q=bea&state=all")["total"] == 1
@@ -412,7 +412,7 @@ def test_export_needs_the_restricted_permission(make_user, ann):
 def test_the_picker_lists_the_correction_fields(admin):
     r = client(admin).get("/api/v1/exports/fields/corrections")
     keys = [f["key"] for g in r.json()["groups"] for f in g["fields"]]
-    assert keys[:3] == ["name", "enrollment_no", "programme"] and "now" in keys
+    assert keys[:3] == ["name", "enrollment_no", "project"] and "now" in keys
 
 
 @pytest.mark.django_db

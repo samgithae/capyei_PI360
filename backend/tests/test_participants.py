@@ -8,7 +8,7 @@ from apps.configuration.models import (
     CohortCourse,
     County,
     Course,
-    Programme,
+    Project,
     TrainingInstitution,
 )
 from apps.identity.models import ScopeAssignment
@@ -23,15 +23,15 @@ from apps.participants.models import (
 
 @pytest.fixture
 def world(db):
-    prog = Programme.objects.create(code="P1", name="Programme One")
-    prog2 = Programme.objects.create(code="P2", name="Programme Two")
+    prog = Project.objects.create(code="P1", name="Project One")
+    prog2 = Project.objects.create(code="P2", name="Project Two")
     county = County.objects.get(code="01")
     inst = TrainingInstitution.objects.create(code="I1", name="College", county=county)
-    course = Course.objects.create(programme=prog, code="C1", name="Course")
+    course = Course.objects.create(project=prog, code="C1", name="Course")
     cohorts = []
     for i, p in enumerate((prog, prog2), start=1):
         co = Cohort.objects.create(
-            programme=p,
+            project=p,
             institution=inst,
             code=f"K{i}",
             name=f"Cohort {i}",
@@ -44,7 +44,7 @@ def world(db):
             CohortCourse.objects.create(
                 cohort=co,
                 course=Course.objects.get_or_create(
-                    programme=p, code="C1", defaults={"name": "Course"}
+                    project=p, code="C1", defaults={"name": "Course"}
                 )[0],
             )
         )
@@ -56,7 +56,7 @@ def enrol(w, person, idx=0, no=""):
     return ParticipantEnrollment.objects.create(
         participant=person,
         cohort_course=cc,
-        programme=w["progs"][idx],
+        project=w["progs"][idx],
         institution=w["inst"],
         source_enrollment_no=no,
     )
@@ -71,12 +71,12 @@ def test_status_and_gender_have_unknown_states(db):
     assert p.status == "unknown" and p.gender == "unknown"
 
 
-def test_enrollment_no_unique_per_programme_only(world):
+def test_enrollment_no_unique_per_project_only(world):
     a, b = (Participant.objects.create(full_name_source=n) for n in "AB")
     enrol(world, a, 0, "E1")
     with pytest.raises(IntegrityError), transaction.atomic():
         enrol(world, b, 0, "E1")
-    enrol(world, b, 1, "E1")  # same number in another programme is fine
+    enrol(world, b, 1, "E1")  # same number in another project is fine
     c = Participant.objects.create(full_name_source="C")
     enrol(world, c, 0, "")
     d = Participant.objects.create(full_name_source="D")
@@ -111,7 +111,7 @@ def test_scope_denies_without_assignment_and_allows_all_scope(world, make_user):
     assert Participant.objects.visible_to(make_user("adm", "Administrator")).count() == 1
 
 
-def test_scope_by_programme_cohort_region_officer_and_no_duplicates(world, make_user):
+def test_scope_by_project_cohort_region_officer_and_no_duplicates(world, make_user):
     u = make_user("o", "Placement officer")
     a = Participant.objects.create(full_name_source="A")
     b = Participant.objects.create(
@@ -120,8 +120,8 @@ def test_scope_by_programme_cohort_region_officer_and_no_duplicates(world, make_
     enrol(world, a, 0)
     enrol(world, a, 1)  # two enrollments must not return A twice
     enrol(world, b, 1)
-    scope(u, "programme", world["progs"][0].pk)
-    scope(u, "programme", world["progs"][1].pk)
+    scope(u, "project", world["progs"][0].pk)
+    scope(u, "project", world["progs"][1].pk)
     assert sorted(Participant.objects.visible_to(u).values_list("full_name_source", flat=True)) == [
         "A",
         "B",

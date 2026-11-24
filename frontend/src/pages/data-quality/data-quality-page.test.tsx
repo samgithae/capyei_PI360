@@ -47,7 +47,7 @@ const RECORDS = {
       id: 'p1',
       name: 'Ann Wanjiru',
       county: '',
-      programmes: ['Go Blue'],
+      projects: ['Go Blue'],
       enrollment_numbers: ['E1'],
       issues: [
         { code: 'no_county', label: 'No county', fix: 'Add the county' },
@@ -67,7 +67,7 @@ const CORRECTION: {
   state: 'open',
   state_label: 'Open',
   enrollment_no: 'E1',
-  programme: 'Go Blue',
+  project: 'Go Blue',
   corrected_by: 'officer',
   corrected_at: '2026-11-19T10:00:00Z',
   conflict: null,

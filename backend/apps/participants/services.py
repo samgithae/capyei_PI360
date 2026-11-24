@@ -12,7 +12,7 @@ from django.db import transaction
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
-from . import corrections
+from . import corrections, review_flag
 from . import cv as _cv
 from . import cv_pdf as _cv_pdf
 from . import photo as _photo
@@ -36,7 +36,7 @@ from .skill_views import catalogue as skill_catalogue  # noqa: F401
 # Field -> required? The mapping templates target exactly these names.
 FIELDS = {
     "full_name": True,
-    "programme_code": True,
+    "project_code": True,
     "cohort_code": True,
     "course_code": True,
     "enrollment_no": True,  # D-050: blocks with the name; match key for D-059
@@ -62,9 +62,9 @@ def is_target(name: str) -> bool:
 GENDERS = {"f": "female", "female": "female", "m": "male", "male": "male", "other": "other"}
 IMPORT_RULES = [
     "A row is held (not loaded) if full name or enrollment number is missing (D-050), or if "
-    "programme, cohort or course is missing or not in the reference data (an enrollment cannot "
+    "project, cohort or course is missing or not in the reference data (an enrollment cannot "
     "exist without them).",
-    "A row matches an existing record on programme + enrollment number; matched rows are "
+    "A row matches an existing record on project + enrollment number; matched rows are "
     "skipped, never updated (D-059: imports add new people only).",
     "Unknown county, gender or age become blank/unknown with a warning; they never block a row.",
     "Rows already loaded from an earlier file (same key and content) are skipped.",
@@ -83,7 +83,7 @@ class Checked:
     errors: list = field(default_factory=list)  # [{"field", "message"}]
     warnings: list = field(default_factory=list)
     source_key: str = ""
-    match: str = "new"  # new | exact (same programme + enrollment number already loaded)
+    match: str = "new"  # new | exact (same project + enrollment number already loaded)
     diff: list = field(default_factory=list)  # [{"field","current","incoming"}] for exact matches
 
 
@@ -107,7 +107,7 @@ def check_row(raw: dict) -> Checked:
             err(f, "Required.")
 
     offering_id, prog_id, _inst, problems = configuration.resolve_offering(
-        c["programme_code"], c["cohort_code"], c["course_code"]
+        c["project_code"], c["cohort_code"], c["course_code"]
     )
     county_id = None
     if c["county_code"]:
@@ -119,7 +119,7 @@ def check_row(raw: dict) -> Checked:
         # The centre, cohort or course is just not in reference data yet: propose creating it
         # instead of blocking. Nothing is created until the batch is approved.
         proposal = configuration.propose_reference(
-            c["programme_code"], c["cohort_code"], c["course_code"], county_id
+            c["project_code"], c["cohort_code"], c["course_code"], county_id
         )
         if proposal:
             problems = []
@@ -155,10 +155,10 @@ def check_row(raw: dict) -> Checked:
     c["status"] = STATUSES.get(c["status"].lower(), "unknown")
 
     if prog_id and c["enrollment_no"]:
-        out.source_key = f"{c['programme_code'].upper()}|{c['enrollment_no']}"
+        out.source_key = f"{c['project_code'].upper()}|{c['enrollment_no']}"
         existing = (
             ParticipantEnrollment.objects.select_related("participant__origin_county")
-            .filter(programme_id=prog_id, source_enrollment_no=c["enrollment_no"])
+            .filter(project_id=prog_id, source_enrollment_no=c["enrollment_no"])
             .first()
         )
         if existing:
@@ -166,7 +166,7 @@ def check_row(raw: dict) -> Checked:
             out.diff = _diff(existing, c)
     c["_refs"] = {
         "offering": offering_id,
-        "programme": prog_id,
+        "project": prog_id,
         "county": county_id,
     }
     return out
@@ -223,18 +223,18 @@ def import_participant(clean: dict, *, batch_ref: str, owner=None) -> tuple[str,
     """Create or update. Returns (action, participant_id, before, after).
     ``owner`` becomes the assigned officer of a newly created youth (see ``import_owner``).
 
-    Matching is deterministic: programme + enrollment number. A field an officer has corrected
+    Matching is deterministic: project + enrollment number. A field an officer has corrected
     since the last import is protected (R-15, D-005; see ``corrections.guard_import``).
     """
     refs = clean["_refs"]
     offering_id, _p, institution_id, _e = configuration.resolve_offering(
-        clean["programme_code"], clean["cohort_code"], clean["course_code"]
+        clean["project_code"], clean["cohort_code"], clean["course_code"]
     )
     existing = None
     if clean["enrollment_no"]:
         existing = (
             ParticipantEnrollment.objects.select_related("participant")
-            .filter(programme_id=refs["programme"], source_enrollment_no=clean["enrollment_no"])
+            .filter(project_id=refs["project"], source_enrollment_no=clean["enrollment_no"])
             .first()
         )
     if existing:
@@ -264,7 +264,10 @@ def import_participant(clean: dict, *, batch_ref: str, owner=None) -> tuple[str,
         if clean["status"] != "unknown" and "status" not in held:
             e.status = clean["status"]
             e.save()
-        return "update", str(p.pk), before, _snapshot(p, e)
+        after = _snapshot(p, e)
+        if any(before.get(k) != after.get(k) for k in ("full_name", "gender", "age", "county")):
+            review_flag.flag(p=p, reason=review_flag.IMPORT_CHANGE)
+        return "update", str(p.pk), before, after
 
     p = Participant.objects.create(
         full_name_source=clean["full_name"],
@@ -276,7 +279,7 @@ def import_participant(clean: dict, *, batch_ref: str, owner=None) -> tuple[str,
     e = ParticipantEnrollment.objects.create(
         participant=p,
         cohort_course_id=offering_id or refs["offering"],
-        programme_id=refs["programme"],
+        project_id=refs["project"],
         institution_id=institution_id,
         source_enrollment_no=clean["enrollment_no"],
         status=clean["status"],
@@ -320,12 +323,18 @@ def undo_import(*, action: str, participant_id: str, before: dict) -> None:
 # Duplicate detection and merge (T-041) live in duplicates.py; other modules import them from here.
 from .duplicates import (  # noqa: E402
     DuplicateFailure,
+    add_check,
     cohort_counts,
+    complete,
+    conflict,
     dismiss,
     find_pairs,
+    get_candidate,  # noqa: F401 (re-exported for casework)
     involved_in_merge,
     merge,
     quarantined,
+    resolve,
+    review,
     scan,
     unmerge,
 )
@@ -357,8 +366,8 @@ def filtered(user, params):
 
     qs = Participant.objects.visible_to(user, archived=params.get("archived") == "1")
     try:
-        if params.get("programme"):
-            qs = qs.filter(enrollments__programme_id=uuid.UUID(params["programme"]))
+        if params.get("project"):
+            qs = qs.filter(enrollments__project_id=uuid.UUID(params["project"]))
         if params.get("cohort"):
             qs = qs.filter(enrollments__cohort_course__cohort_id=uuid.UUID(params["cohort"]))
         if params.get("county"):
@@ -367,6 +376,8 @@ def filtered(user, params):
         raise FilterError("Invalid filter value.") from None
     if params.get("status") in {s for s, _ in Participant.STATUSES}:
         qs = qs.filter(status=params["status"])
+    if params.get("review") == Participant.REVIEW_NEEDED:  # NEW-051: the review work list
+        qs = qs.filter(review_state=Participant.REVIEW_NEEDED)
     fuzzy = False
     if q := params.get("q", "").strip():
         qs, fuzzy = similar.search(qs, q)
@@ -378,6 +389,12 @@ CONSENT_FLAG = "consent_tracking"  # off until an administrator turns it on (T-0
 
 def consent_enabled() -> bool:
     return configuration.is_enabled(CONSENT_FLAG)
+
+
+def flag_enabled(key, user=None) -> bool:
+    """Whether a feature flag is on for this user; lets the portal gate routes without importing
+    configuration."""
+    return configuration.is_enabled(key, user)
 
 
 def export_groups() -> list[dict]:
@@ -432,6 +449,11 @@ __all__ = [
     "find_pairs",
     "involved_in_merge",
     "merge",
+    "add_check",
+    "complete",
+    "conflict",
+    "resolve",
+    "review",
     "quarantined",
     "scan",
     "unmerge",
@@ -449,36 +471,34 @@ def create_proposed_reference(*, actor, items):
 def offering_resolves(clean: dict) -> list:
     """Problems (``[(field, message)]``) still stopping this row's cohort/course resolving."""
     return configuration.resolve_offering(
-        clean["programme_code"], clean["cohort_code"], clean["course_code"]
+        clean["project_code"], clean["cohort_code"], clean["course_code"]
     )[3]
 
 
 def reference_codes():
-    """Programme, cohort and course codes people can type or pick when importing."""
+    """Project, cohort and course codes people can type or pick when importing."""
     return configuration.reference_codes()
 
 
-def find_enrollment(programme_code, enrollment_no):
-    """Id of the enrollment with this programme code and source enrollment number, or None.
+def find_enrollment(project_code, enrollment_no):
+    """Id of the enrollment with this project code and source enrollment number, or None.
     Lets other modules (the placement import) attach records without touching our models."""
-    code, no = (programme_code or "").strip(), (enrollment_no or "").strip()
+    code, no = (project_code or "").strip(), (enrollment_no or "").strip()
     if not code or not no:
         return None
     pk = (
-        ParticipantEnrollment.objects.filter(programme__code__iexact=code, source_enrollment_no=no)
+        ParticipantEnrollment.objects.filter(project__code__iexact=code, source_enrollment_no=no)
         .values_list("pk", flat=True)
         .first()
     )
     return str(pk) if pk else None
 
 
-def extra_labels(programme_code):
-    """The ``extra`` labels held on enrollments of one programme, with how many have a value.
+def extra_labels(project_code):
+    """The ``extra`` labels held on enrollments of one project, with how many have a value.
     Also counts enrollments with no source enrollment number (they cannot be matched later)."""
     labels: dict[str, int] = {}
-    qs = ParticipantEnrollment.objects.filter(
-        programme__code__iexact=(programme_code or "").strip()
-    )
+    qs = ParticipantEnrollment.objects.filter(project__code__iexact=(project_code or "").strip())
     total = no_number = 0
     for no, extra in qs.values_list("source_enrollment_no", "extra").iterator():
         total += 1
@@ -493,11 +513,11 @@ def extra_labels(programme_code):
     }
 
 
-def extra_rows(programme_code, labels):
+def extra_rows(project_code, labels):
     """(source enrollment number, {label: value}) for enrollments that have a number and at least
     one of ``labels`` filled. Read-only; the caller turns these into an import file."""
     qs = (
-        ParticipantEnrollment.objects.filter(programme__code__iexact=(programme_code or "").strip())
+        ParticipantEnrollment.objects.filter(project__code__iexact=(project_code or "").strip())
         .exclude(source_enrollment_no="")
         .order_by("source_enrollment_no")
     )
@@ -542,7 +562,7 @@ class CreateError(ValueError):
 def create_participant(*, actor, data: dict) -> Participant:
     """Add one youth by hand (the import is the bulk route), with every optional detail.
     The creator becomes the assigned officer so an officer-scoped user can still see the
-    record they just added. The enrollment, when given, is by cohort offering; the programme and
+    record they just added. The enrollment, when given, is by cohort offering; the project and
     institution come from the cohort."""
     from django.utils import timezone
 
@@ -556,10 +576,10 @@ def create_participant(*, actor, data: dict) -> Participant:
         if (
             no
             and ParticipantEnrollment.objects.filter(
-                programme_id=ids[0], source_enrollment_no=no
+                project_id=ids[0], source_enrollment_no=no
             ).exists()
         ):
-            raise CreateError("enrollment", "Another enrollment in this programme has that number.")
+            raise CreateError("enrollment", "Another enrollment in this project has that number.")
     if (sid := data.get("source_id")) and SourceIdentifier.objects.filter(
         source=data["source_name"].strip(), identifier=sid.strip()
     ).exists():
@@ -581,7 +601,7 @@ def create_participant(*, actor, data: dict) -> Participant:
         ParticipantEnrollment.objects.create(
             participant=p,
             cohort_course_id=enr["cohort_course_id"],
-            programme_id=ids[0],
+            project_id=ids[0],
             institution_id=ids[1],
             source_enrollment_no=enr.get("enrollment_no", "").strip(),
             status=enr.get("status", ParticipantEnrollment.ENROLLED),
@@ -736,7 +756,7 @@ def report_facts(user) -> list[dict]:
 
 
 def report_options() -> dict:
-    """The programme, cohort, institution, county and sector lists the report filters offer
+    """The project, cohort, institution, county and sector lists the report filters offer
     (reporting reaches configuration through here)."""
     return configuration.report_options()
 
@@ -748,7 +768,7 @@ def enrollment_facts(user) -> list[dict]:
     rows = ParticipantEnrollment.objects.filter(participant_id__in=visible_ids(user)).values_list(
         "pk",
         "participant_id",
-        "programme_id",
+        "project_id",
         "cohort_course__cohort_id",
         "institution_id",
         "status",
@@ -758,7 +778,7 @@ def enrollment_facts(user) -> list[dict]:
         {
             "id": r[0],
             "participant_id": r[1],
-            "programme_id": r[2],
+            "project_id": r[2],
             "cohort_id": r[3],
             "institution_id": r[4],
             "status": r[5],
@@ -820,3 +840,47 @@ def save_photo(*, actor, p: Participant, raw: bytes) -> None:
 
 def remove_photo(*, actor, p: Participant) -> None:
     _photo.remove(actor=actor, p=p)
+
+
+# ---- for the self-registration review (NEW-046) ----------------------------------------------
+
+
+def similar_visible(user, *, name, phone="", birth_date=None) -> list[dict]:
+    """People the user may see who look like this sign-up (never the matched phone or date)."""
+    from . import similar
+
+    return similar.similar_to(
+        name=name, scope=Participant.objects.visible_to(user), phone=phone, birth_date=birth_date
+    )
+
+
+def create_from_signup(*, actor, req_data: dict) -> Participant:
+    """A new youth record from an approved sign-up. Only what the youth gave is copied: name,
+    date of birth, gender when it is one of ours, and the contacts. A programme or enrolment
+    number they claimed is not turned into an enrolment (it is unverified)."""
+    given, family = req_data["given_name"].strip(), req_data["family_name"].strip()
+    gender = req_data.get("gender", "")
+    contacts = []
+    if req_data.get("email"):
+        contacts.append({"kind": "email", "value": req_data["email"], "primary": True})
+    if req_data.get("phone"):
+        contacts.append({"kind": "phone", "value": req_data["phone"], "primary": not contacts})
+    return create_participant(
+        actor=actor,
+        data={
+            "full_name_source": f"{given} {family}".strip(),
+            "given_name": given,
+            "family_name": family,
+            "gender": gender if gender in dict(Participant.GENDERS) else Participant.GENDER_UNKNOWN,
+            "date_of_birth": req_data.get("date_of_birth"),
+            "contacts": contacts,
+        },
+    )
+
+
+# The review flag (D-084, NEW-050) lives in review.py; other modules import it from here.
+flag_for_review = review_flag.flag
+review_history = review_flag.history
+mark_reviewed = review_flag.mark_reviewed
+officer_flag = review_flag.officer_flag
+ReviewError = review_flag.ReviewError

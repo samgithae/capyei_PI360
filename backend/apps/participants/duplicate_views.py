@@ -1,7 +1,8 @@
 """Steward duplicate queue API (T-041): review candidate pairs, merge, dismiss, undo."""
 
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,13 +10,13 @@ from rest_framework.views import APIView
 from apps.api.access import HasPermission, has_permission
 
 from . import duplicates, services
-from .models import DuplicateCandidate, ParticipantMerge
+from .models import DuplicateCandidate, MergeResolution, ParticipantMerge
 
 REVIEW, MERGE, CONTACT = "duplicates.review", "duplicates.merge", "participants.view_contact"
 
 
 def _person(p, with_contacts):
-    enrollments = list(p.enrollments.select_related("programme", "cohort_course__cohort"))
+    enrollments = list(p.enrollments.select_related("project", "cohort_course__cohort"))
     out = {
         "id": str(p.pk),
         "name": p.full_name_source,
@@ -24,7 +25,7 @@ def _person(p, with_contacts):
         "date_of_birth": p.date_of_birth.isoformat() if p.date_of_birth else None,
         "status": p.status,
         "county": p.origin_county.name if p.origin_county_id else "",
-        "programmes": sorted({e.programme.name for e in enrollments}),
+        "projects": sorted({e.project.name for e in enrollments}),
         "cohorts": sorted({e.cohort_course.cohort.name for e in enrollments}),
         "enrollment_numbers": sorted(
             e.source_enrollment_no for e in enrollments if e.source_enrollment_no
@@ -35,8 +36,20 @@ def _person(p, with_contacts):
     return out
 
 
-def _candidate(c, with_contacts):
+def _resolution(r):
     return {
+        "id": str(r.pk),
+        "conflict": r.conflict,
+        "action": r.action,
+        "detail": r.detail,
+        "reason": r.reason,
+        "decided_by": r.decided_by.get_username() if r.decided_by_id else "",
+        "decided_at": r.decided_at.isoformat(),
+    }
+
+
+def _candidate(c, with_contacts):
+    out = {
         "id": str(c.pk),
         "score": c.score,
         "reasons": [{"code": r, "text": duplicates.RULES.get(r, (0, r))[1]} for r in c.reasons],
@@ -45,9 +58,23 @@ def _candidate(c, with_contacts):
         "a": _person(c.participant_a, with_contacts),
         "b": _person(c.participant_b, with_contacts),
     }
+    if c.status == DuplicateCandidate.PENDING:
+        plan = c.plan
+        out["pending"] = {
+            "survivor": plan.get("survivor"),
+            "reason": plan.get("reason", ""),
+            "saved_at": plan.get("saved_at"),
+            "resolutions": [_resolution(r) for r in c.resolutions.select_related("decided_by")],
+        }
+    return out
 
 
 def _merge_out(m):
+    resolutions = (
+        MergeResolution.objects.filter(candidate_id=m.candidate_id).select_related("decided_by")
+        if m.candidate_id
+        else []
+    )
     return {
         "id": str(m.pk),
         "survivor": {"id": str(m.survivor_id), "name": m.survivor.full_name_source},
@@ -57,6 +84,7 @@ def _merge_out(m):
         "created_by": m.created_by.get_username() if m.created_by_id else "",
         "undone_at": m.undone_at.isoformat() if m.undone_at else None,
         "undo_reason": m.undo_reason,
+        "resolutions": [_resolution(r) for r in resolutions],
     }
 
 
@@ -119,23 +147,69 @@ class DuplicateDismissView(APIView):
         return Response({"id": str(pk), "status": "dismissed"})
 
 
+class DuplicateReviewView(APIView):
+    """What a merge into the chosen survivor would do: values filled automatically, real
+    conflicts to choose, and critical conflicts that hold the merge (NEW-077)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": MERGE}
+
+    @extend_schema(
+        parameters=[OpenApiParameter("survivor", str, required=True)],
+        responses={200: dict, 409: dict},
+    )
+    def get(self, request, pk):
+        cand = get_object_or_404(DuplicateCandidate, pk=pk)
+        try:
+            return Response(
+                services.review(candidate=cand, survivor_id=request.query_params.get("survivor"))
+            )
+        except (services.DuplicateFailure, ValueError, ValidationError) as exc:
+            return _conflict(
+                exc if isinstance(exc, services.DuplicateFailure)
+                else services.DuplicateFailure("Choose the survivor.", "survivor")
+            )  # fmt: skip
+
+
 class DuplicateMergeView(APIView):
+    """Merge, or, while a critical conflict remains, save the merge as pending resolution
+    (202, with the conflicts). Nothing moves until it is completed."""
+
     permission_classes = [HasPermission]
     required_permission = {"POST": MERGE}
 
-    @extend_schema(request=MergeSerializer, responses={200: dict, 409: dict})
+    @extend_schema(request=MergeSerializer, responses={200: dict, 202: dict, 409: dict})
     def post(self, request, pk):
         s = MergeSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         cand = get_object_or_404(DuplicateCandidate, pk=pk)
         try:
-            record = services.merge(
+            result = services.merge(
                 actor=request.user,
                 candidate=cand,
                 survivor_id=s.validated_data["survivor"],
                 fields=s.validated_data.get("fields"),
                 reason=s.validated_data["reason"],
             )
+        except services.DuplicateFailure as exc:
+            return _conflict(exc)
+        if isinstance(result, DuplicateCandidate):
+            return Response(
+                {"id": str(result.pk), "status": result.status, "conflicts": result.conflicts},
+                status=status.HTTP_202_ACCEPTED,
+            )
+        return Response(_merge_out(result))
+
+
+class DuplicateCompleteView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"POST": MERGE}
+
+    @extend_schema(request=None, responses={200: dict, 409: dict})
+    def post(self, request, pk):
+        cand = get_object_or_404(DuplicateCandidate, pk=pk)
+        try:
+            record = services.complete(actor=request.user, candidate=cand)
         except services.DuplicateFailure as exc:
             return _conflict(exc)
         return Response(_merge_out(record))

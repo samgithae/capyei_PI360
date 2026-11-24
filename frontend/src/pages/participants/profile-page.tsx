@@ -32,7 +32,7 @@ const TABS: { id: TabId; label: string; needs?: string }[] = [
     needs: 'participants.view_profile',
   },
   { id: 'referrals', label: 'Referrals & Placement', needs: 'referrals.view' },
-  { id: 'account', label: 'Programme & Account' },
+  { id: 'account', label: 'Project & Account' },
 ];
 
 /**

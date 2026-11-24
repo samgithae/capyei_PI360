@@ -33,7 +33,30 @@ class Placement(models.Model):
         "employer", "pathway", "status", "verified_by", "verified_on",
         "end_date", "exit_reason", "verification_source",
         "start_date", "designation", "employer_name_source", "benefits",
+        "business_activity", "operational_status", "business_evidence", "monthly_income",
+        "duplicate_of", "employment_type", "salary_amount", "salary_band",
     }  # fmt: skip
+    # A3 / B25 (PI360-NEW-035): the exact monthly salary and its band. Both are economic data:
+    # read and written only with restricted.view_background, never in the audit trail.
+    SALARY_FIELDS = ("salary_amount", "salary_band_id")
+    # NEW-077: when two youth records are merged and both carried the same real placement, an
+    # officer marks one row as recorded twice. It is kept (never deleted) and points at the row
+    # that stays; its status is no longer "placed", so only one running placement remains.
+    RECORDED_TWICE = "recorded_twice"
+
+    # D-080 / B27 (PI360-NEW-071): self-employment is its own outcome. CAP-YEI named the facts
+    # to keep; it gave no list of operational statuses, so this list is PROVISIONAL (a working
+    # list for the pilot, to be confirmed by CAP-YEI). The business name is employer_name_source,
+    # the date started is start_date and verification is verified_on / verification_source.
+    OPERATING, PAUSED, CLOSED = "operating", "not_operating", "closed"
+    OPERATIONAL_STATUSES = [
+        (OPERATING, "Operating"),
+        (PAUSED, "Temporarily not operating"),
+        (CLOSED, "Closed"),
+    ]
+    SELF_EMPLOYMENT_FIELDS = (
+        "business_activity", "operational_status", "business_evidence", "monthly_income",
+    )  # fmt: skip
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     enrollment = models.ForeignKey(
@@ -56,6 +79,30 @@ class Placement(models.Model):
     exit_reason = models.CharField(max_length=200, blank=True)
     verification_source = models.CharField(max_length=25, choices=SOURCES, blank=True)
     benefits = models.TextField(blank=True)
+    # Self-employment only (NEW-071). Income is economic data (G9): it is read and written only
+    # with the grant-only restricted.view_background permission, and stays optional.
+    business_activity = models.CharField(max_length=200, blank=True)
+    operational_status = models.CharField(max_length=20, choices=OPERATIONAL_STATUSES, blank=True)
+    business_evidence = models.TextField(blank=True)
+    monthly_income = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    duplicate_of = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # B25 (NEW-035): the type of work, from the CAP-YEI list.
+    employment_type = models.ForeignKey(
+        "configuration.EmploymentType", null=True, blank=True, on_delete=models.PROTECT,
+        related_name="+",
+    )  # fmt: skip
+    salary_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    salary_band = models.ForeignKey(
+        "configuration.SalaryBand", null=True, blank=True, on_delete=models.PROTECT,
+        related_name="+",
+    )  # fmt: skip
+    # B26 (NEW-035/036): the episode this one followed (a change of employer). Set once, when
+    # the episode is recorded; the first placement after training has none (a "root" episode).
+    previous_placement = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="next_placements"
+    )
     source_row = models.ForeignKey(
         "imports.ImportRow", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
@@ -68,6 +115,15 @@ class Placement(models.Model):
     class Meta:
         ordering = ["-start_date", "-created_at"]
         indexes = [models.Index(fields=["enrollment", "-start_date"])]
+        constraints = [
+            # D-081 (PI360-NEW-070): one running placement. The database guards each enrollment;
+            # placements.services guards the youth across all their enrollments.
+            models.UniqueConstraint(
+                fields=["enrollment"],
+                condition=models.Q(status="placed", end_date__isnull=True),
+                name="one_running_placement_per_enrollment",
+            )
+        ]
 
     def __str__(self):
         return f"{self.source_status or 'placement'} ({self.id})"
@@ -161,7 +217,30 @@ class FollowUp(models.Model):
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
-    # What the check-in found, set when it is completed (FR-25: response, evidence).
+    # What the check-in found (B25/B26, PI360-NEW-034). ``still_employed`` is derived from the
+    # outcome; follow-ups completed before NEW-034 have only ``still_employed`` (outcome blank).
+    SAME_EMPLOYER, CHANGED_EMPLOYER, LEFT_EMPLOYMENT, SELF_EMPLOYED = (
+        "same_employer", "changed_employer", "left_employment", "self_employed",
+    )  # fmt: skip
+    OUTCOMES = [
+        (SAME_EMPLOYER, "Still with the same employer"),
+        (CHANGED_EMPLOYER, "Working for another employer"),
+        (SELF_EMPLOYED, "Now self-employed"),
+        (LEFT_EMPLOYMENT, "No longer working"),
+    ]
+    EMPLOYED_OUTCOMES = (SAME_EMPLOYER, CHANGED_EMPLOYER, SELF_EMPLOYED)
+    outcome = models.CharField(max_length=20, choices=OUTCOMES, blank=True)
+    leaving_reason = models.ForeignKey(
+        "configuration.LeavingReason", null=True, blank=True, on_delete=models.PROTECT,
+        related_name="+",
+    )  # fmt: skip
+    left_on = models.DateField(null=True, blank=True)
+    # Staff-only observations; like every note, never copied into the audit trail.
+    observations = models.TextField(blank=True)
+    # The episode the youth is in now, when the check-in found them in another job.
+    new_placement = models.ForeignKey(
+        Placement, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
     still_employed = models.BooleanField(null=True, blank=True)
     evidence_source = models.CharField(max_length=25, choices=Placement.SOURCES, blank=True)
     response_note = models.TextField(blank=True)

@@ -4,6 +4,14 @@ from . import views
 
 urlpatterns = [
     path("participants/<uuid:pk>/invite", views.InviteView.as_view()),
+    path("registrations/submit", views.RegisterView.as_view()),
+    path("registrations/verify", views.RegisterVerifyView.as_view()),
+    path("registrations", views.RegistrationListView.as_view()),
+    path("registrations/<uuid:pk>", views.RegistrationDetailView.as_view()),
+    path("registrations/<uuid:pk>/reject", views.RegistrationRejectView.as_view()),
+    path("registrations/<uuid:pk>/matches", views.RegistrationMatchesView.as_view()),
+    path("registrations/<uuid:pk>/link", views.RegistrationLinkView.as_view()),
+    path("registrations/<uuid:pk>/create", views.RegistrationCreateView.as_view()),
     path("youth/activate/check", views.ActivateCheckView.as_view()),
     path("youth/activate", views.ActivateView.as_view()),
     path("youth/me", views.YouthMeView.as_view()),

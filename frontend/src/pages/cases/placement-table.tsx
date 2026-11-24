@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  ChangeEmployerDialog,
   EndPlacementDialog,
   PlacementDialog,
   VerifyPlacementDialog,
@@ -21,6 +22,7 @@ import {
 const day = (d: string | null) => (d ? d.slice(0, 10) : '');
 
 /** Placement episodes as a table, with Edit, End and Verify for people who may change them.
+ * Changed employer ends a current one and starts the next (D-081).
  * Used by the Placements page and by the youth profile. Imported episodes cannot be edited
  * here (they are corrected by re-importing); they can still be ended and verified. */
 export function PlacementTable({
@@ -34,6 +36,7 @@ export function PlacementTable({
   const canEdit = can('placements.edit');
   const [edit, setEdit] = useState<PlacementRow | null>(null);
   const [end, setEnd] = useState<PlacementRow | null>(null);
+  const [change, setChange] = useState<PlacementRow | null>(null);
   const [verify, setVerify] = useState<PlacementRow | null>(null);
 
   return (
@@ -72,6 +75,18 @@ export function PlacementTable({
                 {p.designation && (
                   <p className="text-xs text-muted-foreground">
                     {p.designation}
+                  </p>
+                )}
+                {p.employment_type && (
+                  <p className="text-xs text-muted-foreground">
+                    {p.employment_type}
+                  </p>
+                )}
+                {(p.business_activity || p.operational_status_label) && (
+                  <p className="text-xs text-muted-foreground">
+                    {[p.business_activity, p.operational_status_label]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </p>
                 )}
               </TableCell>
@@ -138,6 +153,16 @@ export function PlacementTable({
                         End
                       </Button>
                     )}
+                    {p.current && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-label={`Changed employer for ${p.participant}`}
+                        onClick={() => setChange(p)}
+                      >
+                        Changed employer
+                      </Button>
+                    )}
                     {!p.verified && (
                       <Button
                         size="sm"
@@ -167,6 +192,13 @@ export function PlacementTable({
           open
           onOpenChange={(o) => !o && setEnd(null)}
           placement={end}
+        />
+      )}
+      {change && (
+        <ChangeEmployerDialog
+          open
+          onOpenChange={(o) => !o && setChange(null)}
+          placement={change}
         />
       )}
       {verify && (

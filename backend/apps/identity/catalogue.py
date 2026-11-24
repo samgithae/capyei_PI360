@@ -26,7 +26,7 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("config.manage_protected", "Change protected settings", "Administration"),
     Permission("reference.manage", "Manage reference data", "Administration"),
     Permission(
-        "participants.view", "View participants (identity, programme, outreach)", "Participants"
+        "participants.view", "View participants (identity, project, outreach)", "Participants"
     ),
     Permission("participants.edit", "Edit participants", "Participants"),
     Permission("participants.view_contact", "View participant contact details", "Participants"),

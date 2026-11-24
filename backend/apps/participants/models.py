@@ -2,7 +2,7 @@
 
 Not built here: the restricted identity/background tables (D-063, doc 18 pending). Source text
 that is not yet settled stays as text: sub-county and ward (D-049), the enrollment number
-(D-047, unique per programme but not parsed), the qualification code (D-062)."""
+(D-047, unique per project but not parsed), the qualification code (D-062)."""
 
 import uuid
 
@@ -16,7 +16,7 @@ from apps.api.access import ScopedQuerySet
 class ParticipantQuerySet(ScopedQuerySet):
     def visible_to(self, user, *, archived=False):
         # ``archived``: False hides archived records (soft delete), True shows only them, None both.
-        # Programme and cohort scope go through enrollments, a one-to-many join that can repeat a
+        # Project and cohort scope go through enrollments, a one-to-many join that can repeat a
         # participant, so the result is de-duplicated.
         # Records absorbed by a merge (T-041) are hidden; unmerging brings them back.
         qs = super().visible_to(user).filter(merged_into__isnull=True)
@@ -65,13 +65,25 @@ class Participant(models.Model):
         "self", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
     archived_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    # Work-list flag (D-084, NEW-050). Separate from ``status``; it blocks nothing.
+    REVIEW_NONE, REVIEW_NEEDED, REVIEW_DONE = "none", "needs_review", "reviewed"
+    REVIEW_STATES = [
+        (REVIEW_NONE, "None"),
+        (REVIEW_NEEDED, "Needs review"),
+        (REVIEW_DONE, "Reviewed"),
+    ]
+    review_state = models.CharField(
+        max_length=12, choices=REVIEW_STATES, default=REVIEW_NONE, db_index=True
+    )
+    review_reason = models.CharField(max_length=20, blank=True)  # a code from review.REASONS
+    review_since = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     objects = ParticipantQuerySet.as_manager()
 
     scope_map = {
-        "programme": "enrollments__programme_id",
+        "project": "enrollments__project_id",
         "cohort": "enrollments__cohort_course__cohort_id",
         "region": "origin_county_id",
         "officer": "assigned_officer_id",
@@ -95,10 +107,8 @@ class ParticipantEnrollment(models.Model):
     cohort_course = models.ForeignKey(
         "configuration.CohortCourse", on_delete=models.PROTECT, related_name="+"
     )
-    # Denormalised from the cohort so the per-programme uniqueness can be a DB constraint.
-    programme = models.ForeignKey(
-        "configuration.Programme", on_delete=models.PROTECT, related_name="+"
-    )
+    # Denormalised from the cohort so the per-project uniqueness can be a DB constraint.
+    project = models.ForeignKey("configuration.Project", on_delete=models.PROTECT, related_name="+")
     institution = models.ForeignKey(
         "configuration.TrainingInstitution", on_delete=models.PROTECT, related_name="+"
     )
@@ -118,9 +128,9 @@ class ParticipantEnrollment(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["programme", "source_enrollment_no"],
+                fields=["project", "source_enrollment_no"],
                 condition=~Q(source_enrollment_no=""),
-                name="uniq_enrollment_no_per_programme",
+                name="uniq_enrollment_no_per_project",
             ),
             models.UniqueConstraint(
                 fields=["participant", "cohort_course"], name="uniq_participant_cohort_course"
@@ -205,8 +215,13 @@ class DuplicateCandidate(models.Model):
     """A pair of records that may be the same person. Held for a steward: nothing here ever merges
     on its own (DATA-05, D-064). ``participant_a`` always sorts before ``participant_b``."""
 
-    OPEN, DISMISSED, MERGED = "open", "dismissed", "merged"
-    STATUSES = [(s, s.capitalize()) for s in (OPEN, DISMISSED, MERGED)]
+    OPEN, DISMISSED, MERGED, PENDING = "open", "dismissed", "merged", "pending"
+    STATUSES = [
+        (OPEN, "Open"),
+        (DISMISSED, "Dismissed"),
+        (MERGED, "Merged"),
+        (PENDING, "Pending resolution"),  # a merge was asked for but critical conflicts remain
+    ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     participant_a = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="+")
@@ -215,6 +230,9 @@ class DuplicateCandidate(models.Model):
     reasons = models.JSONField(default=list)  # rule codes, see duplicates.RULES
     status = models.CharField(max_length=10, choices=STATUSES, default=OPEN)
     note = models.CharField(max_length=500, blank=True)
+    # While pending: the merge the steward asked for (survivor, field choices, reason, who, when).
+    # Nothing is moved until every critical conflict is resolved and the merge is completed.
+    plan = models.JSONField(default=dict, blank=True)
     decided_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
@@ -231,6 +249,30 @@ class DuplicateCandidate(models.Model):
 
     def __str__(self):
         return f"{self.participant_a_id} ~ {self.participant_b_id}"
+
+
+class MergeResolution(models.Model):
+    """How an authorised officer resolved one critical conflict on a pending merge (NEW-077):
+    who, when, why and what they did. Kept for good, so the merge history can be traced."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    candidate = models.ForeignKey(
+        DuplicateCandidate, on_delete=models.PROTECT, related_name="resolutions"
+    )
+    conflict = models.CharField(max_length=40)  # conflict code, see duplicates.review
+    action = models.CharField(max_length=40)  # what was done, e.g. "end", "same"
+    detail = models.JSONField(default=dict, blank=True)  # ids only, never personal details
+    reason = models.CharField(max_length=500)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    decided_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["decided_at"]
+
+    def __str__(self):
+        return f"{self.conflict}: {self.action}"
 
 
 class ParticipantMerge(models.Model):
@@ -583,3 +625,26 @@ class ParticipantCorrection(models.Model):
 
     def __str__(self):
         return f"{self.participant_id}:{self.field}:{self.state}"
+
+
+class ReviewEvent(models.Model):
+    """Append-only history of the review flag: each time a youth was flagged or marked reviewed.
+    ``actor`` is empty when the youth or an import caused it. Notes are free text written by staff
+    and must not hold contact details."""
+
+    FLAGGED, REVIEWED = "flagged", "reviewed"
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="reviews")
+    kind = models.CharField(max_length=10)
+    reason = models.CharField(max_length=20, blank=True)
+    note = models.CharField(max_length=500, blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.kind} {self.reason}"

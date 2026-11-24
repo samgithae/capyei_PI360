@@ -2,7 +2,7 @@
 
 Allowed: names, gender, date of birth, home county, where they live now, and their contacts.
 Left to staff on purpose (they affect eligibility, reporting or who can sign in): the status,
-enrollments (programme, cohort, course, institution, enrollment number, dates, exit reason),
+enrollments (project, cohort, course, institution, enrollment number, dates, exit reason),
 the assigned officer, archiving, verification, and the e-mail the account signs in with.
 Audit entries record which fields changed, never the values of contacts."""
 
@@ -12,6 +12,7 @@ from django.utils import timezone
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
+from . import review_flag
 from .models import Participant, ParticipantContact, ParticipantResidence
 
 NAME_FIELDS = ("given_name", "family_name", "other_names")
@@ -100,6 +101,10 @@ def write_own(*, actor, p: Participant, data: dict) -> dict:
             )
             changed.append("contacts")
 
+    if set(changed) & review_flag.SELF_EDIT_KEYS:
+        review_flag.flag(
+            p=p, reason=review_flag.SELF_EDIT
+        )  # key fields only; contacts and residence do not
     if changed:
         audit.record(
             actor=actor,

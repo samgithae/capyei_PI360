@@ -9,7 +9,7 @@ from apps.configuration.models import (
     CohortCourse,
     County,
     Course,
-    Programme,
+    Project,
     TrainingInstitution,
 )
 from apps.participants import services
@@ -29,12 +29,12 @@ def base(db):
     inst = TrainingInstitution.objects.create(
         code="I1", name="College", county=County.objects.get(code="01")
     )
-    prog = Programme.objects.create(code="P1", name="Programme 1")
+    prog = Project.objects.create(code="P1", name="Project 1")
     ccs = []
     for n in ("1", "2"):
-        course = Course.objects.create(programme=prog, code=f"C{n}", name=f"Course {n}")
+        course = Course.objects.create(project=prog, code=f"C{n}", name=f"Course {n}")
         cohort = Cohort.objects.create(
-            programme=prog, institution=inst, code=f"K{n}", name=f"Cohort {n}",
+            project=prog, institution=inst, code=f"K{n}", name=f"Cohort {n}",
             intake_year=2025, batch_no=int(n), phase="1",
         )  # fmt: skip
         ccs.append(CohortCourse.objects.create(cohort=cohort, course=course))
@@ -44,7 +44,7 @@ def base(db):
 def person(base, name, *, phone=None, cc=0, no="", **extra):
     p = Participant.objects.create(full_name_source=name, **extra)
     ParticipantEnrollment.objects.create(
-        participant=p, cohort_course=base["ccs"][cc], programme=base["prog"],
+        participant=p, cohort_course=base["ccs"][cc], project=base["prog"],
         institution=base["inst"], source_enrollment_no=no,
     )  # fmt: skip
     if phone:
@@ -66,7 +66,7 @@ def test_same_name_and_phone_is_candidate_not_merged(base):
     assert result["new"] == 1
     cand = DuplicateCandidate.objects.get()
     assert {cand.participant_a_id, cand.participant_b_id} == {a.pk, b.pk}
-    assert set(cand.reasons) == {"name_phone", "name_programme"} and cand.score == 0.95
+    assert set(cand.reasons) == {"name_phone", "name_project"} and cand.score == 0.95
     assert Participant.objects.filter(merged_into__isnull=False).count() == 0  # never auto-merged
 
 
@@ -82,11 +82,11 @@ def test_scan_is_idempotent_and_respects_dismissal(base, make_user):
     assert DuplicateCandidate.objects.get().status == "dismissed"
 
 
-def test_same_name_same_programme_different_numbers(base):
+def test_same_name_same_project_different_numbers(base):
     person(base, "Peter Otieno", no="E1")
     person(base, "Peter Otieno", cc=1, no="E2")
     services.scan()
-    assert DuplicateCandidate.objects.get().reasons == ["name_programme"]
+    assert DuplicateCandidate.objects.get().reasons == ["name_project"]
 
 
 def test_shared_office_phone_is_ignored(base):
@@ -109,8 +109,8 @@ def test_merge_moves_children_and_hides_absorbed(base, make_user):
     a, b, cand, user, survivor = merge_pair(base, make_user)
     other = b if survivor == a else a
     rec = services.merge(
-        actor=user, candidate=cand, survivor_id=survivor.pk, fields={"gender": "merged"},
-        reason="Same person",
+        actor=user, candidate=cand, survivor_id=survivor.pk,
+        fields={"gender": "merged", "age_at_source": "survivor"}, reason="Same person",
     )  # fmt: skip
     survivor.refresh_from_db()
     other.refresh_from_db()
@@ -153,17 +153,17 @@ def test_unmerge_restores_everything(base, make_user):
         services.unmerge(actor=user, merge_record=rec, reason="Again")
 
 
-def test_merge_blocked_when_same_course_offering(base, make_user):
+def test_merge_held_when_same_course_offering(base, make_user):
     person(base, "Jane Wanjiru", phone="0700111222", no="E1")
     person(base, "Jane Wanjiru", phone="0700111222", no="E2")  # same cohort course
     services.scan()
     cand = DuplicateCandidate.objects.get()
-    with pytest.raises(services.DuplicateFailure) as exc:
-        services.merge(
-            actor=make_user("s", "Data steward"), candidate=cand,
-            survivor_id=cand.participant_a_id, reason="x",
-        )  # fmt: skip
-    assert exc.value.field == "enrollments"
+    held = services.merge(
+        actor=make_user("s", "Data steward"), candidate=cand,
+        survivor_id=cand.participant_a_id, reason="x",
+    )  # fmt: skip
+    assert held.status == "pending"
+    assert [c["code"] for c in held.conflicts] == ["same_course_offering"]
     assert not ParticipantMerge.objects.exists()
 
 
@@ -201,9 +201,10 @@ def test_api_queue_merge_undo_round_trip(base, make_user):
     assert row["a"]["phones"]  # a Data steward holds participants.view_contact
     r = c.post(
         f"{URL}/duplicates/{cand.pk}/merge",
-        {"survivor": str(survivor.pk), "reason": "Same person"},
+        {"survivor": str(survivor.pk), "reason": "Same person",
+         "fields": {"age_at_source": "survivor"}},
         content_type="application/json",
-    )
+    )  # fmt: skip
     assert r.status_code == 200, r.content
     merge_id = r.json()["id"]
     assert c.get(f"{URL}/duplicates").json()["results"] == []
@@ -238,7 +239,10 @@ def test_api_dismiss_and_scan(base, make_user):
 def test_merged_record_disappears_from_directory(base, make_user):
     a, b, cand, user, survivor = merge_pair(base, make_user)
     other = b if survivor == a else a
-    services.merge(actor=user, candidate=cand, survivor_id=survivor.pk, reason="Same")
+    services.merge(
+        actor=user, candidate=cand, survivor_id=survivor.pk,
+        fields={"age_at_source": "merged"}, reason="Same",
+    )  # fmt: skip
     c = steward(make_user)
     assert c.get(URL).json()["total"] == 1
     assert c.get(f"{URL}/{other.pk}").status_code == 404

@@ -3,7 +3,7 @@
 Sheet 1 ("Data") is what the importer reads (first sheet, headers in row 1); its headers are the
 PI 360 field names, so the wizard maps every column on its own. The other sheets are for people:
 what each column means and which codes are valid right now. Nothing here touches the database
-except reading the live programme, cohort and course codes.
+except reading the live project, cohort and course codes.
 """
 
 import io
@@ -19,11 +19,11 @@ from . import placement_rows
 # field -> (what to type, example)
 PARTICIPANT_HELP = {
     "full_name": ("The person's full name as on their ID.", "Wanjiru Mwangi"),
-    "programme_code": ("Code of the programme. See the Codes sheet.", "GO-BLUE"),
+    "project_code": ("Code of the project. See the Codes sheet.", "GO-BLUE"),
     "cohort_code": ("Code of the cohort (an intake at one institution). See Codes.", "GB-2026-A"),
     "course_code": ("Code of the course. See the Codes sheet.", "CARPENTRY"),
     "enrollment_no": (
-        "Their number in the programme. Must be unique within the programme.",
+        "Their number in the project. Must be unique within the project.",
         "GB/0001/26",
     ),
     "gender": ("female, male or other. Anything else becomes unknown.", "female"),
@@ -35,7 +35,7 @@ PARTICIPANT_HELP = {
     "source_id": ("Your own reference for this person, if you have one.", ""),
 }
 PLACEMENT_HELP = {
-    "programme_code": ("Code of the programme. See the Codes sheet.", "GO-BLUE"),
+    "project_code": ("Code of the project. See the Codes sheet.", "GO-BLUE"),
     "enrollment_no": (
         "The enrollment number already loaded for this person. Placements are held for "
         "numbers that are not on file.",
@@ -96,7 +96,7 @@ def build_xlsx(target="participants") -> bytes:
         "2. Row 2 is an example. Replace it with your first person, or delete it.",
         "3. One person per row. Add as many rows as you need.",
         "4. Columns marked Required must be filled on every row, or that row is held back.",
-        "5. Use the codes on the Codes sheet for programme, cohort and course.",
+        "5. Use the codes on the Codes sheet for project, cohort and course.",
         "6. Save as Excel (.xlsx) or CSV, then choose it under New import in PI 360.",
         "Nothing is saved until you have seen the check results and approved the import.",
     ]
@@ -114,15 +114,15 @@ def build_xlsx(target="participants") -> bytes:
 
     codes = wb.create_sheet("Codes")
     ref = participants.reference_codes()
-    _header(codes, 1, ["Kind", "Code", "Name", "Programme"])
+    _header(codes, 1, ["Kind", "Code", "Name", "Project"])
     r = 2
     for kind, label in (
-        ("programme_code", "Programme"),
+        ("project_code", "Project"),
         ("cohort_code", "Cohort"),
         ("course_code", "Course"),
     ):
         for o in ref.get(kind, []):
-            for col, v in enumerate((label, o["code"], o["name"], o.get("programme", "")), 1):
+            for col, v in enumerate((label, o["code"], o["name"], o.get("project", "")), 1):
                 codes.cell(row=r, column=col, value=v)
             r += 1
     _widths(codes, [12, 22, 44, 18])

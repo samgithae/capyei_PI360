@@ -35,7 +35,7 @@ function Fact({
   );
 }
 
-/** Staff-side record: personal details, programme history, sign-in account and change history. */
+/** Staff-side record: personal details, project history, sign-in account and change history. */
 export function AccountTab({ p }: { p: Detail }) {
   const { can } = useAuth();
   const refs = useParticipantReferrals(p.id);
@@ -113,11 +113,11 @@ export function AccountTab({ p }: { p: Detail }) {
         </Card>
       )}
 
-      <DataCard title="Programme and enrollment history">
+      <DataCard title="Project and enrollment history">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40">
-              <TableHead>Programme</TableHead>
+              <TableHead>Project</TableHead>
               <TableHead>Cohort</TableHead>
               <TableHead>Course</TableHead>
               <TableHead>Institution</TableHead>
@@ -131,7 +131,7 @@ export function AccountTab({ p }: { p: Detail }) {
           <TableBody>
             {p.enrollments.map((e) => (
               <TableRow key={e.id}>
-                <TableCell>{e.programme}</TableCell>
+                <TableCell>{e.project}</TableCell>
                 <TableCell>{e.cohort}</TableCell>
                 <TableCell>{e.course}</TableCell>
                 <TableCell>{e.institution}</TableCell>
@@ -147,7 +147,7 @@ export function AccountTab({ p }: { p: Detail }) {
             {p.enrollments.length === 0 && (
               <TableRow>
                 <TableCell colSpan={9} className="text-muted-foreground">
-                  Not enrolled in any programme.
+                  Not enrolled in any project.
                 </TableCell>
               </TableRow>
             )}

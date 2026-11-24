@@ -34,7 +34,7 @@ def grant(admin, user, days=3):
         actor=admin,
         user=user,
         permission="exports.identifiable",
-        purpose="Programme reporting",
+        purpose="Project reporting",
         expires_at=timezone.now() + timedelta(days=days),
     )
 
@@ -72,7 +72,7 @@ def test_export_is_exactly_the_filtered_table(people):
     rows = parse(resp)
     head = rows[0]
     # With no choice made, the file holds every field, starting with the ones the table shows.
-    assert head[:2] == ["Name", "Given name"] and {"Gender", "Age", "Programme", "Cohort"} <= set(
+    assert head[:2] == ["Name", "Given name"] and {"Gender", "Age", "Project", "Cohort"} <= set(
         head
     )
     col = head.index
@@ -98,7 +98,7 @@ def test_formula_like_names_are_escaped_and_excel_has_an_about_sheet(people):
 @pytest.mark.django_db
 def test_scope_is_respected(people, make_user):
     officer = make_user("off", "Placement officer")
-    scope(officer, "programme", people["world"]["progs"][1].pk)
+    scope(officer, "project", people["world"]["progs"][1].pk)
     grant(people["admin"], officer)
     rows = parse(api(officer).post(URL, BODY, content_type="application/json"))
     assert [r[0] for r in rows[1:]] == ["'=HYPERLINK(1)"]

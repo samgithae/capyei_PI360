@@ -433,12 +433,10 @@ def change_setting(*, actor, key, value, reason, password, code=""):
 # --- lookups for other modules (the import pipeline) ------------------------
 
 
-def _by_name(model, programme, text):
+def _by_name(model, project, text):
     """Sheets often carry a cohort or course NAME, not its code: accept an exact name match
     (case, spacing and punctuation ignored) when it is unambiguous."""
-    hits = list(
-        model.objects.filter(programme=programme, name_normalised=norm(text), active=True)[:2]
-    )
+    hits = list(model.objects.filter(project=project, name_normalised=norm(text), active=True)[:2])
     return hits[0] if len(hits) == 1 else None
 
 
@@ -446,12 +444,12 @@ def _find_course(prog, text):
     """A course by code, exact name, or a "<code>-<name>" label whose code and name both match."""
     from .models import Course
 
-    hit = Course.objects.filter(programme=prog, code__iexact=text, active=True).first() or _by_name(
+    hit = Course.objects.filter(project=prog, code__iexact=text, active=True).first() or _by_name(
         Course, prog, text
     )
     if hit is None and (m := COURSE_LABEL.match(text.strip())):
         hit = Course.objects.filter(
-            programme=prog,
+            project=prog,
             code__iexact=m.group(1),
             name_normalised=norm(m.group(2)),
             active=True,
@@ -459,28 +457,28 @@ def _find_course(prog, text):
     return hit
 
 
-def resolve_offering(programme_code, cohort_code, course_code):
-    """Find the active programme, cohort and course by code, and the offering joining cohort and
-    course. Returns ``(offering_id, programme_id, institution_id, errors)`` where errors is a list
+def resolve_offering(project_code, cohort_code, course_code):
+    """Find the active project, cohort and course by code, and the offering joining cohort and
+    course. Returns ``(offering_id, project_id, institution_id, errors)`` where errors is a list
     of ``(field, message)``. Ids are strings (they go into JSON)."""
-    from .models import Cohort, Programme
+    from .models import Cohort, Project
 
     errors, offering = [], None
     prog = cohort = course = None
-    if programme_code:
-        prog = Programme.objects.filter(code__iexact=programme_code, active=True).first()
+    if project_code:
+        prog = Project.objects.filter(code__iexact=project_code, active=True).first()
         if prog is None:
-            errors.append(("programme_code", f"Unknown programme '{programme_code}'."))
+            errors.append(("project_code", f"Unknown project '{project_code}'."))
     if prog and cohort_code:
         cohort = Cohort.objects.filter(
-            programme=prog, code__iexact=cohort_code, active=True
+            project=prog, code__iexact=cohort_code, active=True
         ).first() or _by_name(Cohort, prog, cohort_code)
         if cohort is None:
-            errors.append(("cohort_code", f"Unknown cohort '{cohort_code}' in this programme."))
+            errors.append(("cohort_code", f"Unknown cohort '{cohort_code}' in this project."))
     if prog and course_code:
         course = _find_course(prog, course_code)
         if course is None:
-            errors.append(("course_code", f"Unknown course '{course_code}' in this programme."))
+            errors.append(("course_code", f"Unknown course '{course_code}' in this project."))
     if cohort and course:
         offering = cohort.offerings.filter(course=course).first()
         if offering is None:
@@ -502,19 +500,19 @@ COHORT_LABEL = re.compile(
 COURSE_LABEL = re.compile(r"^([A-Za-z0-9]+)\s*-\s*(.+)$")
 
 
-def propose_reference(programme_code, cohort_text, course_text, county_id):
+def propose_reference(project_code, cohort_text, course_text, county_id):
     """What would have to be created for this row's cohort/course to resolve? Returns a list of
     ``{"kind", "label", "data"}`` items (nothing is written), or None when the row cannot be
-    resolved by creating records (unknown programme, label not in a known shape, or a new
+    resolved by creating records (unknown project, label not in a known shape, or a new
     training centre with no usable county)."""
-    from .models import Cohort, Programme, TrainingInstitution
+    from .models import Cohort, Project, TrainingInstitution
 
-    prog = Programme.objects.filter(code__iexact=programme_code, active=True).first()
+    prog = Project.objects.filter(code__iexact=project_code, active=True).first()
     if prog is None:
         return None
     cohort_text, course_text = (cohort_text or "").strip(), (course_text or "").strip()
     cohort = Cohort.objects.filter(
-        programme=prog, code__iexact=cohort_text, active=True
+        project=prog, code__iexact=cohort_text, active=True
     ).first() or _by_name(Cohort, prog, cohort_text)
     course = _find_course(prog, course_text)
     if cohort and course and cohort.offerings.filter(course=course).exists():
@@ -544,7 +542,7 @@ def propose_reference(programme_code, cohort_text, course_text, county_id):
                 "label": cohort_text,
                 "data": {
                     "name": cohort_text,
-                    "programme": prog.code,
+                    "project": prog.code,
                     "institution": inst_name.strip(),
                     "intake_year": int(year),
                     "batch_no": int(batch),
@@ -564,7 +562,7 @@ def propose_reference(programme_code, cohort_text, course_text, county_id):
                 "data": {
                     "code": m.group(1),
                     "name": m.group(2).strip(),
-                    "programme": prog.code,
+                    "project": prog.code,
                 },
             }
         )
@@ -572,7 +570,7 @@ def propose_reference(programme_code, cohort_text, course_text, county_id):
         {
             "kind": "cohort-courses",
             "label": f"{cohort_text} / {course_text}",
-            "data": {"cohort": cohort_text, "course": course_text, "programme": prog.code},
+            "data": {"cohort": cohort_text, "course": course_text, "project": prog.code},
         }
     )
     return items
@@ -591,14 +589,14 @@ def create_proposed(*, actor, items):
     to call twice). Order matters: centres, courses, cohorts, then the offerings joining them.
     Codes are generated here (centre ``I01``, cohort ``<centre>-21B1P1Y1``); CAP-YEI may rename
     them in Reference data. Returns the number of records created."""
-    from .models import Cohort, CohortCourse, Course, Programme, TrainingInstitution
+    from .models import Cohort, CohortCourse, Course, Project, TrainingInstitution
 
     order = {"institutions": 0, "courses": 1, "cohorts": 2, "cohort-courses": 3}
     made = 0
     for it in sorted(items, key=lambda i: order[i["kind"]]):
         d = it["data"]
         kind = it["kind"]
-        prog = Programme.objects.get(code__iexact=d["programme"]) if "programme" in d else None
+        prog = Project.objects.get(code__iexact=d["project"]) if "project" in d else None
         if kind == "institutions":
             if TrainingInstitution.objects.filter(name_normalised=norm(d["name"])).exists():
                 continue
@@ -613,15 +611,15 @@ def create_proposed(*, actor, items):
                 },
             )
         elif kind == "courses":
-            if Course.objects.filter(programme=prog, code__iexact=d["code"]).exists():
+            if Course.objects.filter(project=prog, code__iexact=d["code"]).exists():
                 continue
             create_reference(
                 actor=actor,
                 key="courses",
-                data={"code": d["code"], "name": d["name"], "programme": str(prog.pk)},
+                data={"code": d["code"], "name": d["name"], "project": str(prog.pk)},
             )
         elif kind == "cohorts":
-            if Cohort.objects.filter(programme=prog, name_normalised=norm(d["name"])).exists():
+            if Cohort.objects.filter(project=prog, name_normalised=norm(d["name"])).exists():
                 continue
             inst = TrainingInstitution.objects.get(name_normalised=norm(d["institution"]))
             yy = f"{d['intake_year'] % 100:02d}"
@@ -631,7 +629,7 @@ def create_proposed(*, actor, items):
                 data={
                     "name": d["name"],
                     "code": f"{inst.code}-{yy}B{d['batch_no']}P{d['phase']}Y{d['year_of_study']}",
-                    "programme": str(prog.pk),
+                    "project": str(prog.pk),
                     "institution": str(inst.pk),
                     "intake_year": d["intake_year"],
                     "batch_no": d["batch_no"],
@@ -641,10 +639,10 @@ def create_proposed(*, actor, items):
             )
         else:
             cohort = (
-                Cohort.objects.filter(programme=prog, active=True)
+                Cohort.objects.filter(project=prog, active=True)
                 .filter(name_normalised=norm(d["cohort"]))
                 .first()
-                or Cohort.objects.filter(programme=prog, code__iexact=d["cohort"]).first()
+                or Cohort.objects.filter(project=prog, code__iexact=d["cohort"]).first()
             )
             course = _find_course(prog, d["course"])
             if cohort is None or course is None:
@@ -671,8 +669,8 @@ def county_id_by_code(code):
 
 
 def filter_options():
-    """Programmes, cohorts and counties for filter drop-downs (names only, active first)."""
-    from .models import Cohort, County, Programme, Sector
+    """Projects, cohorts and counties for filter drop-downs (names only, active first)."""
+    from .models import Cohort, County, Project, Sector
 
     def rows(qs, extra=()):
         return [
@@ -686,12 +684,12 @@ def filter_options():
         ]
 
     cohorts = Cohort.objects.filter(active=True).select_related("institution")
-    cohort_rows = rows(cohorts.order_by("-intake_year", "name"), extra=("programme_id",))
+    cohort_rows = rows(cohorts.order_by("-intake_year", "name"), extra=("project_id",))
     institution = {str(c.pk): c.institution.name for c in cohorts}
     for r in cohort_rows:
         r["institution"] = institution[r["id"]]
     return {
-        "programmes": rows(Programme.objects.filter(active=True).order_by("name")),
+        "projects": rows(Project.objects.filter(active=True).order_by("name")),
         "cohorts": cohort_rows,
         "counties": rows(County.objects.order_by("code")),
         "sectors": rows(Sector.objects.filter(active=True).order_by("name")),
@@ -701,18 +699,18 @@ def filter_options():
 def report_options():
     """Reference lists the report filters offer, with the cohort facts the reports group by.
     Names and ids only; no participant data."""
-    from .models import Cohort, County, Programme, Sector, TrainingInstitution
+    from .models import Cohort, County, Project, Sector, TrainingInstitution
 
     def rows(qs):
         return [{"id": str(o.pk), "name": o.name} for o in qs]
 
     return {
-        "programmes": rows(Programme.objects.order_by("name")),
+        "projects": rows(Project.objects.order_by("name")),
         "cohorts": [
             {
                 "id": str(c.pk),
                 "name": c.name,
-                "programme_id": str(c.programme_id),
+                "project_id": str(c.project_id),
                 "institution_id": str(c.institution_id),
                 "intake_year": c.intake_year,
                 "start": c.start.isoformat() if c.start else None,
@@ -731,22 +729,22 @@ def normalise(text):
 
 
 def reference_codes(limit=500):
-    """Active programme, cohort and course codes for the import wizard's 'what do I type?' hint.
+    """Active project, cohort and course codes for the import wizard's 'what do I type?' hint.
     Names only; no participant data."""
-    from .models import Cohort, Course, Programme
+    from .models import Cohort, Course, Project
 
     def rows(model):
         return [
-            {"code": o.code, "name": o.name, "programme": o.programme.code}
+            {"code": o.code, "name": o.name, "project": o.project.code}
             for o in model.objects.filter(active=True)
-            .select_related("programme")
+            .select_related("project")
             .order_by("code")[:limit]
         ]
 
     return {
-        "programme_code": [
+        "project_code": [
             {"code": p.code, "name": p.name}
-            for p in Programme.objects.filter(active=True).order_by("code")[:limit]
+            for p in Project.objects.filter(active=True).order_by("code")[:limit]
         ],
         "cohort_code": rows(Cohort),
         "course_code": rows(Course),
@@ -754,12 +752,12 @@ def reference_codes(limit=500):
 
 
 def offering_ids(pk):
-    """``(programme_id, institution_id)`` of an active course offering, or None if unknown."""
+    """``(project_id, institution_id)`` of an active course offering, or None if unknown."""
     from .models import CohortCourse
 
     row = (
         CohortCourse.objects.filter(pk=pk, active=True)
-        .values_list("cohort__programme_id", "cohort__institution_id")
+        .values_list("cohort__project_id", "cohort__institution_id")
         .first()
     )
     return row
@@ -1048,3 +1046,55 @@ def add_skill(*, actor, name, category="", confirm_similar=False):
         },
     )
     return _skill_row(obj)
+
+
+# --- follow-up outcome lists (B25, A3; PI360-NEW-034/035) -----------------------------------
+
+OUTCOME_KINDS = ("employment-types", "leaving-reasons", "salary-bands")
+
+
+def _outcome_row(key, r):
+    row = {"id": str(r.pk), "code": r.code, "name": r.name, "active": r.active}
+    if key == "employment-types":
+        row["self_employment"] = r.self_employment
+    elif key == "leaving-reasons":
+        row["needs_note"] = r.needs_note
+    else:
+        row["min_amount"] = None if r.min_amount is None else str(r.min_amount)
+        row["max_amount"] = None if r.max_amount is None else str(r.max_amount)
+    return row
+
+
+def outcome_list(key, *, include_inactive=False) -> list[dict]:
+    """Rows of one of the outcome lists, in display order (active only unless asked)."""
+    if key not in OUTCOME_KINDS:
+        raise ConfigError("kind", f"Unknown outcome list: {key}")
+    qs = kind_of(key).model.objects.all()
+    if not include_inactive:
+        qs = qs.filter(active=True)
+    return [_outcome_row(key, r) for r in qs]
+
+
+def outcome_item(key, pk, *, active_only=True):
+    """One row of an outcome list as a dict, or None (unknown, malformed or retired)."""
+    if key not in OUTCOME_KINDS or pk in (None, ""):
+        return None
+    try:
+        r = kind_of(key).model.objects.filter(pk=pk).first()
+    except (ValueError, DjangoValidationError):
+        return None
+    if r is None or (active_only and not r.active):
+        return None
+    return _outcome_row(key, r)
+
+
+def salary_band_for(amount):
+    """The one active band that holds this monthly amount, or None (no band, or several)."""
+    from .models import SalaryBand
+
+    hits = [
+        b
+        for b in SalaryBand.objects.filter(active=True)
+        if (b.min_amount is not None or b.max_amount is not None) and b.holds(amount)
+    ]
+    return _outcome_row("salary-bands", hits[0]) if len(hits) == 1 else None

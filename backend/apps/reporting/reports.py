@@ -41,8 +41,8 @@ STAGES = [
 ]
 IN_PROGRESS = {"submitted", "under_review", "interview", "selected"}
 WAIT_BANDS = [("Within 2 weeks", 0, 14), ("2 to 4 weeks", 15, 30), ("1 to 2 months", 31, 60), ("2 to 3 months", 61, 90), ("Over 3 months", 91, 10_000)]  # fmt: skip
-ID_FILTERS = ("programme", "cohort", "institution", "county", "sector", "employer")
-ENROLMENT_FILTERS = ("programme", "cohort", "institution")
+ID_FILTERS = ("project", "cohort", "institution", "county", "sector", "employer")
+ENROLMENT_FILTERS = ("project", "cohort", "institution")
 
 
 class FilterError(ValueError):
@@ -57,7 +57,7 @@ class FilterError(ValueError):
 class Filters:
     date_from: date | None = None
     date_to: date | None = None
-    programme: str = ""
+    project: str = ""
     cohort: str = ""
     institution: str = ""
     county: str = ""
@@ -256,14 +256,14 @@ class Ctx:
 
 
 def _enrolments(ctx: Ctx, f: Filters, *, period: bool):
-    """The enrolments that pass the programme, cohort, institution (and, if asked, intake period)
+    """The enrolments that pass the project, cohort, institution (and, if asked, intake period)
     filters. ``None`` when none of those filters is on, so every youth stays in."""
     use_period = period and f.has_period
     if not (any(getattr(f, k) for k in ENROLMENT_FILTERS) or use_period):
         return None
     out = []
     for e in ctx.enrs:
-        if f.programme and str(e["programme_id"]) != f.programme:
+        if f.project and str(e["project_id"]) != f.project:
             continue
         if f.cohort and str(e["cohort_id"]) != f.cohort:
             continue
@@ -291,7 +291,7 @@ def _youth_ids(ctx: Ctx, f: Filters, *, period: bool, gender=True):
 def _name_maps(ctx: Ctx):
     o = ctx.opts
     return {
-        "programme": {r["id"]: r["name"] for r in o["programmes"]},
+        "project": {r["id"]: r["name"] for r in o["projects"]},
         "cohort": {r["id"]: r["name"] for r in o["cohorts"]},
         "institution": {r["id"]: r["name"] for r in o["institutions"]},
         "county": {r["id"]: r["name"] for r in o["counties"]},
@@ -300,7 +300,7 @@ def _name_maps(ctx: Ctx):
 
 
 LABELS = {
-    "programme": "Programme",
+    "project": "Project",
     "cohort": "Cohort",
     "institution": "Training institution",
     "county": "County",
@@ -354,16 +354,16 @@ def _group_row(label, reg, ref, plc):
     return [label, reg, ref, plc, _pct(plc, reg)]
 
 
-# --- 1. Programme scorecard -------------------------------------------------------------------
+# --- 1. Project scorecard -------------------------------------------------------------------
 
 
-def programme_scorecard(ctx: Ctx, f: Filters) -> dict:
+def project_scorecard(ctx: Ctx, f: Filters) -> dict:
     ids, enrs = _youth_ids(ctx, f, period=True)
     referred, placed = ids & ctx.referred, ids & ctx.placed
     enrolled_all = {e["participant_id"] for e in ctx.enrs}
     enrolled = ids & enrolled_all
     cohort_name = _name_maps(ctx)["cohort"]
-    prog_name = _name_maps(ctx)["programme"]
+    prog_name = _name_maps(ctx)["project"]
     inst_name = _name_maps(ctx)["institution"]
 
     # One row per cohort: the youth enrolled in it who pass the filters.
@@ -377,7 +377,7 @@ def programme_scorecard(ctx: Ctx, f: Filters) -> dict:
         cohort_rows.append(
             [
                 cohort_name.get(cid, "Cohort not recorded"),
-                prog_name.get(c.get("programme_id"), ""),
+                prog_name.get(c.get("project_id"), ""),
                 inst_name.get(c.get("institution_id"), ""),
                 c.get("intake_year") or "",
                 len(members),
@@ -416,7 +416,7 @@ def programme_scorecard(ctx: Ctx, f: Filters) -> dict:
                 "enrolled",
                 "Enrolled in training",
                 len(enrolled),
-                hint="Have at least one programme enrolment",
+                hint="Have at least one project enrolment",
             ),
             _tile("referred", "Referred to employers", len(referred)),
             _tile("placed", "Placed", len(placed)),
@@ -465,7 +465,7 @@ def programme_scorecard(ctx: Ctx, f: Filters) -> dict:
                 "By cohort",
                 [
                     "Cohort",
-                    "Programme",
+                    "Project",
                     "Training institution",
                     "Intake year",
                     "Enrolled",
@@ -829,6 +829,95 @@ def equity_and_reach(ctx: Ctx, f: Filters) -> dict:
 # --- 4. Retention after placement ---------------------------------------------------------------
 
 
+# B26 (PI360-NEW-037): retention at 3, 6 and 12 months, same employer and any employer apart.
+RETENTION_POINTS = (90, 183, 365)
+SPLIT_BUCKETS = (
+    ("same", "Same employer"),
+    ("other", "Another employer"),
+    ("self", "Self-employed"),
+    ("out", "Not working"),
+)
+RETENTION_SPLIT_DEFS = [
+    (
+        "Retention cohort (3, 6 and 12 months)",
+        "Youth whose first recorded placement reached its 3-, 6- or 12-month check-in, and the check-in was completed. A job that followed a change of employer does not start a new cohort, so nobody is counted twice.",
+        False,
+    ),
+    (
+        "Same-employer retention",
+        "Completed check-ins where the youth was still with the employer of that first placement, divided by completed check-ins at that point.",
+        False,
+    ),
+    (
+        "In work, any employer",
+        "Completed check-ins where the youth was with the same employer or another employer, divided by completed check-ins. Self-employment is shown apart and not added in (B27).",
+        False,
+    ),
+    (
+        "Check-ins before outcomes were recorded",
+        "A check-in completed before the four outcomes existed only says whether the youth was still employed: yes is counted as the same employer, no as not working.",
+        False,
+    ),
+]
+
+
+def _split_bucket(r) -> str | None:
+    outcome = r.get("outcome") or ""
+    if outcome:
+        return {
+            "same_employer": "same", "changed_employer": "other",
+            "self_employed": "self", "left_employment": "out",
+        }.get(outcome)  # fmt: skip
+    if r["still_employed"] is None:
+        return None
+    return "same" if r["still_employed"] else "out"  # recorded before NEW-034
+
+
+def _retention_split(rows, today, enough) -> dict:
+    """Completed check-ins at 3, 6 and 12 months on first placements, by where the youth was."""
+    counts = {p: {k: 0 for k, _ in SPLIT_BUCKETS} | {"done": 0} for p in RETENTION_POINTS}
+    for r in rows:
+        point = r["offset_days"]
+        if point not in counts or not r.get("root", True) or r["due_date"] > today:
+            continue
+        if r["status"] != "done" or (bucket := _split_bucket(r)) is None:
+            continue
+        counts[point][bucket] += 1
+        counts[point]["done"] += 1
+
+    def rate(n, t):
+        return _pct(n, t["done"]) if t["done"] >= enough else None
+
+    def shown(v):
+        return v if v is not None else "Not enough check-ins yet"
+
+    labels = [_point_label(p) for p in RETENTION_POINTS]
+    table = _table(
+        "by-employer",
+        "Retention at 3, 6 and 12 months: same employer or another",
+        [
+            "Check-in point", "Completed", *[label for _, label in SPLIT_BUCKETS],
+            "Same employer (%)", "In work, any employer (%)",
+        ],
+        [
+            [
+                _point_label(p), t["done"], *[t[k] for k, _ in SPLIT_BUCKETS],
+                shown(rate(t["same"], t)), shown(rate(t["same"] + t["other"], t)),
+            ]
+            for p, t in counts.items()
+        ],
+    )  # fmt: skip
+    chart = _chart(
+        "by-employer",
+        "Where youth were at 3, 6 and 12 months",
+        "stacked",
+        labels,
+        [(label, [counts[p][k] for p in RETENTION_POINTS]) for k, label in SPLIT_BUCKETS],
+        empty="" if any(t["done"] for t in counts.values()) else "No completed check-ins yet.",
+    )
+    return {"table": table, "chart": chart, "counts": counts}
+
+
 def retention(ctx: Ctx, f: Filters) -> dict:
     from apps.intelligence import services as intelligence
 
@@ -900,6 +989,7 @@ def retention(ctx: Ctx, f: Filters) -> dict:
     ]
     labels = [_point_label(p) for p in points]
     empty = "No check-ins have been recorded yet." if not rows else ""
+    split = _retention_split(rows, ctx.today, enough)
     rate_hint = f"Shown once at least {enough} check-ins are complete (now {total['done']})"
     return {
         "tiles": [
@@ -943,6 +1033,7 @@ def retention(ctx: Ctx, f: Filters) -> dict:
                 ],
                 empty=empty,
             ),
+            split["chart"],
             _chart(
                 "by-pathway",
                 "Still employed, by pathway",
@@ -969,6 +1060,7 @@ def retention(ctx: Ctx, f: Filters) -> dict:
                     for p in pathways
                 ],
             ),
+            split["table"],
         ],
         "definitions": _defs(
             extra=[
@@ -988,6 +1080,7 @@ def retention(ctx: Ctx, f: Filters) -> dict:
                     True,
                 ),
                 ("Overdue", "A check-in past its due date that is still open.", True),
+                *RETENTION_SPLIT_DEFS,
                 ("Period", "The period filters the placement start date.", False),
             ]
         ),
@@ -1212,19 +1305,19 @@ def employer_pipeline(ctx: Ctx, f: Filters) -> dict:
 
 
 REPORTS = {
-    "programme-scorecard": {
-        "title": "Programme scorecard",
+    "project-scorecard": {
+        "title": "Project scorecard",
         "purpose": "How many youth were trained, referred and placed, by cohort and county.",
         "audience": "Directors, donors",
-        "filters": ["period", "programme", "cohort", "institution", "county", "gender"],
+        "filters": ["period", "project", "cohort", "institution", "county", "gender"],
         "period_on": "when the youth's cohort started",
-        "build": programme_scorecard,
+        "build": project_scorecard,
     },
     "placement-outcomes": {
         "title": "Placement outcomes",
         "purpose": "Who was placed, into what, with which employers and how fast.",
         "audience": "Directors, donors, management",
-        "filters": ["period", "programme", "cohort", "county", "sector", "pathway", "employer"],
+        "filters": ["period", "project", "cohort", "county", "sector", "pathway", "employer"],
         "period_on": "the placement start date",
         "build": placement_outcomes,
     },
@@ -1232,7 +1325,7 @@ REPORTS = {
         "title": "Equity and reach",
         "purpose": "Whether young women, younger and older youth and every county are reached and placed fairly.",
         "audience": "Donors, directors",
-        "filters": ["period", "programme", "cohort", "county"],
+        "filters": ["period", "project", "cohort", "county"],
         "period_on": "when the youth's cohort started",
         "build": equity_and_reach,
     },
@@ -1240,7 +1333,7 @@ REPORTS = {
         "title": "Retention after placement",
         "purpose": "Whether placed youth are still employed at each follow-up check-in.",
         "audience": "Donors, management",
-        "filters": ["period", "programme", "cohort", "county", "pathway", "checkin"],
+        "filters": ["period", "project", "cohort", "county", "pathway", "checkin"],
         "period_on": "the placement start date",
         "build": retention,
     },
@@ -1291,10 +1384,9 @@ def options(user) -> dict:
     o = participants.report_options()
     steps = sorted({s.offset_days for s in placements.followup_steps() if s.active})
     return {
-        "programmes": o["programmes"],
+        "projects": o["projects"],
         "cohorts": [
-            {k: c[k] for k in ("id", "name", "programme_id", "institution_id")}
-            for c in o["cohorts"]
+            {k: c[k] for k in ("id", "name", "project_id", "institution_id")} for c in o["cohorts"]
         ],
         "institutions": o["institutions"],
         "counties": o["counties"],

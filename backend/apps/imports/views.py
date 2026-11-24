@@ -91,7 +91,7 @@ class StatusMapSerializer(serializers.Serializer):
 
 
 class PromoteSerializer(serializers.Serializer):
-    programme_code = serializers.CharField(max_length=20)
+    project_code = serializers.CharField(max_length=20)
     columns = serializers.DictField(child=serializers.CharField(allow_blank=True))
 
 
@@ -430,18 +430,18 @@ BatchRecheckView = _action("recheck", COMMIT, "recheck")
 
 
 class ExtraSummaryView(APIView):
-    """Which extra labels the people of one programme carry (stage E: promote extras)."""
+    """Which extra labels the people of one project carry (stage E: promote extras)."""
 
     permission_classes = [HasPermission]
     required_permission = {"GET": RUN}
 
     @extend_schema(
         operation_id="imports_extra_summary",
-        parameters=[OpenApiParameter("programme", str, required=True)],
+        parameters=[OpenApiParameter("project", str, required=True)],
         responses={200: dict},
     )
     def get(self, request):
-        return Response(services.extra_summary(request.query_params.get("programme", "")))
+        return Response(services.extra_summary(request.query_params.get("project", "")))
 
 
 class ExtraPromoteView(APIView):
@@ -457,7 +457,7 @@ class ExtraPromoteView(APIView):
         batch = _run(
             services.promote_extra,
             actor=request.user,
-            programme_code=s.validated_data["programme_code"],
+            project_code=s.validated_data["project_code"],
             columns=s.validated_data["columns"],
         )
         return Response(_batch_out(batch), status=status.HTTP_201_CREATED)

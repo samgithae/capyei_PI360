@@ -139,15 +139,31 @@ export function FollowUpPage() {
         <Section title="Outcome">
           <DetailList
             items={[
+              f.outcome
+                ? { label: 'Doing now', value: f.outcome_label }
+                : {
+                    label: 'Still in the placement',
+                    value:
+                      f.still_employed === null
+                        ? ''
+                        : f.still_employed
+                          ? 'Yes'
+                          : 'No',
+                  },
+              { label: 'Reason for leaving', value: f.leaving_reason },
               {
-                label: 'Still in the placement',
-                value:
-                  f.still_employed === null
-                    ? ''
-                    : f.still_employed
-                      ? 'Yes'
-                      : 'No',
+                label: 'Left on',
+                value: f.left_on
+                  ? new Date(f.left_on).toLocaleDateString()
+                  : '',
               },
+              {
+                label: 'New work',
+                value: f.new_placement_id
+                  ? 'Recorded as a new placement (see the youth profile)'
+                  : '',
+              },
+              { label: 'Observations', value: f.observations },
               { label: 'Confirmed by', value: f.evidence_source_label },
               { label: 'Note', value: f.response_note },
               { label: 'Closed by', value: f.closed_by },

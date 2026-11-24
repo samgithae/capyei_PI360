@@ -218,8 +218,8 @@ def filtered(user, params):
     if q:
         qs = qs.filter(participant__full_name_source__icontains=q)
     return (
-        qs.select_related("participant", "enrollment__programme", "created_by")
-        .prefetch_related("participant__enrollments__programme")
+        qs.select_related("participant", "enrollment__project", "created_by")
+        .prefetch_related("participant__enrollments__project")
         .order_by("-updated_at", "pk")
     )
 
@@ -243,7 +243,7 @@ def out(c) -> dict:
         "state": c.state,
         "state_label": dict(ParticipantCorrection.STATES)[c.state],
         "enrollment_no": e.source_enrollment_no if e else "",
-        "programme": e.programme.name if e else "",
+        "project": e.project.name if e else "",
         "corrected_by": c.created_by.get_username() if c.created_by_id else "",
         "corrected_at": c.updated_at.isoformat(),
         "conflict": {
@@ -261,7 +261,7 @@ def out(c) -> dict:
 EXPORT_GETTERS = {
     "name": lambda c, o: c.participant.full_name_source,
     "enrollment_no": lambda c, o: o["enrollment_no"],
-    "programme": lambda c, o: o["programme"],
+    "project": lambda c, o: o["project"],
     "field": lambda c, o: o["field_label"],
     "was": lambda c, o: o["was"],
     "now": lambda c, o: o["now"],
@@ -273,9 +273,9 @@ EXPORT_GETTERS = {
 
 
 def export_rows(user, params, keys) -> list[dict]:
-    """One row per correction, ordered for whoever updates the MIS: by programme and number."""
+    """One row per correction, ordered for whoever updates the MIS: by project and number."""
     rows = []
     for c in filtered(user, params):
         o = out(c)
         rows.append({k: EXPORT_GETTERS[k](c, o) for k in keys if k in EXPORT_GETTERS})
-    return sorted(rows, key=lambda r: (r.get("programme", ""), r.get("enrollment_no", "")))
+    return sorted(rows, key=lambda r: (r.get("project", ""), r.get("enrollment_no", "")))

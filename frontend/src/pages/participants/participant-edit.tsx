@@ -22,8 +22,8 @@ import { VerificationTab } from './workspace/verification-tab';
 
 interface Enrollment {
   id: string;
-  programme: string;
-  programme_id: string;
+  project: string;
+  project_id: string;
   cohort: string;
   cohort_id: string;
   cohort_course_id: string;
@@ -63,11 +63,11 @@ interface Detail extends WorkspaceDetail {
 }
 interface Filters {
   counties: { id: string; name: string }[];
-  programmes: { id: string; name: string }[];
+  projects: { id: string; name: string }[];
   cohorts: {
     id: string;
     name: string;
-    programme_id: string;
+    project_id: string;
     institution: string;
   }[];
 }
@@ -119,7 +119,7 @@ function Section({
   );
 }
 
-/** Cohort and course pickers for one enrollment. The programme and institution belong to the
+/** Cohort and course pickers for one enrollment. The project and institution belong to the
  * cohort, so they are shown but follow the cohort choice rather than being typed. */
 function OfferingFields({
   cohortId,
@@ -137,8 +137,8 @@ function OfferingFields({
   onChange: (cohortId: string, courseId: string) => void;
 }) {
   const cohort = filters?.cohorts.find((c) => c.id === cohortId);
-  const programme = filters?.programmes.find(
-    (p) => p.id === cohort?.programme_id,
+  const project = filters?.projects.find(
+    (p) => p.id === cohort?.project_id,
   );
   const offerings = useQuery({
     queryKey: ['offerings', cohortId],
@@ -186,8 +186,8 @@ function OfferingFields({
         )}
       </div>
       <div className="space-y-1.5">
-        <Label>Programme</Label>
-        <p className="text-sm">{programme?.name ?? '-'}</p>
+        <Label>Project</Label>
+        <p className="text-sm">{project?.name ?? '-'}</p>
         <p className="text-xs text-muted-foreground">Set by the cohort.</p>
       </div>
       <div className="space-y-1.5">
@@ -351,7 +351,7 @@ export function EditParticipant() {
   };
 
   const tabs = [
-    { id: 'details', label: 'Personal & Programme' },
+    { id: 'details', label: 'Personal & Project' },
     ...(can('participants.view_profile')
       ? [
           { id: 'cv', label: 'CV Profile' },
@@ -654,7 +654,7 @@ export function EditParticipant() {
                   return (
                     <Section
                       key={e.id}
-                      title={`${e.programme}: ${e.cohort}, ${e.course}`}
+                      title={`${e.project}: ${e.cohort}, ${e.course}`}
                     >
                       <div className="grid gap-4 sm:grid-cols-2">
                         <OfferingFields

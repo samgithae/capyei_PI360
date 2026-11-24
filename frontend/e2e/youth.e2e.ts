@@ -32,14 +32,14 @@ test.describe('the youth list and a youth’s page', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: 'Person 11' }),
     ).toBeVisible();
-    await page.getByRole('tab', { name: 'Programme & Account' }).click();
+    await page.getByRole('tab', { name: 'Project & Account' }).click();
     await expect(page).toHaveURL(/tab=account/);
   });
 
   test('a placement officer sees only their own caseload', async ({ page }) => {
     await signIn(page, 'officer');
     await page.goto('/youth');
-    // The seed assigns the three programme-1 youth to this officer.
+    // The seed assigns the three project-1 youth to this officer.
     await expect(page.getByRole('link', { name: /^Person 1\d$/ })).toHaveCount(
       3,
     );

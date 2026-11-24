@@ -8,7 +8,7 @@ const match: SimilarMatch = {
   name: 'John Kamau Mwangi',
   status: 'active',
   county: 'Kisumu',
-  programmes: ['Go Blue'],
+  projects: ['Go Blue'],
   reasons: [
     { code: 'similar_name', text: 'Almost the same name' },
     { code: 'same_phone', text: 'Same phone number and a similar name' },

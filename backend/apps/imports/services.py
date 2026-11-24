@@ -47,7 +47,7 @@ ALLOW_UPDATES = False
 
 # Fields a file may leave out of the mapping if the user sets them once for the whole file
 # (doc 15 §3 step 4). A default fills only empty cells, never a value in the file.
-DEFAULTABLE = ("programme_code", "cohort_code", "course_code")
+DEFAULTABLE = ("project_code", "cohort_code", "course_code")
 
 
 TARGETS = ("participants", "placements")
@@ -114,7 +114,9 @@ def create_template(*, actor, source, columns, target="participants") -> Mapping
 SYNONYMS = {
     "name": "full_name", "fullname": "full_name", "traineename": "full_name",
     "trainee": "full_name", "traineecontact": "phone",
-    "programme": "programme_code", "program": "programme_code", "prog": "programme_code",
+    "project": "project_code", "program": "project_code", "prog": "project_code",
+    # Old name, renamed to Project on 23 Nov 2026 (D-070): files keep working.
+    "programme": "project_code", "programmecode": "project_code",
     "cohort": "cohort_code", "course": "course_code", "enrollmentnumber": "enrollment_no",
     "enrolmentno": "enrollment_no", "enrolno": "enrollment_no", "enrollmentno": "enrollment_no",
     "sex": "gender", "county": "county_code", "countycode": "county_code",
@@ -189,7 +191,7 @@ def _row_hash(raw: dict) -> str:
 
 def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportBatch:
     """Parse and validate. Changes no participant data (the dry run). ``defaults`` sets
-    programme, cohort and course once for the file; they fill empty cells only."""
+    project, cohort and course once for the file; they fill empty cells only."""
     defaults = {k: str(v).strip() for k, v in (defaults or {}).items() if str(v).strip()}
     target = template.target
     bad = sorted(set(defaults) - set(_defaultable(target)))
@@ -248,6 +250,12 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
                     )
                 else:
                     seen_keys[checked.source_key] = n
+            youth = checked.clean.get("_youth")
+            if youth and target == "placements" and not errors:
+                if f"running|{youth}" in seen_keys:  # D-081: the first running row wins
+                    errors.append(placement_rows.second_running())
+                else:
+                    seen_keys[f"running|{youth}"] = n
             if checked.source_key and target == "placements" and not errors:
                 if checked.source_key in seen_keys:
                     checked.warnings.append(
@@ -259,6 +267,12 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
                     )
                 else:
                     seen_keys[checked.source_key] = n
+            if (
+                errors
+                and all(e.get("code") == placement_rows.HOLD_SECOND_RUNNING for e in errors)
+                and _already_loaded(template.source, checked.source_key, rh)
+            ):
+                errors = []  # the running placement is this very row, loaded before: skip it
             if errors:
                 outcome = ImportRow.HELD
             elif checked.match == "exact" and not ALLOW_UPDATES:
@@ -396,9 +410,18 @@ def commit(*, actor, batch) -> ImportBatch:
             with transaction.atomic():
                 for row in chunk:
                     if batch.template.target == "placements":
-                        pid, before, after = placement_rows.commit_row(
-                            row.clean, actor=actor, row_id=row.pk
-                        )
+                        try:
+                            pid, before, after = placement_rows.commit_row(
+                                row.clean, actor=actor, row_id=row.pk
+                            )
+                        except placements.ActivePlacementExists as exc:
+                            # Someone recorded a placement since the check: hold, don't fail.
+                            row.outcome = ImportRow.HELD
+                            row.errors = [placement_rows.second_running(exc.running)]
+                            row.save(update_fields=["outcome", "errors"])
+                            batch.counts["held"] += 1
+                            batch.counts["create"] -= 1
+                            continue
                         action = "create"
                     else:
                         action, pid, before, after = participants.import_participant(
@@ -760,21 +783,21 @@ def recheck(*, actor, batch) -> ImportBatch:
     return batch
 
 
-def extra_summary(programme_code):
-    """What a steward can promote: the extra labels on one programme's enrollments."""
-    return participants.extra_labels(programme_code)
+def extra_summary(project_code):
+    """What a steward can promote: the extra labels on one project's enrollments."""
+    return participants.extra_labels(project_code)
 
 
-def promote_extra(*, actor, programme_code, columns) -> ImportBatch:
+def promote_extra(*, actor, project_code, columns) -> ImportBatch:
     """Stage E: build a placement import from ``extra`` data already on file.
 
     ``columns`` maps an extra label to a placement field (e.g. {"Organisation": "organisation"}).
     The rows are written as a CSV and sent through the ordinary placement upload, so the dry
     run, review, approval, reconciliation and rollback are the ones every import has. Re-running
     skips people already promoted (same source and row content)."""
-    code = (programme_code or "").strip().upper()
+    code = (project_code or "").strip().upper()
     if not code:
-        raise ImportFailure("Choose a programme.", "programme_code")
+        raise ImportFailure("Choose a project.", "project_code")
     columns = {k: v for k, v in (columns or {}).items() if v}
     bad = sorted(f for f in columns.values() if f not in placement_rows.FIELDS)
     if bad:
@@ -783,9 +806,9 @@ def promote_extra(*, actor, programme_code, columns) -> ImportBatch:
         raise ImportFailure("Choose which label holds the placement status.", "columns")
     if len(set(columns.values())) != len(columns):
         raise ImportFailure("Two labels are mapped to the same field.", "columns")
-    held = {"programme_code", "enrollment_no"} & set(columns.values())
+    held = {"project_code", "enrollment_no"} & set(columns.values())
     if held:
-        raise ImportFailure("Programme and enrollment number come from the enrollment.", "columns")
+        raise ImportFailure("Project and enrollment number come from the enrollment.", "columns")
     known = {x["label"] for x in participants.extra_labels(code)["labels"]}
     unknown = sorted(set(columns) - known)
     if unknown:
@@ -793,7 +816,7 @@ def promote_extra(*, actor, programme_code, columns) -> ImportBatch:
     buf = io.StringIO()
     w = csv.writer(buf)
     labels = list(columns)
-    w.writerow(["programme_code", "enrollment_no", *labels])
+    w.writerow(["project_code", "enrollment_no", *labels])
     n = 0
     for no, got in participants.extra_rows(code, labels):
         w.writerow([code, no, *[got.get(k, "") for k in labels]])
@@ -804,7 +827,7 @@ def promote_extra(*, actor, programme_code, columns) -> ImportBatch:
         actor=actor,
         source=f"extra-{code.lower()}"[:60],
         target="placements",
-        columns={"programme_code": "programme_code", "enrollment_no": "enrollment_no", **columns},
+        columns={"project_code": "project_code", "enrollment_no": "enrollment_no", **columns},
     )
     return upload(
         actor=actor,

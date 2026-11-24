@@ -46,8 +46,8 @@ class RoleAssignment(models.Model):
 
 
 class ScopeAssignment(models.Model):
-    PROGRAMME, COHORT, REGION, OFFICER = "programme", "cohort", "region", "officer"
-    KINDS = [(PROGRAMME, "Programme"), (COHORT, "Cohort"), (REGION, "Region"), (OFFICER, "Officer")]
+    PROJECT, COHORT, REGION, OFFICER = "project", "cohort", "region", "officer"
+    KINDS = [(PROJECT, "Project"), (COHORT, "Cohort"), (REGION, "Region"), (OFFICER, "Officer")]
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="scope_assignments"

@@ -64,7 +64,7 @@ export const OFFICER_GUIDES: Guide[] = [
       'To end a referral as Rejected, Withdrawn or No response, pick a reason code. "Other" needs a written note.',
       'At Interview, an Interview details box appears. Enter the date and time, the place and a short note for the learner (what to bring, who to ask for), then save. The learner sees it on their opportunity page and in their Updates.',
       'Once a referral is Selected or Placed and you may edit placements, a Record placement button appears. Use it to log the job on the Placements page with the youth, employer and role already filled in.',
-      'If the youth already has a running placement with that employer, a warning shows it. Choose record anyway only when it is a separate job or spell; otherwise cancel, so the same placement is not recorded twice.',
+      'A youth has one running placement at a time. If they already have one, PI 360 says so and names it. End it first if that job is over, or choose Changed employer on the running placement if they moved straight to a new job: it ends the old one and records the new one together.',
       'Every move adds a line to the history with who and when.',
     ],
     why: 'Reason codes let the pilot learn why placements fail instead of reading free text. Being selected is not yet a placement, so the placement is recorded as its own step.',

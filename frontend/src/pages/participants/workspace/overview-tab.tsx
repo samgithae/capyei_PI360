@@ -293,9 +293,9 @@ export function OverviewTab({
           />
         )}
         {enrolment && (
-          <DataCard title="Programme">
+          <DataCard title="Project">
             <p className="p-5 text-sm">
-              {[enrolment.programme, enrolment.cohort, enrolment.course]
+              {[enrolment.project, enrolment.cohort, enrolment.course]
                 .filter(Boolean)
                 .join(' · ')}
             </p>

@@ -21,8 +21,41 @@ CONFIG_VIEW, CONFIG_MANAGE = "config.view", "config.manage"
 QUEUE_VIEW = "referrals.view"
 PATHWAYS = [c for c, _ in services.placements.Placement.PATHWAYS]
 SOURCES = [c for c, _ in services.placements.Placement.SOURCES]
+OPERATIONAL = [c for c, _ in services.placements.Placement.OPERATIONAL_STATUSES]
+
+
+class SelfEmploymentFields(serializers.Serializer):
+    """D-080 / B27 (NEW-071): only for the self-employment pathway; the service refuses them on
+    any other. monthly_income needs the restricted economic-data grant."""
+
+    business_activity = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    operational_status = serializers.ChoiceField(
+        choices=OPERATIONAL, required=False, allow_blank=True
+    )
+    business_evidence = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+    monthly_income = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=0, required=False, allow_null=True
+    )
+
+
+class WorkTermsFields(serializers.Serializer):
+    """NEW-035 (B25, A3): the employment type, and the salary or its band. The salary and band
+    need the restricted economic-data grant; the service refuses them on self-employment."""
+
+    employment_type_id = serializers.UUIDField(required=False, allow_null=True)
+    salary_amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=0, required=False, allow_null=True
+    )
+    salary_band_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class PlacementFields(SelfEmploymentFields, WorkTermsFields):
+    pass
+
+
 FOLLOWUP_KINDS = [c for c, _ in services.placements.FollowUpStep.KINDS]
 FOLLOWUP_METHODS = [c for c, _ in services.placements.FollowUpAttempt.METHODS]
+FOLLOWUP_OUTCOMES = [c for c, _ in services.placements.FollowUp.OUTCOMES]
 FOLLOWUP_STATES = ("open", "overdue", "due_soon", "done", "closed", "all")
 
 
@@ -44,7 +77,7 @@ def _detail(request, p):
     return services.detail(request.user, p, can_edit=has_permission(request.user, PLACEMENTS_EDIT))
 
 
-class PlacementCreateSerializer(serializers.Serializer):
+class PlacementCreateSerializer(PlacementFields):
     participant_id = serializers.UUIDField()
     enrollment_id = serializers.UUIDField(required=False)
     pathway = serializers.ChoiceField(choices=PATHWAYS)
@@ -61,11 +94,9 @@ class PlacementCreateSerializer(serializers.Serializer):
         required=False, allow_blank=True, max_length=255, default=""
     )
     benefits = serializers.CharField(required=False, allow_blank=True, max_length=2000, default="")
-    # Set after the "already running with this employer" warning, to record it anyway.
-    confirm_duplicate = serializers.BooleanField(required=False, default=False)
 
 
-class PlacementUpdateSerializer(serializers.Serializer):
+class PlacementUpdateSerializer(PlacementFields):
     pathway = serializers.ChoiceField(choices=PATHWAYS, required=False)
     start_date = serializers.DateField(required=False)
     employer_id = serializers.UUIDField(required=False, allow_null=True)
@@ -79,6 +110,22 @@ class PlacementEndSerializer(serializers.Serializer):
     exit_reason = serializers.CharField(
         required=False, allow_blank=True, max_length=200, default=""
     )
+
+
+class PlacementChangeEmployerSerializer(PlacementFields):
+    """End the running placement and start the next one (D-081)."""
+
+    end_date = serializers.DateField()
+    start_date = serializers.DateField()
+    pathway = serializers.ChoiceField(choices=PATHWAYS)
+    employer_id = serializers.UUIDField(required=False, allow_null=True)
+    employer_name_source = serializers.CharField(
+        required=False, allow_blank=True, max_length=255, default=""
+    )
+    designation = serializers.CharField(
+        required=False, allow_blank=True, max_length=255, default=""
+    )
+    benefits = serializers.CharField(required=False, allow_blank=True, max_length=2000, default="")
 
 
 class PlacementVerifySerializer(serializers.Serializer):
@@ -157,6 +204,19 @@ class PlacementOptionsView(APIView):
             {
                 "pathways": [{"value": v, "label": label} for v, label in P.PATHWAYS],
                 "sources": [{"value": v, "label": label} for v, label in P.SOURCES],
+                # PROVISIONAL list (NEW-071): CAP-YEI has not given one yet.
+                "operational_statuses": [
+                    {"value": v, "label": label} for v, label in P.OPERATIONAL_STATUSES
+                ],
+                "operational_statuses_provisional": True,
+                "can_record_income": services.can_see_income(request.user),
+                # NEW-035. Bands are listed only to those who may record a salary.
+                "employment_types": services.placements.outcome_list("employment-types"),
+                "salary_bands": (
+                    services.placements.outcome_list("salary-bands")
+                    if services.can_see_income(request.user)
+                    else []
+                ),
             }
         )
 
@@ -202,6 +262,25 @@ class PlacementEndView(APIView):
         except services.Violation as exc:
             return _violation(exc)
         return Response(_detail(request, _get(request, pk)))
+
+
+class PlacementChangeEmployerView(APIView):
+    permission_classes = [HasPermission]
+    required_permission = {"POST": PLACEMENTS_EDIT}
+
+    @extend_schema(
+        operation_id="placements_change_employer", request=PlacementChangeEmployerSerializer,
+        responses={201: dict, 409: dict},
+    )  # fmt: skip
+    def post(self, request, pk):
+        p = _get(request, pk)
+        s = PlacementChangeEmployerSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            new = services.change_employer(actor=request.user, placement=p, **s.validated_data)
+        except services.Violation as exc:
+            return _violation(exc)
+        return Response(_detail(request, _get(request, new.pk)), status=status.HTTP_201_CREATED)
 
 
 class PlacementVerifyView(APIView):
@@ -263,10 +342,33 @@ class FollowUpAttemptSerializer(serializers.Serializer):
     next_action_date = serializers.DateField(required=False, allow_null=True, default=None)
 
 
+class NewJobSerializer(PlacementFields):
+    """The work a youth moved to, found at a follow-up (NEW-034)."""
+
+    pathway = serializers.ChoiceField(choices=PATHWAYS, required=False)
+    start_date = serializers.DateField()
+    employer_id = serializers.UUIDField(required=False, allow_null=True)
+    employer_name_source = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    designation = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    benefits = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+
 class FollowUpCompleteSerializer(serializers.Serializer):
-    still_employed = serializers.BooleanField()
+    """Send ``outcome`` (NEW-034). ``still_employed`` alone is the form before it, still accepted:
+    it records the answer without changing the placements."""
+
+    outcome = serializers.ChoiceField(
+        choices=FOLLOWUP_OUTCOMES, required=False, allow_blank=True, default=""
+    )
+    still_employed = serializers.BooleanField(required=False, allow_null=True, default=None)
     evidence_source = serializers.ChoiceField(choices=SOURCES)
     note = serializers.CharField(required=False, allow_blank=True, max_length=2000, default="")
+    leaving_reason_id = serializers.UUIDField(required=False, allow_null=True, default=None)
+    left_on = serializers.DateField(required=False, allow_null=True, default=None)
+    observations = serializers.CharField(
+        required=False, allow_blank=True, max_length=2000, default=""
+    )
+    new_job = NewJobSerializer(required=False, allow_null=True, default=None)
 
 
 class FollowUpUnreachableSerializer(serializers.Serializer):
@@ -352,6 +454,9 @@ class FollowUpOptionsView(APIView):
                     {"value": v, "label": label}
                     for v, label in services.placements.Placement.SOURCES
                 ],
+                # NEW-034: outcomes and reasons for leaving; the new-work part of the form uses
+                # the placement options (pathways, employment types, salary bands).
+                **services.placements.followup_outcome_lists(),
             }
         )
 
@@ -488,3 +593,55 @@ class FollowUpStepDetailView(APIView):
         except services.Violation as exc:
             return _violation(exc)
         return Response({"results": services.schedule_steps()})
+
+
+# --- NEW-077: resolving two running placements on a pending youth merge ----------------------
+
+
+class MergeResolveSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=["end", "same"])
+    placement_id = serializers.UUIDField()
+    keep_id = serializers.UUIDField(required=False, allow_null=True)
+    end_date = serializers.DateField(required=False, allow_null=True)
+    exit_reason = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    reason = serializers.CharField(max_length=500)
+
+
+class MergeResolveView(APIView):
+    """An authorised officer resolves the running-placement conflict that holds a merge: they
+    need the merge permission and the right to edit placements. The choice is kept with the
+    merge (who, when, why, what)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": "duplicates.merge"}
+
+    @extend_schema(request=MergeResolveSerializer, responses={201: dict, 403: dict, 409: dict})
+    def post(self, request, pk):
+        from apps.participants import services as participants
+
+        from . import merge_checks
+
+        if not has_permission(request.user, PLACEMENTS_EDIT):
+            return Response(
+                {"errors": [{"field": "non_field_errors", "code": "forbidden",
+                             "message": "You need the right to edit placements."}]},
+                status=status.HTTP_403_FORBIDDEN,
+            )  # fmt: skip
+        cand = participants.get_candidate(pk)
+        if cand is None:
+            raise NotFound()
+        s = MergeResolveSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            row = merge_checks.resolve_placements(
+                actor=request.user, candidate=cand, **s.validated_data
+            )
+        except merge_checks.ResolutionError as exc:
+            return Response(
+                {"errors": [{"field": exc.field, "message": exc.message, "code": "merge_rule"}]},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(
+            {"id": str(row.pk), "conflict": row.conflict, "action": row.action},
+            status=status.HTTP_201_CREATED,
+        )

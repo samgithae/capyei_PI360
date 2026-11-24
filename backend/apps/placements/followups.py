@@ -16,12 +16,14 @@ from django.utils import timezone
 
 from apps.api.access import has_permission
 from apps.audit import services as audit
+from apps.configuration import services as configuration
 
 from .models import FollowUp, FollowUpAttempt, FollowUpStep, Placement
 from .services import PLACED, SOURCES, PlacementError
 
 KINDS = dict(FollowUpStep.KINDS)
 METHODS = dict(FollowUpAttempt.METHODS)
+OUTCOMES = dict(FollowUp.OUTCOMES)
 STATUSES = dict(FollowUp.STATUSES)
 DUE_SOON_DAYS = 7
 # A step already this far past its due date when the tasks are generated is skipped: confirming
@@ -57,6 +59,11 @@ def _snapshot(f: FollowUp) -> dict:
         "status": f.status,
         "assigned_to": f.assigned_to_id,
         "still_employed": f.still_employed,
+        # NEW-034. The observations are free text and stay out of the audit trail.
+        "outcome": f.outcome,
+        "leaving_reason": str(f.leaving_reason_id) if f.leaving_reason_id else None,
+        "left_on": f.left_on.isoformat() if f.left_on else None,
+        "new_placement": str(f.new_placement_id) if f.new_placement_id else None,
         "evidence_source": f.evidence_source,
         "next_action_date": f.next_action_date.isoformat() if f.next_action_date else None,
     }
@@ -253,6 +260,8 @@ def facts() -> list[dict]:
             "due_date",
             "status",
             "still_employed",
+            "outcome",
+            "placement__previous_placement_id",
         )
     )
     return [
@@ -266,6 +275,9 @@ def facts() -> list[dict]:
             "due_date": r[6],
             "status": r[7],
             "still_employed": r[8],
+            "outcome": r[9],
+            # a first job, not one that followed a change of employer (the retention cohort)
+            "root": r[10] is None,
         }
         for r in rows
     ]
@@ -357,20 +369,167 @@ def log_attempt(
     return f
 
 
-@transaction.atomic
-def complete(*, actor, followup_id, still_employed, evidence_source, note="") -> FollowUp:
-    """Record what the check-in found: whether the youth is still in the placement, and how we
-    know (FR-25 response and evidence)."""
-    f = _locked_open(followup_id)
-    if still_employed is None:
+def outcome_lists() -> dict:
+    """What the follow-up form offers (NEW-034, B25): the outcomes and the active reasons."""
+    return {
+        "outcomes": [{"value": v, "label": label} for v, label in FollowUp.OUTCOMES],
+        "leaving_reasons": configuration.outcome_list("leaving-reasons"),
+    }
+
+
+NEW_JOB_FIELDS = {
+    "pathway", "start_date", "employer_id", "employer_name_source", "designation", "benefits",
+    "employment_type_id", "salary_amount", "salary_band_id", *Placement.SELF_EMPLOYMENT_FIELDS,
+}  # fmt: skip
+
+
+def _as_followup_error(error: PlacementError, field: str) -> FollowUpError:
+    if isinstance(error, FollowUpError):
+        return error
+    return FollowUpError(field, str(error), getattr(error, "code", "invalid"))
+
+
+def _new_work(f, *, actor, outcome, running, left_on, new_job) -> Placement | None:
+    """The job the youth now has (changed employer or self-employed), as a placement episode.
+    A running placement is ended and the new one follows it (``change_employer``). With nothing
+    running the new one is recorded on its own and points back at this follow-up's placement.
+    Without details, a placement already running since then is the one linked."""
+    from . import services as placements  # the module that re-exports this one
+
+    if new_job is None:
+        if running is None or running.pk == f.placement_id:
+            raise FollowUpError("new_job", "Give the details of the new work.", "required")
+        if (running.pathway == Placement.SELF) != (outcome == FollowUp.SELF_EMPLOYED):
+            raise FollowUpError(
+                "outcome", "The work already recorded does not match this outcome.", "mismatch"
+            )
+        return running
+    unknown = set(new_job) - NEW_JOB_FIELDS
+    if unknown:
+        raise FollowUpError("new_job", f"Unknown field: {sorted(unknown)[0]}.", "unknown_field")
+    job = dict(new_job)
+    pathway = job.pop("pathway", "") or Placement.WAGE
+    if outcome == FollowUp.SELF_EMPLOYED:
+        pathway = Placement.SELF
+    elif pathway == Placement.SELF:
         raise FollowUpError(
-            "still_employed", "Say whether they are still in the placement.", "required"
-        )
+            "new_job", "Self-employment is its own outcome: choose “Now self-employed”.",
+            "self_employment",
+        )  # fmt: skip
+    start = job.pop("start_date", None)
+    if start is None:
+        raise FollowUpError("new_job", "Give the date the new work started.", "required")
+    if start > timezone.localdate():
+        raise FollowUpError("new_job", "The new work cannot start in the future.", "future")
+    try:
+        if running is not None:
+            if left_on is None:
+                raise FollowUpError("left_on", "Give the date they left.", "required")
+            return placements.change_employer(
+                actor=actor, placement_id=running.pk, end_date=left_on, start_date=start,
+                pathway=pathway, **job,
+            )  # fmt: skip
+        return placements.record_manual(
+            actor=actor, enrollment_id=f.placement.enrollment_id, pathway=pathway,
+            start_date=start, previous_placement_id=f.placement_id, **job,
+        )  # fmt: skip
+    except PlacementError as e:
+        raise _as_followup_error(e, "new_job") from None
+
+
+@transaction.atomic
+def complete(
+    *, actor, followup_id, evidence_source, still_employed=None, outcome="", note="",
+    leaving_reason_id=None, left_on=None, observations="", new_job=None,
+) -> FollowUp:  # fmt: skip
+    """Record what the check-in found (FR-25; outcomes NEW-034, B25) and how we know.
+
+    The outcome drives the youth's placements in the same transaction, so the follow-up and the
+    placement history cannot disagree:
+
+    - still with the same employer: this placement must still be running;
+    - working for another employer, or now self-employed: the new work is recorded (or the one
+      already recorded is linked) and the earlier one ended;
+    - no longer working: a reason and the date they left are needed, and the running placement is
+      ended with that reason.
+
+    A call with only ``still_employed`` (the form before NEW-034) records the answer as before,
+    with no change to the placements: True reads as the same employer, False as no longer working.
+    """
+    f = _locked_open(followup_id)
+    legacy = not outcome
+    if legacy:
+        if still_employed is None:
+            raise FollowUpError("outcome", "Say what the youth is doing now.", "required")
+        outcome = FollowUp.SAME_EMPLOYER if still_employed else FollowUp.LEFT_EMPLOYMENT
+    if outcome not in OUTCOMES:
+        raise FollowUpError("outcome", "Choose one of the outcomes.", "unknown_outcome")
     if evidence_source not in SOURCES:
         raise FollowUpError("evidence_source", "Say how you know.", "evidence_required")
+    today = timezone.localdate()
+    note = _text("note", note, label="the note", limit=2000)
+    observations = _text("observations", observations, label="the observations", limit=2000)
+    if left_on is not None:
+        if left_on > today:
+            raise FollowUpError("left_on", "The date they left cannot be in the future.", "future")
+        if f.placement.start_date and left_on < f.placement.start_date:
+            raise FollowUpError(
+                "left_on", "The date they left is before the placement started.", "before_start"
+            )
+    reason = None
+    if leaving_reason_id:
+        reason = configuration.outcome_item("leaving-reasons", leaving_reason_id)
+        if reason is None:
+            raise FollowUpError(
+                "leaving_reason_id", "Choose a reason from the list.", "unknown_reason"
+            )
     before = _snapshot(f)
-    f.still_employed, f.evidence_source = bool(still_employed), evidence_source
-    f.response_note = _text("note", note, label="the note", limit=2000)
+    new_placement = None
+    if not legacy:
+        from . import services as placements
+
+        running = placements.running_for_youth(f.placement.enrollment_id, lock=True)
+        if outcome == FollowUp.SAME_EMPLOYER:
+            if running is None or running.pk != f.placement_id:
+                raise FollowUpError(
+                    "outcome", "This placement is no longer running: choose another outcome.",
+                    "not_running",
+                )  # fmt: skip
+            if reason or left_on:
+                raise FollowUpError(
+                    "leaving_reason_id", "They are still there: leave the reason and date out.",
+                    "not_left",
+                )  # fmt: skip
+        elif outcome == FollowUp.LEFT_EMPLOYMENT:
+            if reason is None:
+                raise FollowUpError(
+                    "leaving_reason_id", "Say why they are no longer working.", "required"
+                )
+            if left_on is None:
+                raise FollowUpError("left_on", "Give the date they left.", "required")
+            if reason["needs_note"] and not (note or observations):
+                raise FollowUpError(
+                    "observations", f"Explain “{reason['name']}” in the observations.",
+                    "required",
+                )  # fmt: skip
+            if running is not None:
+                try:
+                    placements.end_episode(
+                        actor=actor, placement_id=running.pk, end_date=left_on,
+                        exit_reason=reason["name"],
+                    )  # fmt: skip
+                except PlacementError as e:
+                    raise _as_followup_error(e, "left_on") from None
+        else:
+            new_placement = _new_work(
+                f, actor=actor, outcome=outcome, running=running, left_on=left_on,
+                new_job=new_job,
+            )  # fmt: skip
+    f.outcome = "" if legacy else outcome
+    f.still_employed = outcome in FollowUp.EMPLOYED_OUTCOMES
+    f.evidence_source, f.response_note, f.observations = evidence_source, note, observations
+    f.leaving_reason_id = reason["id"] if reason else None
+    f.left_on, f.new_placement = left_on, new_placement
     _close(f, actor=actor, status=FollowUp.DONE)
     f.save()
     audit.record(

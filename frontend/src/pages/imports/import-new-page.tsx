@@ -37,11 +37,11 @@ import {
 } from './shared';
 
 const PARTICIPANT_DEFAULTABLE = [
-  'programme_code',
+  'project_code',
   'cohort_code',
   'course_code',
 ];
-const PLACEMENT_DEFAULTABLE = ['programme_code'];
+const PLACEMENT_DEFAULTABLE = ['project_code'];
 const IGNORE = '';
 const NEW = 'new';
 const SKIP = '__skip__'; // Radix Select cannot hold an empty value
@@ -118,7 +118,7 @@ export function ImportNewPage() {
       .map((f) => f.field);
   }, [seen, mapping, defaults, DEFAULTABLE]);
 
-  // A saved mapping that leaves out programme/cohort/course needs a default for each.
+  // A saved mapping that leaves out project/cohort/course needs a default for each.
   const savedTemplate = fitting.find((t) => t.id === choice);
   const defaultsNeeded =
     choice === NEW || !savedTemplate
@@ -175,7 +175,7 @@ export function ImportNewPage() {
                 kind="youth-capability"
                 title="Youth skills and qualifications"
                 buttonLabel="Import skills & qualifications"
-                columns="enrollment_no*, programme, type* (qualification, skill, experience, availability), value*, detail, months, year"
+                columns="enrollment_no*, project, type* (qualification, skill, experience, availability), value*, detail, months, year"
                 endpoint="/participants/profile-import"
                 templateEndpoint="/participants/profile-import-template"
                 onDone={() => void 0}
@@ -363,7 +363,7 @@ export function ImportNewPage() {
                         tone="warning"
                         title="Required fields not mapped yet"
                       >
-                        {missingRequired.join(', ')}. Programme, cohort and
+                        {missingRequired.join(', ')}. Project, cohort and
                         course are usually not columns in a sheet: set them once
                         under &ldquo;Cohort defaults&rdquo; below.
                       </Notice>
@@ -377,7 +377,7 @@ export function ImportNewPage() {
               <CardContent className="space-y-3">
                 <h2 className="font-medium">Cohort defaults (optional)</h2>
                 <p className="text-sm text-muted-foreground">
-                  A programme (e.g. Go Blue), a cohort (an intake at one
+                  A project (e.g. Go Blue), a cohort (an intake at one
                   institution) and a course are set up in PI 360 reference data
                   and each has a short code. They are usually not a column in
                   your sheet, so search and pick the ones that apply to the
@@ -386,12 +386,12 @@ export function ImportNewPage() {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {DEFAULTABLE.map((f) => {
-                    // Cohort and course codes belong to a programme: once one is chosen, only
-                    // show that programme's.
-                    const prog = defaults.programme_code;
+                    // Cohort and course codes belong to a project: once one is chosen, only
+                    // show that project's.
+                    const prog = defaults.project_code;
                     const options = (seen.reference_codes[f] ?? []).filter(
                       (o) =>
-                        f === 'programme_code' || !prog || o.programme === prog,
+                        f === 'project_code' || !prog || o.project === prog,
                     );
                     return (
                       <CodePicker
@@ -403,8 +403,8 @@ export function ImportNewPage() {
                           setDefaults({
                             ...defaults,
                             [f]: code,
-                            // a new programme invalidates the cohort and course picked before
-                            ...(f === 'programme_code'
+                            // a new project invalidates the cohort and course picked before
+                            ...(f === 'project_code'
                               ? { cohort_code: '', course_code: '' }
                               : {}),
                           })

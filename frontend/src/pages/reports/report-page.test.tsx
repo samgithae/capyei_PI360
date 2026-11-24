@@ -32,8 +32,8 @@ vi.mock('recharts', async (orig) => {
 
 const SUMMARIES = [
   {
-    slug: 'programme-scorecard',
-    title: 'Programme scorecard',
+    slug: 'project-scorecard',
+    title: 'Project scorecard',
     purpose: 'How many youth were trained, referred and placed.',
     audience: 'Directors, donors',
     filters: ['period', 'county'],
@@ -49,7 +49,7 @@ const SUMMARIES = [
   },
 ];
 const OPTIONS = {
-  programmes: [],
+  projects: [],
   cohorts: [],
   institutions: [],
   counties: [
@@ -64,8 +64,8 @@ const OPTIONS = {
   checkins: [],
 };
 const REPORT: Report = {
-  slug: 'programme-scorecard',
-  title: 'Programme scorecard',
+  slug: 'project-scorecard',
+  title: 'Project scorecard',
   purpose: '',
   audience: '',
   period_on: 'when the cohort started',
@@ -147,7 +147,7 @@ describe('Reports', () => {
   });
 
   it('shows tiles, tables, notes and definitions, with n/a for a missing rate', async () => {
-    open('/reports/programme-scorecard');
+    open('/reports/project-scorecard');
     expect(await screen.findByText('Registered youth')).toBeTruthy();
     expect(screen.getAllByText('44').length).toBeGreaterThan(0);
     expect(screen.getAllByText('n/a').length).toBeGreaterThan(0);
@@ -158,18 +158,18 @@ describe('Reports', () => {
   });
 
   it('sends the chosen filters to the server and can clear them', async () => {
-    open('/reports/programme-scorecard?county=c1');
+    open('/reports/project-scorecard?county=c1');
     await screen.findByText('Registered youth');
     expect(
       api.mock.calls.some(
-        (c) => c[0] === '/reporting/reports/programme-scorecard?county=c1',
+        (c) => c[0] === '/reporting/reports/project-scorecard?county=c1',
       ),
     ).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: /Clear filters/ }));
     await waitFor(() =>
       expect(
         api.mock.calls.some(
-          (c) => c[0] === '/reporting/reports/programme-scorecard?',
+          (c) => c[0] === '/reporting/reports/project-scorecard?',
         ),
       ).toBe(true),
     );
@@ -177,7 +177,7 @@ describe('Reports', () => {
 
   it('exports with the same filters as the page', async () => {
     postFile.mockResolvedValue({ blob: new Blob(['x']), filename: 'r.xlsx' });
-    open('/reports/programme-scorecard?county=c1');
+    open('/reports/project-scorecard?county=c1');
     await screen.findByText('Registered youth');
     fireEvent.pointerDown(screen.getByRole('button', { name: /Export/ }), {
       button: 0,
@@ -186,7 +186,7 @@ describe('Reports', () => {
     fireEvent.click(await screen.findByText('Excel workbook'));
     await waitFor(() => expect(saveBlob).toHaveBeenCalled());
     expect(postFile.mock.calls[0][0]).toBe(
-      '/reporting/reports/programme-scorecard/export?file_format=xlsx&county=c1',
+      '/reporting/reports/project-scorecard/export?file_format=xlsx&county=c1',
     );
   });
 });

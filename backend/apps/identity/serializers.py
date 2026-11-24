@@ -92,7 +92,7 @@ class UserRolesSerializer(serializers.Serializer):
 
 
 class ScopeItemSerializer(serializers.Serializer):
-    kind = serializers.ChoiceField(choices=["programme", "cohort", "region", "officer"])
+    kind = serializers.ChoiceField(choices=["project", "cohort", "region", "officer"])
     value = serializers.CharField(max_length=64)
 
 

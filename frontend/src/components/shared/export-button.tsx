@@ -22,7 +22,7 @@ import { FormModal } from '@/components/shared/modals';
  * export just the columns it shows. */
 const TABLES = {
   youth: {
-    filters: ['q', 'programme', 'cohort', 'county', 'status', 'archived'],
+    filters: ['q', 'project', 'cohort', 'county', 'status', 'archived'],
     names: true,
     picker: true,
   },

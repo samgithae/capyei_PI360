@@ -10,7 +10,7 @@ from apps.configuration.models import (
     County,
     Course,
     FeatureFlag,
-    Programme,
+    Project,
     ReferenceAlias,
     ReferenceLabel,
     SubCounty,
@@ -260,18 +260,18 @@ def upload(c, kind, text, name="f.csv", dry=False):
 
 
 @pytest.mark.django_db
-def test_import_chain_programmes_to_cohort_courses_is_idempotent(admin):
-    from apps.configuration.models import Cohort, CohortCourse, Course, Programme
+def test_import_chain_projects_to_cohort_courses_is_idempotent(admin):
+    from apps.configuration.models import Cohort, CohortCourse, Course, Project
 
     c = api(admin)
     steps = [
         ("sectors", "code,name\nS1,Hospitality\n"),
-        ("programmes", "code,name,start,status\nP1,Prog One,2025-01-01,active\n"),
+        ("projects", "code,name,start,status\nP1,Prog One,2025-01-01,active\n"),
         ("institutions", "code,name,kind,county\nI1,Test VTC,vtc,Nairobi\n"),
-        ("courses", "code,name,programme,sector\nC1,Cooking,P1,S1\n"),
+        ("courses", "code,name,project,sector\nC1,Cooking,P1,S1\n"),
         (
             "cohorts",
-            "code,name,programme,institution,intake_year,batch_no\nCH1,Batch 1,P1,I1,2025,1\n",
+            "code,name,project,institution,intake_year,batch_no\nCH1,Batch 1,P1,I1,2025,1\n",
         ),
         ("cohort-courses", "cohort,course,capacity\nCH1,C1,30\n"),
     ]
@@ -280,7 +280,7 @@ def test_import_chain_programmes_to_cohort_courses_is_idempotent(admin):
         assert (body["created"], body["failed"]) == (1, 0), (kind, body)
         again = upload(c, kind, text).json()  # second run changes nothing
         assert (again["created"], again["skipped"]) == (0, 1)
-    assert Programme.objects.count() == 1 and Course.objects.count() == 1
+    assert Project.objects.count() == 1 and Course.objects.count() == 1
     assert Cohort.objects.get().intake_year == 2025
     assert CohortCourse.objects.get().capacity == 30
     assert "reference.created" in actions()
@@ -288,24 +288,24 @@ def test_import_chain_programmes_to_cohort_courses_is_idempotent(admin):
 
 @pytest.mark.django_db
 def test_import_dry_run_saves_nothing_and_bad_rows_are_reported(admin):
-    from apps.configuration.models import Programme
+    from apps.configuration.models import Project
 
     text = "code,name,start\nP1,One,2025-01-01\nP2,Two,not-a-date\n,Three,\n"
-    body = upload(api(admin), "programmes", text, dry=True).json()
+    body = upload(api(admin), "projects", text, dry=True).json()
     assert body["created"] == 1 and body["failed"] == 2
     assert {e["row"] for e in body["errors"]} == {3, 4}
-    assert Programme.objects.count() == 0
-    real = upload(api(admin), "programmes", text).json()
-    assert real["created"] == 1 and Programme.objects.count() == 1  # valid rows still load
+    assert Project.objects.count() == 0
+    real = upload(api(admin), "projects", text).json()
+    assert real["created"] == 1 and Project.objects.count() == 1  # valid rows still load
 
 
 @pytest.mark.django_db
 def test_import_rejects_unknown_parent_missing_column_and_bad_type(admin):
     c = api(admin)
     r = upload(c, "courses", "code,name\nC1,Cooking\n")
-    assert r.status_code == 400 and "programme" in str(r.json())
-    body = upload(c, "courses", "code,name,programme\nC1,Cooking,NOPE\n").json()
-    assert body["failed"] == 1 and "No programme" in body["errors"][0]["message"]
+    assert r.status_code == 400 and "project" in str(r.json())
+    body = upload(c, "courses", "code,name,project\nC1,Cooking,NOPE\n").json()
+    assert body["failed"] == 1 and "No project" in body["errors"][0]["message"]
     assert upload(c, "sectors", "x", name="f.txt").status_code == 400
 
 
@@ -314,7 +314,7 @@ def test_import_needs_manage_permission_and_template_downloads(admin, make_user)
     viewer = make_user("viewer1", "Manager")
     assert upload(api(viewer), "sectors", "code,name\nS1,A\n").status_code == 403
     r = api(admin).get("/api/v1/config/reference/cohorts/import-template")
-    assert r.status_code == 200 and r.content.decode().startswith("code,name,programme")
+    assert r.status_code == 200 and r.content.decode().startswith("code,name,project")
     assert api(admin).get("/api/v1/config/reference/counties/import-template").status_code == 404
 
 
@@ -342,17 +342,17 @@ def test_qualification_levels_and_skills_are_seeded_and_importable(admin):
 
 @pytest.mark.django_db
 def test_many_courses_can_be_linked_to_a_cohort_at_once(admin):
-    prog = Programme.objects.create(code="P1", name="Programme One")
+    prog = Project.objects.create(code="P1", name="Project One")
     inst = TrainingInstitution.objects.create(
         code="I1", name="College", county=County.objects.get(code="01")
     )
     cohort = Cohort.objects.create(
-        programme=prog, institution=inst, code="K1", name="K", intake_year=2025,
+        project=prog, institution=inst, code="K1", name="K", intake_year=2025,
         batch_no=1, phase=1, year_of_study=1,
     )  # fmt: skip
-    a = Course.objects.create(programme=prog, code="A", name="A")
-    b = Course.objects.create(programme=prog, code="B", name="B")
-    c = Course.objects.create(programme=prog, code="C", name="C")
+    a = Course.objects.create(project=prog, code="A", name="A")
+    b = Course.objects.create(project=prog, code="B", name="B")
+    c = Course.objects.create(project=prog, code="C", name="C")
     CohortCourse.objects.create(cohort=cohort, course=a, active=False)
     CohortCourse.objects.create(cohort=cohort, course=b)
     client = api(admin)

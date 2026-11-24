@@ -5,7 +5,7 @@ export interface SimilarMatch {
   name: string;
   status: string;
   county: string;
-  programmes: string[];
+  projects: string[];
   reasons: { code: string; text: string }[];
 }
 
@@ -44,7 +44,7 @@ export function DuplicateWarning({
             </Link>{' '}
             <span className="text-muted-foreground">
               (
-              {[m.status, m.county, ...m.programmes].filter(Boolean).join(', ')}
+              {[m.status, m.county, ...m.projects].filter(Boolean).join(', ')}
               )
             </span>
             <br />

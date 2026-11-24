@@ -7,7 +7,7 @@ Run against a THROWAWAY database, never a shared one (SEC-14, D-035):
     uv run python manage.py shell < scripts/go_blue_dry_run.py
 
 What it does, in order:
- 1. Builds reference data from the file's own distinct values (programme GB, courses, institutions,
+ 1. Builds reference data from the file's own distinct values (project GB, courses, institutions,
     cohorts, offerings). The file has no codes, so the codes below are proposals for CAP-YEI.
  2. Writes a prepared copy: cohort and course replaced by codes, county name by county code.
     (Normalisation rules; the source value is kept in the original file.) National ID is left
@@ -27,7 +27,7 @@ from apps.configuration.models import (
     CohortCourse,
     County,
     Course,
-    Programme,
+    Project,
     TrainingInstitution,
 )
 from apps.identity import services as identity
@@ -42,7 +42,7 @@ COHORT = re.compile(r"^(.+?) VTC - (\d{4}) Batch (\d+)-Phase (\d+)-Year (\d+)$")
 print(f"source rows: {len(rows)}")
 
 # 1. reference data -------------------------------------------------------------------------
-prog, _ = Programme.objects.get_or_create(code="GB", defaults={"name": "Go Blue"})
+prog, _ = Project.objects.get_or_create(code="GB", defaults={"name": "Go Blue"})
 county_by_name = {c.name.lower(): c for c in County.objects.all()}
 print(f"counties in reference data: {len(county_by_name)}")
 inst_county = {}
@@ -60,14 +60,14 @@ courses = {}
 for label in sorted({r["Course"] for r in rows}):
     code, _, name = label.partition("-")
     courses[label], _ = Course.objects.get_or_create(
-        programme=prog, code=code.strip(), defaults={"name": name.strip()}
+        project=prog, code=code.strip(), defaults={"name": name.strip()}
     )
 cohorts, offerings = {}, {}
 for label in sorted({r["Cohort/Batch"] for r in rows}):
     inst_name, year, batch, phase, yos = COHORT.match(label).groups()
     code = f"{insts[inst_name + ' VTC'].code}-{year[2:]}B{batch}P{phase}Y{yos}"
     cohorts[label], _ = Cohort.objects.get_or_create(
-        programme=prog,
+        project=prog,
         code=code,
         defaults=dict(
             name=label,
@@ -121,7 +121,7 @@ batch = imp.upload(
     template=tpl,
     file_name="go-blue-prepared.csv",
     data=open(OUT, "rb").read(),
-    defaults={"programme_code": "GB"},
+    defaults={"project_code": "GB"},
 )
 print("validation counts:", batch.counts)
 held = Counter()

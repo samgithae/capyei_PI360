@@ -132,11 +132,11 @@ export function HistoryTab({ p }: { p: Detail }) {
               .map((e) => (
                 <Item
                   key={e.id}
-                  title={e.course || e.programme}
+                  title={e.course || e.project}
                   lines={[
-                    [e.institution, e.programme].filter(Boolean).join(', '),
+                    [e.institution, e.project].filter(Boolean).join(', '),
                     range(e.enrolled_on, e.completed_on),
-                    'Programme enrolment',
+                    'Project enrolment',
                   ]}
                 />
               ))}

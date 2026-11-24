@@ -8,7 +8,7 @@ from apps.configuration.models import (
     CohortCourse,
     County,
     Course,
-    Programme,
+    Project,
     TrainingInstitution,
 )
 from apps.participants.models import (
@@ -20,7 +20,7 @@ from apps.participants.models import (
 )
 
 URL = "/api/v1/participants/profile-import"
-HEAD = "enrollment_no,programme,type,value,detail,months,year\n"
+HEAD = "enrollment_no,project,type,value,detail,months,year\n"
 
 
 def api(user):
@@ -30,19 +30,19 @@ def api(user):
 
 
 def youth(db, no="E-1"):
-    prog = Programme.objects.create(code="P1", name="Programme One")
+    prog = Project.objects.create(code="P1", name="Project One")
     inst = TrainingInstitution.objects.create(
         code="I1", name="College", county=County.objects.get(code="01")
     )
-    course = Course.objects.create(programme=prog, code="C1", name="Course")
+    course = Course.objects.create(project=prog, code="C1", name="Course")
     co = Cohort.objects.create(
-        programme=prog, institution=inst, code="K1", name="K", intake_year=2025,
+        project=prog, institution=inst, code="K1", name="K", intake_year=2025,
         batch_no=1, phase="1", year_of_study=1,
     )  # fmt: skip
     cc = CohortCourse.objects.create(cohort=co, course=course)
     p = Participant.objects.create(full_name_source="Test Youth")
     ParticipantEnrollment.objects.create(
-        participant=p, cohort_course=cc, programme=prog, institution=inst, source_enrollment_no=no
+        participant=p, cohort_course=cc, project=prog, institution=inst, source_enrollment_no=no
     )
     return p
 

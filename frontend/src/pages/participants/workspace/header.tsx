@@ -23,6 +23,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { DownloadCvButton } from '../cv/download-cv-button';
 import { useCv, useParticipantReferrals } from './queries';
 import { isOpenStage } from './readiness';
+import { ReviewStrip } from './review-strip';
 import type { Detail } from './types';
 
 /** Placement state in one word, from real referrals only. */
@@ -101,7 +102,7 @@ export function IdentityHeader({
             {enrolment && (
               <>
                 {' · '}
-                {[enrolment.programme, enrolment.cohort]
+                {[enrolment.project, enrolment.cohort]
                   .filter(Boolean)
                   .join(' / ')}
               </>
@@ -181,6 +182,7 @@ export function IdentityHeader({
           </div>
         )}
       </div>
+      {!editing && <ReviewStrip p={p} />}
       {p.archived && (
         <p className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-sm">
           This participant is archived and hidden from lists and reports.

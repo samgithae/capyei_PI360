@@ -83,6 +83,13 @@ const detail: FollowUpDetail = {
   ...row(),
   response_note: '',
   still_employed: null,
+  outcome: '',
+  outcome_label: '',
+  leaving_reason_id: null,
+  leaving_reason: '',
+  left_on: null,
+  observations: '',
+  new_placement_id: null,
   evidence_source: '',
   evidence_source_label: '',
   closed_at: null,
@@ -222,6 +229,65 @@ describe('FollowUpPage', () => {
       await screen.findByRole('button', { name: 'Save attempt' }),
     ).toBeTruthy();
     expect(screen.getByLabelText(/Next action \(optional\)/)).toBeTruthy();
+  });
+});
+
+describe('FollowUpPage outcome (NEW-034)', () => {
+  beforeEach(() => {
+    api.mockReset();
+  });
+
+  const open = () =>
+    wrap(
+      <Routes>
+        <Route path="/followups/:id" element={<FollowUpPage />} />
+      </Routes>,
+      '/followups/f1',
+    );
+
+  it('asks what the youth is doing now before closing the check-in', async () => {
+    api.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.endsWith('/history')
+          ? []
+          : path.endsWith('/options')
+            ? { methods: [], sources: [], outcomes: [], leaving_reasons: [] }
+            : detail,
+      ),
+    );
+    open();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Record the response' }),
+    );
+    expect(await screen.findByText('What are they doing now?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Complete check-in' }));
+    expect(
+      await screen.findByText('Say what the youth is doing now.'),
+    ).toBeTruthy();
+  });
+
+  it('shows the recorded outcome, reason and observations', async () => {
+    api.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.endsWith('/history')
+          ? []
+          : {
+              ...detail,
+              status: 'done',
+              status_label: 'Done',
+              outcome: 'left_employment',
+              outcome_label: 'No longer working',
+              leaving_reason: 'Contract completed',
+              left_on: '2026-10-31',
+              observations: 'Looking for similar work',
+            },
+      ),
+    );
+    open();
+    expect(await screen.findByText('No longer working')).toBeTruthy();
+    expect(screen.getByText('Contract completed')).toBeTruthy();
+    expect(screen.getByText('Looking for similar work')).toBeTruthy();
+    expect(screen.queryByText('Still in the placement')).toBeNull();
   });
 });
 

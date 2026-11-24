@@ -316,8 +316,10 @@ def test_pdf_leaves_out_empty_sections_and_private_data(world):
         "PROFESSIONAL SUMMARY",
     ):
         assert heading not in text
+    # The PDF's own creation/modification timestamps can contain "2001" (e.g. 23:20:01).
+    raw = re.sub(r"/(Creation|Mod)Date \(D:[^)]*\)", "", r.content.decode("latin-1"))
     for private in ("2001", "04-09", "Gender", "score", str(world["p"].pk)):
-        assert private not in r.content.decode("latin-1")
+        assert private not in raw
 
 
 def test_pdf_paginates_long_content_without_losing_anything(world):

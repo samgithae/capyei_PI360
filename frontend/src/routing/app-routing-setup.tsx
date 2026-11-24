@@ -45,6 +45,7 @@ import { EditParticipant } from '@/pages/participants/participant-edit';
 import { ProfilePage } from '@/pages/participants/profile-page';
 import { ReferralPage } from '@/pages/referrals/referral-page';
 import { ReferralsPage } from '@/pages/referrals/referrals-page';
+import { RegistrationsPage } from '@/pages/registrations/registrations-page';
 import { ReportPage } from '@/pages/reports/report-page';
 import { ReportsIndexPage } from '@/pages/reports/reports-index-page';
 import { RetentionPage } from '@/pages/retention/retention-page';
@@ -61,6 +62,8 @@ import {
 } from '@/pages/youth/my-opportunities';
 import { MyPlacementPage } from '@/pages/youth/my-placement';
 import { PortalPage } from '@/pages/youth/portal-page';
+import { RegisterPage } from '@/pages/youth/register-page';
+import { RegisterVerifyPage } from '@/pages/youth/register-verify-page';
 import { Navigate, Route, Routes } from 'react-router';
 import { Layout1 } from '@/components/layouts/layout-1';
 
@@ -80,6 +83,8 @@ export function AppRoutingSetup() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/register/verify" element={<RegisterVerifyPage />} />
       <Route path="/youth/activate" element={<ActivatePage />} />
       <Route
         path="/employer/activate"
@@ -167,6 +172,7 @@ export function AppRoutingSetup() {
           </Route>
           <Route element={<RequirePermission permission="duplicates.review" />}>
             <Route path="/duplicates" element={<DuplicatesPage />} />
+            <Route path="/registrations" element={<RegistrationsPage />} />
           </Route>
           <Route
             element={<RequirePermission permission="dataquality.review" />}

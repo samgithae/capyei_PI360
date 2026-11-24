@@ -7,6 +7,7 @@ never deleted."""
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -91,33 +92,31 @@ class TrainingInstitution(Reference):
         constraints = [models.UniqueConstraint(fields=["code"], name="uniq_institution_code")]
 
 
-class Programme(Reference):
+class Project(Reference):
     funder = models.CharField(max_length=200, blank=True)
     start = models.DateField(null=True, blank=True)
     end = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=12, default="active")
 
     class Meta(Reference.Meta):
-        constraints = [models.UniqueConstraint(fields=["code"], name="uniq_programme_code")]
+        constraints = [models.UniqueConstraint(fields=["code"], name="uniq_project_code")]
 
 
 class Course(Reference):
-    programme = models.ForeignKey(Programme, on_delete=models.PROTECT, related_name="courses")
+    project = models.ForeignKey(Project, on_delete=models.PROTECT, related_name="courses")
     default_sector = models.ForeignKey(
         Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
     level = models.CharField(max_length=20, blank=True)
 
     class Meta(Reference.Meta):
-        constraints = [
-            models.UniqueConstraint(fields=["programme", "code"], name="uniq_course_code")
-        ]
+        constraints = [models.UniqueConstraint(fields=["project", "code"], name="uniq_course_code")]
 
 
 class Cohort(Reference):
     """Structure lives in fields, not inside the name (doc 14 §1). ``name`` holds the label."""
 
-    programme = models.ForeignKey(Programme, on_delete=models.PROTECT, related_name="cohorts")
+    project = models.ForeignKey(Project, on_delete=models.PROTECT, related_name="cohorts")
     institution = models.ForeignKey(
         TrainingInstitution, on_delete=models.PROTECT, related_name="cohorts"
     )
@@ -133,7 +132,7 @@ class Cohort(Reference):
         constraints = [
             models.UniqueConstraint(
                 fields=[
-                    "programme",
+                    "project",
                     "institution",
                     "intake_year",
                     "batch_no",
@@ -142,7 +141,7 @@ class Cohort(Reference):
                 ],
                 name="uniq_cohort_identity",
             ),
-            models.UniqueConstraint(fields=["programme", "code"], name="uniq_cohort_code"),
+            models.UniqueConstraint(fields=["project", "code"], name="uniq_cohort_code"),
         ]
 
 
@@ -286,6 +285,67 @@ class Skill(Reference):
             models.UniqueConstraint(fields=["code"], name="uniq_skill_code"),
             models.UniqueConstraint(fields=["name_normalised"], name="uniq_skill_name"),
         ]
+
+
+class EmploymentType(Reference):
+    """Type of employment of a placement (B25, PI360-NEW-035). The list CAP-YEI approved is
+    seeded; administrators manage it as reference data. ``self_employment`` marks the type that
+    belongs to the self-employment outcome only (B27), so it is never counted as formal work."""
+
+    self_employment = models.BooleanField(default=False)
+
+    class Meta(Reference.Meta):
+        constraints = [
+            models.UniqueConstraint(fields=["code"], name="uniq_employment_type_code"),
+            models.UniqueConstraint(fields=["name_normalised"], name="uniq_employment_type_name"),
+        ]
+
+
+class LeavingReason(Reference):
+    """Why a youth left a placement (B25, PI360-NEW-034). The CAP-YEI list is seeded; "Other"
+    needs a note saying what happened."""
+
+    needs_note = models.BooleanField(default=False)
+
+    class Meta(Reference.Meta):
+        constraints = [
+            models.UniqueConstraint(fields=["code"], name="uniq_leaving_reason_code"),
+            models.UniqueConstraint(fields=["name_normalised"], name="uniq_leaving_reason_name"),
+        ]
+
+
+class SalaryBand(Reference):
+    """A monthly salary band (A3, PI360-NEW-035). CAP-YEI approved recording both the exact
+    salary and a band but gave no band ranges, so none is seeded: administrators add them.
+    ``min_amount`` / ``max_amount`` (KES a month, inclusive) let a band be filled in from an
+    exact amount; either may be blank for an open-ended band."""
+
+    min_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    max_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    class Meta(Reference.Meta):
+        ordering = ["min_amount", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["code"], name="uniq_salary_band_code"),
+            models.UniqueConstraint(fields=["name_normalised"], name="uniq_salary_band_name"),
+        ]
+
+    def clean(self):
+        if (
+            self.min_amount is not None
+            and self.max_amount is not None
+            and self.min_amount > self.max_amount
+        ):
+            raise ValidationError({"max_amount": "The highest amount cannot be below the lowest."})
+        if (self.min_amount is not None and self.min_amount < 0) or (
+            self.max_amount is not None and self.max_amount < 0
+        ):
+            raise ValidationError({"min_amount": "Amounts cannot be negative."})
+
+    def holds(self, amount) -> bool:
+        return (self.min_amount is None or amount >= self.min_amount) and (
+            self.max_amount is None or amount <= self.max_amount
+        )
 
 
 class FeatureFlag(models.Model):

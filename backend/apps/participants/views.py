@@ -18,7 +18,7 @@ from apps.api.pagination import page_size_of
 from apps.audit import services as audit
 from apps.configuration import services as configuration
 
-from . import corrections, services, similar
+from . import corrections, review_flag, services, similar
 from .models import (
     Participant,
     ParticipantContact,
@@ -46,8 +46,9 @@ def _summary(p, consent=False):
         "age": current_age(p),
         "status": p.status,
         "archived": p.archived_at is not None,
+        "review": p.review_state,
         "county": p.origin_county.name if p.origin_county_id else "",
-        "programmes": sorted({e.programme.name for e in enrollments}),
+        "projects": sorted({e.project.name for e in enrollments}),
         "cohorts": sorted({e.cohort_course.cohort.name for e in enrollments}),
     }
     if consent:  # only while the consent setting is on
@@ -66,11 +67,17 @@ def _detail(p, user):
         age_basis_date=p.age_basis_date.isoformat() if p.age_basis_date else None,
         date_of_birth=p.date_of_birth.isoformat() if p.date_of_birth else None,
         age_at_source=p.age_at_source,
+        review={
+            "state": p.review_state,
+            "reason": p.review_reason,
+            "reason_label": review_flag.REASONS.get(p.review_reason, ""),
+            "since": p.review_since.isoformat() if p.review_since else None,
+        },
         enrollments=[
             {
                 "id": str(e.pk),
-                "programme": e.programme.name,
-                "programme_id": str(e.programme_id),
+                "project": e.project.name,
+                "project_id": str(e.project_id),
                 "cohort": e.cohort_course.cohort.name,
                 "cohort_id": str(e.cohort_course.cohort_id),
                 "cohort_course_id": str(e.cohort_course_id),
@@ -84,7 +91,7 @@ def _detail(p, user):
                 "completed_on": e.completed_on.isoformat() if e.completed_on else None,
             }
             for e in p.enrollments.select_related(
-                "programme", "institution", "cohort_course__cohort", "cohort_course__course"
+                "project", "institution", "cohort_course__cohort", "cohort_course__course"
             )
         ],
         residences=[
@@ -261,9 +268,10 @@ class ParticipantListView(APIView):
             for n in (
                 "q",
                 "status",
-                "programme",
+                "project",
                 "cohort",
                 "county",
+                "review",
                 "archived",
                 "offset",
                 "page_size",
@@ -283,7 +291,7 @@ class ParticipantListView(APIView):
         except ValueError:
             offset = 0
         page = qs.select_related("origin_county").prefetch_related(
-            "enrollments__programme", "enrollments__cohort_course__cohort"
+            "enrollments__project", "enrollments__cohort_course__cohort"
         )[offset : offset + size]
         consent = services.consent_enabled()
         return Response(
@@ -389,7 +397,7 @@ class EnrollmentEditSerializer(serializers.Serializer):
     enrolled_on = serializers.DateField(allow_null=True, required=False)
     completed_on = serializers.DateField(allow_null=True, required=False)
     exit_reason = serializers.CharField(max_length=200, allow_blank=True, required=False)
-    # Moving to another cohort/course; programme and institution follow the cohort.
+    # Moving to another cohort/course; project and institution follow the cohort.
     cohort_course_id = serializers.UUIDField(required=False)
 
 
@@ -423,16 +431,16 @@ class EnrollmentCreateView(APIView):
         if (
             no
             and ParticipantEnrollment.objects.filter(
-                programme_id=ids[0], source_enrollment_no=no
+                project_id=ids[0], source_enrollment_no=no
             ).exists()
         ):
             raise serializers.ValidationError(
-                {"enrollment_no": "Another enrollment in this programme has that number."}
+                {"enrollment_no": "Another enrollment in this project has that number."}
             )
         e = ParticipantEnrollment.objects.create(
             participant=p,
             cohort_course_id=d["cohort_course_id"],
-            programme_id=ids[0],
+            project_id=ids[0],
             institution_id=ids[1],
             source_enrollment_no=no,
             status=d["status"],
@@ -478,7 +486,7 @@ class EnrollmentDetailView(APIView):
         offering = data.pop("cohort_course_id", None)
         before = {k: getattr(e, k) for k in data}
         after = {k: v for k, v in data.items() if before[k] != v}
-        programme_id = e.programme_id
+        project_id = e.project_id
         if offering is not None and offering != e.cohort_course_id:
             ids = configuration.offering_ids(offering)
             if ids is None:
@@ -488,25 +496,23 @@ class EnrollmentDetailView(APIView):
                     {"cohort_course_id": "This youth is already enrolled in that course."}
                 )
             before["cohort_course_id"] = str(e.cohort_course_id)
-            before["programme_id"] = str(e.programme_id)
+            before["project_id"] = str(e.project_id)
             before["institution_id"] = str(e.institution_id)
             after["cohort_course_id"] = offering
-            after["programme_id"], after["institution_id"] = ids
-            programme_id = ids[0]
-        # A number is checked against the programme it will belong to after the change.
+            after["project_id"], after["institution_id"] = ids
+            project_id = ids[0]
+        # A number is checked against the project it will belong to after the change.
         no = after.get("source_enrollment_no")
-        if no is None and programme_id != e.programme_id:
+        if no is None and project_id != e.project_id:
             no = e.source_enrollment_no
         if (
             no
-            and ParticipantEnrollment.objects.filter(
-                programme=programme_id, source_enrollment_no=no
-            )
+            and ParticipantEnrollment.objects.filter(project=project_id, source_enrollment_no=no)
             .exclude(pk=e.pk)
             .exists()
         ):
             raise serializers.ValidationError(
-                {"source_enrollment_no": "Another enrollment in this programme has that number."}
+                {"source_enrollment_no": "Another enrollment in this project has that number."}
             )
         if after:
             for k, v in after.items():
@@ -734,3 +740,67 @@ class ParticipantArchiveView(BulkArchiveView):
 
 class ParticipantRestoreView(ParticipantArchiveView):
     archive = False
+
+
+class ReviewNoteSerializer(serializers.Serializer):
+    note = serializers.CharField(max_length=500, allow_blank=True, required=False, default="")
+
+
+class ReviewBulkSerializer(ReviewNoteSerializer):
+    ids = serializers.ListField(child=serializers.UUIDField(), min_length=1, max_length=500)
+
+
+class ParticipantReviewView(APIView):
+    """The review flag on one youth (D-084). GET the history; POST an officer flag (reason
+    required); DELETE marks it reviewed. Blocks nothing."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": VIEW, "POST": EDIT, "DELETE": EDIT}
+
+    def _get(self, request, pk):
+        try:
+            return _visible(request, archived=None).get(pk=pk)
+        except Participant.DoesNotExist:
+            raise NotFound from None
+
+    @extend_schema(operation_id="participants_review_history", responses={200: dict})
+    def get(self, request, pk):
+        return Response({"results": review_flag.history(self._get(request, pk))})
+
+    @extend_schema(request=ReviewNoteSerializer, responses={200: dict})
+    def post(self, request, pk):
+        p = self._get(request, pk)
+        s = ReviewNoteSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            review_flag.officer_flag(actor=request.user, p=p, note=s.validated_data["note"])
+        except review_flag.ReviewError as exc:
+            raise serializers.ValidationError({exc.field: [str(exc)]}) from None
+        return Response({"state": Participant.REVIEW_NEEDED})
+
+    @extend_schema(request=ReviewNoteSerializer, responses={200: dict})
+    def delete(self, request, pk):
+        p = self._get(request, pk)
+        s = ReviewNoteSerializer(data=request.data or {})
+        s.is_valid(raise_exception=True)
+        n = review_flag.mark_reviewed(
+            actor=request.user, participants=[p], note=s.validated_data["note"]
+        )
+        return Response({"marked": n})
+
+
+class ParticipantReviewBulkView(APIView):
+    """Mark many youth reviewed at once. Ids outside the caller's scope are ignored."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": EDIT}
+
+    @extend_schema(request=ReviewBulkSerializer, responses={200: dict})
+    def post(self, request):
+        s = ReviewBulkSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        rows = list(_visible(request, archived=None).filter(pk__in=s.validated_data["ids"]))
+        n = review_flag.mark_reviewed(
+            actor=request.user, participants=rows, note=s.validated_data["note"]
+        )
+        return Response({"marked": n})

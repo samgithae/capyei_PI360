@@ -75,10 +75,24 @@ export interface PlacementRow {
   verification_source: string;
   verification_source_label: string;
   imported: boolean;
+  // Self-employment outcome (NEW-071); blank on every other pathway.
+  business_activity: string;
+  operational_status: string;
+  operational_status_label: string;
+  business_evidence: string;
+  // Employment type (NEW-035, B25); blank when not recorded.
+  employment_type_id: string | null;
+  employment_type: string;
 }
 export interface PlacementDetail extends PlacementRow {
   benefits: string;
-  can: { edit: boolean; end: boolean; verify: boolean };
+  /** Only for holders of the restricted economic-data grant; otherwise null. */
+  monthly_income: string | null;
+  /** Salary and band (A3): restricted economic data, like income. */
+  salary_amount: string | null;
+  salary_band_id: string | null;
+  salary_band: string;
+  can: { edit: boolean; end: boolean; verify: boolean; income: boolean };
 }
 export interface PlacementPage {
   total: number;
@@ -95,7 +109,254 @@ export interface PlacementSummary {
 export interface PlacementOptions {
   pathways: Option[];
   sources: Option[];
+  operational_statuses: Option[];
+  /** CAP-YEI has not confirmed the operational status list yet. */
+  operational_statuses_provisional: boolean;
+  can_record_income: boolean;
+  /** NEW-035. Salary bands are listed only to those who may record a salary. */
+  employment_types: EmploymentType[];
+  salary_bands: SalaryBand[];
 }
+export interface EmploymentType {
+  id: string;
+  name: string;
+  self_employment: boolean;
+}
+export interface SalaryBand {
+  id: string;
+  name: string;
+  min_amount: string | null;
+  max_amount: string | null;
+}
+
+export const SELF_EMPLOYMENT = 'self_employment';
+
+/** The self-employment outcome's own facts (D-080 / B27). */
+export interface BusinessState {
+  activity: string;
+  status: string;
+  evidence: string;
+  income: string;
+}
+
+export function emptyBusiness(row?: PlacementRow): BusinessState {
+  return {
+    activity: row?.business_activity ?? '',
+    status: row?.operational_status ?? '',
+    evidence: row?.business_evidence ?? '',
+    income: '',
+  };
+}
+
+/** Request fields for the business details: blank unless the pathway is self-employment, and
+ * income only when typed (the server refuses it without the restricted grant). */
+export function businessBody(pathway: string, b: BusinessState) {
+  if (pathway !== SELF_EMPLOYMENT)
+    return {
+      business_activity: '',
+      operational_status: '',
+      business_evidence: '',
+    };
+  return {
+    business_activity: b.activity,
+    operational_status: b.status,
+    business_evidence: b.evidence,
+    ...(b.income.trim() ? { monthly_income: b.income.trim() } : {}),
+  };
+}
+
+export function BusinessFields({
+  id,
+  value,
+  onChange,
+  options,
+}: {
+  id: string;
+  value: BusinessState;
+  onChange: (next: BusinessState) => void;
+  options?: PlacementOptions;
+}) {
+  const set = (k: keyof BusinessState) => (v: string) =>
+    onChange({ ...value, [k]: v });
+  return (
+    <fieldset className="space-y-3 rounded-md border p-3">
+      <legend className="px-1 text-sm font-medium">Business details</legend>
+      <p className="text-xs text-muted-foreground">
+        Self-employment is its own outcome, never counted as formal employment.
+        Put the business name in the employer or business name field above.
+      </p>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${id}-activity`}>Business activity</Label>
+        <Input
+          id={`${id}-activity`}
+          maxLength={200}
+          value={value.activity}
+          onChange={(e) => set('activity')(e.target.value)}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label>Operational status</Label>
+        <SelectField
+          label="Choose operational status"
+          value={value.status}
+          options={asOptions(options?.operational_statuses)}
+          onChange={set('status')}
+        />
+        {options?.operational_statuses_provisional && (
+          <p className="text-xs text-muted-foreground">
+            Working list, waiting for CAP-YEI to confirm.
+          </p>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${id}-evidence`}>Evidence of business activity</Label>
+        <Textarea
+          id={`${id}-evidence`}
+          maxLength={2000}
+          value={value.evidence}
+          onChange={(e) => set('evidence')(e.target.value)}
+        />
+      </div>
+      {options?.can_record_income && (
+        <div className="space-y-1.5">
+          <Label htmlFor={`${id}-income`}>
+            Monthly income (KES, where available)
+          </Label>
+          <Input
+            id={`${id}-income`}
+            inputMode="decimal"
+            value={value.income}
+            onChange={(e) => set('income')(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Restricted economic data: only staff with the grant see it.
+          </p>
+        </div>
+      )}
+    </fieldset>
+  );
+}
+/** Employment type, salary and band (NEW-035, B25, A3). */
+export interface WorkState {
+  type: string;
+  amount: string;
+  band: string;
+  /** Salary fields are sent only once touched, so a form opened from a list row (which does
+   * not carry the salary) never clears one already recorded. */
+  salaryTouched: boolean;
+}
+
+export function emptyWork(row?: PlacementRow | PlacementDetail): WorkState {
+  const detail = row as Partial<PlacementDetail> | undefined;
+  return {
+    type: row?.employment_type_id ?? '',
+    amount: detail?.salary_amount ?? '',
+    band: detail?.salary_band_id ?? '',
+    salaryTouched: false,
+  };
+}
+
+/** The types that fit the pathway: the self-employment type with self-employment only. */
+export function typesFor(pathway: string, options?: PlacementOptions) {
+  return (options?.employment_types ?? []).filter(
+    (t) => t.self_employment === (pathway === SELF_EMPLOYMENT),
+  );
+}
+
+export function workBody(
+  pathway: string,
+  w: WorkState,
+  options?: PlacementOptions,
+) {
+  const fits = typesFor(pathway, options).some((t) => t.id === w.type);
+  const body: Record<string, string | null> = {
+    employment_type_id: fits ? w.type : null,
+  };
+  if (
+    options?.can_record_income &&
+    pathway !== SELF_EMPLOYMENT &&
+    w.salaryTouched
+  ) {
+    body.salary_amount = w.amount.trim() || null;
+    body.salary_band_id = w.band || null;
+  }
+  return body;
+}
+
+export function WorkFields({
+  id,
+  pathway,
+  value,
+  onChange,
+  options,
+}: {
+  id: string;
+  pathway: string;
+  value: WorkState;
+  onChange: (next: WorkState) => void;
+  options?: PlacementOptions;
+}) {
+  const types = typesFor(pathway, options);
+  const paid = pathway !== SELF_EMPLOYMENT;
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label>Employment type</Label>
+        <SelectField
+          label="Choose employment type"
+          value={types.some((t) => t.id === value.type) ? value.type : ''}
+          options={types.map((t) => ({ id: t.id, name: t.name }))}
+          onChange={(type) => onChange({ ...value, type })}
+        />
+      </div>
+      {paid && options?.can_record_income && (
+        <fieldset className="space-y-3 rounded-md border p-3">
+          <legend className="px-1 text-sm font-medium">Salary</legend>
+          <p className="text-xs text-muted-foreground">
+            Restricted economic data: only staff with the grant see it. Give the
+            exact monthly amount, or only a band if that is all that is known.
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor={`${id}-salary`}>Monthly salary (KES)</Label>
+            <Input
+              id={`${id}-salary`}
+              inputMode="decimal"
+              value={value.amount}
+              onChange={(e) =>
+                onChange({
+                  ...value,
+                  amount: e.target.value,
+                  band: '',
+                  salaryTouched: true,
+                })
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Salary band</Label>
+            <SelectField
+              label="Choose salary band"
+              value={value.band}
+              options={(options.salary_bands ?? []).map((b) => ({
+                id: b.id,
+                name: b.name,
+              }))}
+              onChange={(band) =>
+                onChange({ ...value, band, salaryTouched: true })
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              {options.salary_bands?.length
+                ? 'Left empty, the band is found from the amount.'
+                : 'No bands are set up yet: an administrator adds them under Administration.'}
+            </p>
+          </div>
+        </fieldset>
+      )}
+    </>
+  );
+}
+
 export interface QueueData {
   scope: 'mine' | 'all';
   today: string;
@@ -644,19 +905,22 @@ export function PlacementDialog({
   const [designation, setDesignation] = useState(
     edit?.designation ?? prefill?.designation ?? '',
   );
+  const [business, setBusiness] = useState(() => emptyBusiness(edit));
+  const [work, setWork] = useState(() => emptyWork(edit));
   const [error, setError] = useState('');
-  // The server's "this youth already has a placement with them" warning (not an error: staff
-  // who know it is a separate job or spell can record it anyway).
-  const [duplicate, setDuplicate] = useState('');
+  // D-081: the server refuses a second running placement and names the one already running.
+  const [running, setRunning] = useState('');
 
   const save = useMutation({
-    mutationFn: (confirmDuplicate: boolean) => {
+    mutationFn: () => {
       const body = {
         pathway,
         start_date: start,
         employer_id: employerId || null,
         employer_name_source: employerId ? '' : employerName,
         designation,
+        ...businessBody(pathway, business),
+        ...workBody(pathway, work, options.data),
       };
       if (edit)
         return api(`/placements/${edit.id}`, {
@@ -666,7 +930,6 @@ export function PlacementDialog({
       return post('/placements', {
         ...body,
         participant_id: participant?.id ?? youthId,
-        ...(confirmDuplicate ? { confirm_duplicate: true } : {}),
       });
     },
     onSuccess: () => {
@@ -678,9 +941,9 @@ export function PlacementDialog({
       if (
         e instanceof ApiError &&
         e.status === 409 &&
-        e.errors.some((x) => x.code === 'possible_duplicate')
+        e.errors.some((x) => x.code === 'active_placement')
       )
-        return setDuplicate(e.message);
+        return setRunning(e.message);
       setError(errorText(e));
     },
   });
@@ -690,7 +953,7 @@ export function PlacementDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={edit ? 'Correct placement' : 'Record a placement'}
-      description="One employment or training episode. A youth can have several over time; ending one keeps it in the history."
+      description="One employment or training episode. A youth has one running placement at a time; ending one keeps it in the history."
       submitLabel={edit ? 'Save changes' : 'Record'}
       pending={save.isPending}
       error={error}
@@ -700,8 +963,8 @@ export function PlacementDialog({
         if (!pathway) return setError('Choose the pathway.');
         if (!start) return setError('Enter the start date.');
         setError('');
-        setDuplicate('');
-        save.mutate(false);
+        setRunning('');
+        save.mutate();
       }}
     >
       {!edit &&
@@ -739,10 +1002,7 @@ export function PlacementDialog({
       </div>
       <EmployerPicker
         value={employerId}
-        onChange={(id) => {
-          setEmployerId(id);
-          setDuplicate('');
-        }}
+        onChange={setEmployerId}
         open={open}
         known={prefill?.employer}
       />
@@ -755,10 +1015,7 @@ export function PlacementDialog({
             id="pl-employer-name"
             maxLength={255}
             value={employerName}
-            onChange={(e) => {
-              setEmployerName(e.target.value);
-              setDuplicate('');
-            }}
+            onChange={(e) => setEmployerName(e.target.value)}
           />
         </div>
       )}
@@ -771,26 +1028,35 @@ export function PlacementDialog({
           onChange={(e) => setDesignation(e.target.value)}
         />
       </div>
-      {duplicate && (
+      {pathway && (
+        <WorkFields
+          id="pl-work"
+          pathway={pathway}
+          value={work}
+          onChange={setWork}
+          options={options.data}
+        />
+      )}
+      {pathway === SELF_EMPLOYMENT && (
+        <BusinessFields
+          id="pl-business"
+          value={business}
+          onChange={setBusiness}
+          options={options.data}
+        />
+      )}
+      {running && (
         <div
           role="alert"
           className="space-y-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm"
         >
-          <p className="font-medium">{duplicate}</p>
+          <p className="font-medium">{running}</p>
           <p>
-            If this is a separate job or spell,{' '}
-            <button
-              type="button"
-              className="font-medium underline"
-              disabled={save.isPending}
-              onClick={() => {
-                setDuplicate('');
-                save.mutate(true);
-              }}
-            >
-              record anyway
-            </button>
-            .
+            Close this form and find the running placement in the youth&apos;s
+            placements. Use <strong>End</strong> if the job is over, or{' '}
+            <strong>Changed employer</strong> if they moved straight to this
+            one. A placement that has already ended can be recorded here with
+            its end date.
           </p>
         </div>
       )}
@@ -861,6 +1127,146 @@ export function EndPlacementDialog({
           onChange={(e) => setReason(e.target.value)}
         />
       </div>
+    </FormModal>
+  );
+}
+
+/** D-081: the youth left one job for another. Ends the running placement ("Changed employer")
+ * and records the new one in one step; if either part is refused, nothing changes. */
+export function ChangeEmployerDialog({
+  open,
+  onOpenChange,
+  placement,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  placement: PlacementRow;
+}) {
+  const refresh = useRefreshCases();
+  const options = usePlacementOptions(open);
+  const [endDate, setEndDate] = useState('');
+  const [start, setStart] = useState('');
+  const [pathway, setPathway] = useState(placement.pathway ?? '');
+  const [employerId, setEmployerId] = useState('');
+  const [employerName, setEmployerName] = useState('');
+  const [designation, setDesignation] = useState('');
+  const [business, setBusiness] = useState(() => emptyBusiness());
+  const [work, setWork] = useState(() => emptyWork());
+  const [error, setError] = useState('');
+  const change = useMutation({
+    mutationFn: () =>
+      post(`/placements/${placement.id}/change-employer`, {
+        end_date: endDate,
+        start_date: start,
+        pathway,
+        employer_id: employerId || null,
+        employer_name_source: employerId ? '' : employerName,
+        designation,
+        ...businessBody(pathway, business),
+        ...workBody(pathway, work, options.data),
+      }),
+    onSuccess: () => {
+      toast.success('Old placement ended and new placement recorded.');
+      refresh();
+      onOpenChange(false);
+    },
+    onError: (e) => setError(errorText(e)),
+  });
+  return (
+    <FormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Changed employer"
+      description={`${placement.participant}: ends the placement${placement.employer ? ` at ${placement.employer}` : ''} with the reason "Changed employer" and starts the new one. Both stay in their history.`}
+      submitLabel="End and record new"
+      pending={change.isPending}
+      error={error}
+      onSubmit={() => {
+        if (!endDate) return setError('Enter the date the old job ended.');
+        if (!start) return setError('Enter the date the new job started.');
+        if (start < endDate)
+          return setError('The new job cannot start before the old one ended.');
+        if (!pathway) return setError('Choose the pathway.');
+        setError('');
+        change.mutate();
+      }}
+    >
+      <div className="space-y-1.5">
+        <Label htmlFor="ce-end">
+          Old job ended on
+          <Required />
+        </Label>
+        <Input
+          id="ce-end"
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="ce-start">
+          New job started on
+          <Required />
+        </Label>
+        <Input
+          id="ce-start"
+          type="date"
+          value={start}
+          onChange={(e) => setStart(e.target.value)}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label>
+          Pathway
+          <Required />
+        </Label>
+        <SelectField
+          label="Choose pathway"
+          value={pathway}
+          options={asOptions(options.data?.pathways)}
+          onChange={setPathway}
+        />
+      </div>
+      <EmployerPicker value={employerId} onChange={setEmployerId} open={open} />
+      {!employerId && (
+        <div className="space-y-1.5">
+          <Label htmlFor="ce-employer-name">
+            New employer or business name (if not on the register)
+          </Label>
+          <Input
+            id="ce-employer-name"
+            maxLength={255}
+            value={employerName}
+            onChange={(e) => setEmployerName(e.target.value)}
+          />
+        </div>
+      )}
+      <div className="space-y-1.5">
+        <Label htmlFor="ce-designation">Role or designation</Label>
+        <Input
+          id="ce-designation"
+          maxLength={255}
+          value={designation}
+          onChange={(e) => setDesignation(e.target.value)}
+        />
+      </div>
+      {pathway && (
+        <WorkFields
+          id="ce-work"
+          pathway={pathway}
+          value={work}
+          onChange={setWork}
+          options={options.data}
+        />
+      )}
+      {pathway === SELF_EMPLOYMENT && (
+        <BusinessFields
+          id="ce-business"
+          value={business}
+          onChange={setBusiness}
+          options={options.data}
+        />
+      )}
     </FormModal>
   );
 }

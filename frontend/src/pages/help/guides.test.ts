@@ -19,7 +19,7 @@ const paths = new Set(
   [...routing.matchAll(/path="([^"]+)"/g)].map((m) => m[1]),
 );
 const defined = (p: string) =>
-  paths.has(p) || p === '/administration/programmes';
+  paths.has(p) || p === '/administration/projects';
 
 describe('help guides', () => {
   it('have unique slugs and known groups', () => {

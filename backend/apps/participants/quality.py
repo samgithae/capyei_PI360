@@ -4,7 +4,7 @@ Each rule is a plain, checkable statement about one record, with what to do abou
 only at what PI360 holds, so a record that fails is either wrong in the MIS or incomplete there;
 the fix is made on the youth's profile and, for MIS-owned values, travels back through the
 correction export (see ``corrections``). Age limits are working defaults until CAP-YEI decides
-the programme's age range."""
+the age range."""
 
 from dataclasses import dataclass
 
@@ -121,7 +121,7 @@ def records(user, *, rule=None, q="", offset=0, size=25) -> dict:
     total = qs.count()
     page = list(
         qs.select_related("origin_county")
-        .prefetch_related("enrollments__programme")
+        .prefetch_related("enrollments__project")
         .order_by("full_name_source", "pk")[offset : offset + size]
     )
     ids = [p.pk for p in page]
@@ -137,7 +137,7 @@ def records(user, *, rule=None, q="", offset=0, size=25) -> dict:
                 "id": str(p.pk),
                 "name": p.full_name_source,
                 "county": p.origin_county.name if p.origin_county_id else "",
-                "programmes": sorted({e.programme.name for e in p.enrollments.all()}),
+                "projects": sorted({e.project.name for e in p.enrollments.all()}),
                 "enrollment_numbers": sorted(
                     e.source_enrollment_no for e in p.enrollments.all() if e.source_enrollment_no
                 ),

@@ -14,7 +14,9 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core import mail
+from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.api import access
@@ -24,7 +26,7 @@ from apps.participants import services as participants
 from apps.placements import services as placements
 from apps.referrals import services as referrals
 
-from .models import YouthAccount, YouthInvite
+from .models import RegistrationRequest, YouthAccount, YouthInvite
 
 ROLE = "Youth"
 SELF_SERVICE = "youth.self_service"
@@ -60,6 +62,11 @@ def _account(participant):
     return YouthAccount.objects.select_related("user").filter(participant=participant).first()
 
 
+def has_account(participant_id) -> bool:
+    """True if this youth record already has a portal account (NEW-077 merge check)."""
+    return YouthAccount.objects.filter(participant_id=participant_id).exists()
+
+
 def invite_status(participant) -> dict:
     account = _account(participant)
     if account is None:
@@ -81,14 +88,19 @@ def invite_status(participant) -> dict:
 
 
 @transaction.atomic
-def send_invite(*, actor, participant, email):
-    """Invite the youth to an address on their record. Replaces a pending invite."""
-    if not access.has_permission(actor, "participants.view_contact"):
-        raise PortalError("email", "You need access to contact details to send an invite.")
+def send_invite(*, actor, participant, email, verified_address=False):
+    """Invite the youth to an address on their record. Replaces a pending invite.
+
+    ``verified_address`` is only for a sign-up the youth confirmed themselves (NEW-047): the
+    address came from them, so it need not be on the record and the officer needs no access to
+    contact details."""
     wanted = (email or "").strip().lower()
-    on_record = {e.strip().lower() for e in participants.email_addresses(participant)}
-    if wanted not in on_record:
-        raise PortalError("email", "Choose an e-mail address that is on this youth's record.")
+    if not verified_address:
+        if not access.has_permission(actor, "participants.view_contact"):
+            raise PortalError("email", "You need access to contact details to send an invite.")
+        on_record = {e.strip().lower() for e in participants.email_addresses(participant)}
+        if wanted not in on_record:
+            raise PortalError("email", "Choose an e-mail address that is on this youth's record.")
     existing = _account(participant)
     if existing is not None:
         if existing.user.is_active:
@@ -341,3 +353,302 @@ def placement(*, user) -> dict:
         "placements": placements.for_enrollments(participants.enrollment_ids(pid)),
         "referrals": referrals.learner_placed(pid),
     }
+
+
+# --- self-registration requests (NEW-044, NEW-072; D-083) ---------------------------------
+# Switched off by the flag `portal.self_registration`. The public sign-up endpoints (NEW-045) and
+# approve/link (NEW-046) build on this; for now stewards can see the queue and reject or delete.
+
+REGISTRATION_FLAG = "portal.self_registration"
+OTP_MAX_ATTEMPTS = 5
+
+
+class RegistrationFailure(Exception):
+    def __init__(self, message, field="non_field_errors"):
+        super().__init__(message)
+        self.message, self.field = message, field
+
+
+def _normal_phone(value: str) -> str:
+    digits = "".join(ch for ch in (value or "") if ch.isdigit())
+    return ("+" if (value or "").strip().startswith("+") else "") + digits
+
+
+def start_registration(
+    *, given_name, family_name, date_of_birth, gender="", email="", phone="",
+    programme_code="", enrollment_no="", consent_version="", ip="",
+):  # fmt: skip
+    """Record a sign-up. Returns the request and the raw token and code to send; only their
+    hashes are stored, and the caller must not log them."""
+    email, phone = (email or "").strip().lower(), _normal_phone(phone)
+    if not (email or phone):
+        raise RegistrationFailure("Give an e-mail address or a phone number.", "email")
+    token, otp = secrets.token_urlsafe(32), f"{secrets.randbelow(10**6):06d}"
+    req = RegistrationRequest.objects.create(
+        given_name=given_name.strip(), family_name=family_name.strip(),
+        date_of_birth=date_of_birth, gender=gender, email=email, phone=phone,
+        claimed_programme_code=programme_code.strip(), claimed_enrollment_no=enrollment_no.strip(),
+        verify_token_hash=_hash(token) if email else "",
+        otp_hash=_hash(f"{phone}:{otp}") if phone else "",
+        verify_expires_at=timezone.now() + timedelta(days=INVITE_DAYS),
+        consent_version=consent_version,
+        ip_hash=_hash(f"{settings.SECRET_KEY}:{ip}") if ip else "",
+    )  # fmt: skip
+    return req, token, otp
+
+
+def registration_queue(*, status="", search=""):
+    qs = RegistrationRequest.objects.all()
+    if status:
+        qs = qs.filter(status=status)
+    if search.strip():
+        s = search.strip()
+        qs = qs.filter(
+            Q(given_name__icontains=s) | Q(family_name__icontains=s)
+            | Q(email__icontains=s) | Q(phone__icontains=s)
+        )  # fmt: skip
+    return qs
+
+
+def registration_counts() -> dict:
+    rows = RegistrationRequest.objects.values("status").annotate(n=Count("pk"))
+    return {r["status"]: r["n"] for r in rows}
+
+
+def _open(req):
+    if req.status in (RegistrationRequest.APPROVED, RegistrationRequest.LINKED):
+        raise RegistrationFailure("This request has already been settled.")
+    return req
+
+
+@transaction.atomic
+def reject_registration(*, actor, req, reason):
+    if not (reason or "").strip():
+        raise RegistrationFailure("Say why you are rejecting this request.", "reason")
+    _open(req)
+    before = req.status
+    req.status = RegistrationRequest.REJECTED
+    req.reviewed_by, req.reviewed_at = actor, timezone.now()
+    req.decision_reason = reason.strip()
+    req.save(update_fields=["status", "reviewed_by", "reviewed_at", "decision_reason"])
+    audit.record(
+        actor=actor, action="registration.rejected", object_type="registration",
+        object_id=req.pk, before={"status": before}, after={"status": req.status}, reason=reason,
+    )  # fmt: skip
+    return req
+
+
+@transaction.atomic
+def delete_registration(*, actor, req):
+    """Rejected and expired requests stay until an administrator deletes them (D-083)."""
+    if req.status not in (RegistrationRequest.REJECTED, RegistrationRequest.EXPIRED):
+        raise RegistrationFailure("Only rejected or expired requests can be deleted.")
+    pk = req.pk
+    req.delete()
+    audit.record(
+        actor=actor, action="registration.deleted", object_type="registration", object_id=pk,
+        before={"status": req.status}, after=None, reason="",
+    )  # fmt: skip
+
+
+# --- public sign-up (NEW-045) -----------------------------------------------------------------
+# Every answer to the public looks the same whether or not the person, e-mail or number is already
+# known, so the form cannot be used to find out who is in the system. SMS is not connected, so for
+# now a sign-up is verified by e-mail only (phone verification arrives with an SMS channel).
+
+REGISTER_PER_CONTACT = 3  # sign-ups per e-mail address per hour; extras are dropped quietly
+OPEN_STATES = (RegistrationRequest.PENDING,)
+
+
+def _contact_allowed(email: str) -> bool:
+    key = f"register:{_hash(email)}"
+    cache.add(key, 0, timeout=3600)
+    try:
+        return cache.incr(key) <= REGISTER_PER_CONTACT
+    except ValueError:  # key expired between add and incr
+        return True
+
+
+def _send_verification(email: str, token: str):
+    link = f"{settings.FRONTEND_URL.rstrip('/')}/register/verify#token={token}"
+    mail.send_mail(
+        "Confirm your CAP-YEI PI 360 registration",
+        f"Hello,\n\nUse this link to confirm your e-mail address. It works once and expires in "
+        f"{INVITE_DAYS} days.\n\n{link}\n\nIf you did not sign up, ignore this message.",
+        None,
+        [email],
+    )
+
+
+def submit_registration(
+    *, given_name, family_name, date_of_birth, email, gender="", phone="",
+    programme_code="", enrollment_no="", ip="",
+):  # fmt: skip
+    """Take a sign-up. Returns nothing whatever happened, so the reply is always the same."""
+    email = (email or "").strip().lower()
+    if not _contact_allowed(email):
+        return
+    existing = RegistrationRequest.objects.filter(email=email).first()
+    if existing is not None:
+        if existing.status in OPEN_STATES:  # they lost the mail: send a fresh link, same request
+            token = secrets.token_urlsafe(32)
+            existing.verify_token_hash = _hash(token)
+            existing.verify_expires_at = timezone.now() + timedelta(days=INVITE_DAYS)
+            existing.save(update_fields=["verify_token_hash", "verify_expires_at"])
+            _send_verification(email, token)
+        return  # already known: say nothing, send nothing
+    req, token, _otp = start_registration(
+        given_name=given_name, family_name=family_name, date_of_birth=date_of_birth,
+        gender=gender, email=email, phone="", programme_code=programme_code,
+        enrollment_no=enrollment_no, consent_version=CONSENT_VERSION, ip=ip,
+    )  # fmt: skip
+    if phone:  # kept for the steward; not verified until SMS exists
+        req.phone = _normal_phone(phone)
+        req.save(update_fields=["phone"])
+    audit.record(
+        actor=None, action="registration.submitted", object_type="registration",
+        object_id=req.pk, after={"status": req.status},
+    )  # fmt: skip
+    _send_verification(email, token)
+
+
+def verify_registration(token: str):
+    """Confirm the e-mail. One generic failure for a wrong, used or expired link."""
+    req = RegistrationRequest.objects.filter(
+        verify_token_hash=_hash(token or ""), status=RegistrationRequest.PENDING
+    ).first()
+    if req is None or not req.verify_token_hash or req.verify_expires_at < timezone.now():
+        raise RegistrationFailure("This link is not valid or has expired.", "token")
+    req.email_verified_at = timezone.now()
+    req.status = RegistrationRequest.VERIFIED
+    req.verify_token_hash = ""  # single use
+    req.save(update_fields=["email_verified_at", "status", "verify_token_hash"])
+    audit.record(
+        actor=None, action="registration.verified", object_type="registration",
+        object_id=req.pk, after={"status": req.status},
+    )  # fmt: skip
+
+
+# --- officer review: link or create (NEW-046) -----------------------------------------------
+
+REVIEWABLE = (RegistrationRequest.VERIFIED, RegistrationRequest.REVIEW)
+
+
+def _reviewable(req):
+    if req.status not in REVIEWABLE:
+        raise RegistrationFailure(
+            "Only a verified request can be reviewed. Wait until the youth confirms their e-mail."
+        )
+
+
+def registration_matches(*, actor, req) -> list[dict]:
+    """People the officer may see who look like this sign-up. Also remembers whether any exist
+    (``possible_duplicate``), so the queue can show it."""
+    found = participants.similar_visible(
+        actor,
+        name=f"{req.given_name} {req.family_name}",
+        phone=req.phone,
+        birth_date=req.date_of_birth,
+    )
+    flag = bool(found)
+    if flag != req.possible_duplicate and req.status in REVIEWABLE:
+        req.possible_duplicate = flag
+        req.save(update_fields=["possible_duplicate"])
+    return found
+
+
+@transaction.atomic
+def link_registration(*, actor, req, participant_id, reason):
+    """Attach the sign-up to a record that already exists. Never creates a person."""
+    _reviewable(req)
+    if not (reason or "").strip():
+        raise RegistrationFailure("Say why you are linking this request.", "reason")
+    if not participants.is_visible(actor, participant_id):
+        raise RegistrationFailure("That youth record was not found.", "participant_id")
+    if (
+        RegistrationRequest.objects.filter(
+            participant_id=participant_id,
+            status__in=[RegistrationRequest.LINKED, RegistrationRequest.APPROVED],
+        )
+        .exclude(pk=req.pk)
+        .exists()
+    ):
+        raise RegistrationFailure(
+            "Another sign-up is already linked to that record.", "participant_id"
+        )
+    before = req.status
+    req.status, req.participant_id = RegistrationRequest.LINKED, participant_id
+    req.reviewed_by, req.reviewed_at, req.decision_reason = actor, timezone.now(), reason.strip()
+    req.save(
+        update_fields=["status", "participant", "reviewed_by", "reviewed_at", "decision_reason"]
+    )
+    audit.record(
+        actor=actor, action="registration.linked", object_type="registration", object_id=req.pk,
+        before={"status": before}, after={"status": req.status, "participant": str(participant_id)},
+        reason=reason,
+    )  # fmt: skip
+    # The sign-up details were typed by the youth, not checked: put the record on the work list.
+    linked = participants.find_active(participant_id)
+    if linked is not None:
+        participants.flag_for_review(p=linked, reason="self_registration", actor=actor)
+    return req
+
+
+@transaction.atomic
+def create_registration(*, actor, req, reason, confirm_similar=False):
+    """Make a new youth record from the sign-up. When someone similar is already on file the
+    officer must say they have looked (``confirm_similar``); otherwise it is refused."""
+    _reviewable(req)
+    if not (reason or "").strip():
+        raise RegistrationFailure("Say why you are creating a new record.", "reason")
+    similar = registration_matches(actor=actor, req=req)
+    if similar and not confirm_similar:
+        raise RegistrationFailure(
+            "Someone similar is already on file. Link to them, or confirm this is a new person.",
+            "confirm_similar",
+        )
+    p = participants.create_from_signup(
+        actor=actor,
+        req_data={
+            "given_name": req.given_name, "family_name": req.family_name, "gender": req.gender,
+            "date_of_birth": req.date_of_birth, "email": req.email, "phone": req.phone,
+        },
+    )  # fmt: skip
+    before = req.status
+    req.status, req.participant = RegistrationRequest.APPROVED, None
+    req.participant_id = p.pk
+    req.reviewed_by, req.reviewed_at, req.decision_reason = actor, timezone.now(), reason.strip()
+    req.save(
+        update_fields=["status", "participant", "reviewed_by", "reviewed_at", "decision_reason"]
+    )
+    audit.record(
+        actor=actor, action="registration.created_new", object_type="registration",
+        object_id=req.pk, before={"status": before},
+        after={"status": req.status, "participant": str(p.pk), "similar_confirmed": bool(similar)},
+        reason=reason,
+    )  # fmt: skip
+    return req
+
+
+def invite_registrant(*, actor, req) -> dict:
+    """After an officer approves or links a sign-up, send the normal youth invite to the address
+    the youth confirmed (NEW-047). It is the same invite and activation as for staff-sent ones, so
+    there is still one account per youth record. The decision stands even if the invite cannot be
+    sent; the officer can then use the invite card on the youth's page."""
+    if req.status not in (RegistrationRequest.APPROVED, RegistrationRequest.LINKED):
+        return {"sent": False, "reason": "not_decided"}
+    if req.email_verified_at is None:
+        return {"sent": False, "reason": "unverified_email"}
+    participant = participants.find_active(req.participant_id)
+    if participant is None:
+        return {"sent": False, "reason": "record_unavailable"}
+    account = _account(participant)
+    if account is not None and account.user.is_active:
+        return {"sent": False, "reason": "already_has_account"}
+    try:
+        send_invite(actor=actor, participant=participant, email=req.email, verified_address=True)
+    except PortalError as exc:
+        return {"sent": False, "reason": "refused", "message": exc.message}
+    except Exception:  # noqa: BLE001 - mail down: keep the decision, tell the officer
+        return {"sent": False, "reason": "mail_failed"}
+    return {"sent": True, "reason": ""}

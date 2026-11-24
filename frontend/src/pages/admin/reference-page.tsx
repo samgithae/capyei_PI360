@@ -64,17 +64,17 @@ const STATUS = ['active', 'planned', 'closed'];
 
 /** What can be managed, and the extra fields each kind carries. The server owns the rules. */
 export const REFERENCE_KINDS: Record<string, KindDef> = {
-  programmes: {
-    title: 'Programmes',
-    singular: 'programme',
-    description: 'The funded programmes that youth belong to.',
+  projects: {
+    title: 'Projects',
+    singular: 'project',
+    description: 'The funded projects that youth belong to.',
     fields: [
       { key: 'funder', label: 'Funder', type: 'text', column: true },
       { key: 'start', label: 'Starts', type: 'date' },
       { key: 'end', label: 'Ends', type: 'date' },
       {
         key: 'status',
-        label: 'Programme status',
+        label: 'Project status',
         type: 'select',
         options: STATUS,
       },
@@ -87,10 +87,10 @@ export const REFERENCE_KINDS: Record<string, KindDef> = {
       'An intake of youth at one training institution. Courses are attached under “Cohort courses”.',
     fields: [
       {
-        key: 'programme',
-        label: 'Programme',
+        key: 'project',
+        label: 'Project',
         type: 'fk',
-        fk: 'programmes',
+        fk: 'projects',
         required: true,
         column: true,
       },
@@ -130,13 +130,13 @@ export const REFERENCE_KINDS: Record<string, KindDef> = {
   courses: {
     title: 'Courses',
     singular: 'course',
-    description: 'Courses a programme teaches.',
+    description: 'Courses a project teaches.',
     fields: [
       {
-        key: 'programme',
-        label: 'Programme',
+        key: 'project',
+        label: 'Project',
         type: 'fk',
-        fk: 'programmes',
+        fk: 'projects',
         required: true,
         column: true,
       },
@@ -277,6 +277,40 @@ export const REFERENCE_KINDS: Record<string, KindDef> = {
       { key: 'category', label: 'Category', type: 'text', column: true },
     ],
   },
+  'employment-types': {
+    title: 'Employment types',
+    singular: 'employment type',
+    description:
+      'The type of work a placement is (B25, approved by CAP-YEI). Self-employment is reported apart from formal employment. Retiring one hides it from new placements; existing placements keep it.',
+    fields: [],
+  },
+  'leaving-reasons': {
+    title: 'Reasons for leaving',
+    singular: 'reason for leaving',
+    description:
+      'Why a youth left a placement, recorded at a follow-up (B25, approved by CAP-YEI). "Other" asks the officer for a note. Retiring one hides it from new follow-ups; existing ones keep it.',
+    fields: [],
+  },
+  'salary-bands': {
+    title: 'Salary bands',
+    singular: 'salary band',
+    description:
+      "Monthly salary bands in KES (A3). CAP-YEI approved recording a band but has not yet given the ranges, so none are set up: add them once agreed. With a lowest and highest amount, a band is filled in from the exact salary. Leave one blank for an open-ended band. Only staff with the restricted economic-data grant see a youth's salary or band.",
+    fields: [
+      {
+        key: 'min_amount',
+        label: 'Lowest (KES a month)',
+        type: 'number',
+        column: true,
+      },
+      {
+        key: 'max_amount',
+        label: 'Highest (KES a month)',
+        type: 'number',
+        column: true,
+      },
+    ],
+  },
   sectors: {
     title: 'Sectors',
     singular: 'sector',
@@ -302,10 +336,10 @@ const IMPORT_COLUMNS: Record<string, string> = {
     'code*, name*, rank* (a whole number; higher = more advanced)',
   skills: 'code*, name*, category',
   institutions: 'code*, name*, kind, county* (code or name)',
-  programmes: 'code*, name*, funder, start, end, status',
-  courses: 'code*, name*, programme*, level, sector',
+  projects: 'code*, name*, funder, start, end, status',
+  courses: 'code*, name*, project*, level, sector',
   cohorts:
-    'code*, name*, programme*, institution*, intake_year*, batch_no*, phase, year_of_study, start, end, status',
+    'code*, name*, project*, institution*, intake_year*, batch_no*, phase, year_of_study, start, end, status',
   'cohort-courses': 'cohort*, course*',
 };
 
@@ -341,9 +375,9 @@ export function ReferencePage({ kind }: { kind: string }) {
   const fkKinds = [
     ...new Set([
       ...def.fields.filter((f) => f.fk).map((f) => f.fk!),
-      // cohort and course pickers label each option with its programme
+      // cohort and course pickers label each option with its project
       ...(def.fields.some((f) => f.fk === 'cohorts' || f.fk === 'courses')
-        ? ['programmes']
+        ? ['projects']
         : []),
     ]),
   ];
@@ -636,7 +670,7 @@ export function ReferencePage({ kind }: { kind: string }) {
           onOpenChange={setLinking}
           cohorts={parentRows['cohorts'] as Row[]}
           courses={parentRows['courses'] as Row[]}
-          programmes={parentRows['programmes'] as Row[]}
+          projects={parentRows['projects'] as Row[]}
           links={list.data ?? []}
           onDone={refresh}
         />
@@ -713,7 +747,7 @@ export function ReferencePage({ kind }: { kind: string }) {
                           id: p.id,
                           name:
                             f.fk === 'cohorts' || f.fk === 'courses'
-                              ? `${p.name} (${nameOf('programmes', p.programme) || p.code})`
+                              ? `${p.name} (${nameOf('projects', p.project) || p.code})`
                               : (p.name ?? ''),
                         }))
                 }

@@ -96,7 +96,7 @@ def similar_to(*, name: str, scope, phone: str = "", birth_date=None, limit: int
             "name": full,
             "status": status,
             "county": context.get(pid, {}).get("county", ""),
-            "programmes": context.get(pid, {}).get("programmes", []),
+            "projects": context.get(pid, {}).get("projects", []),
             "reasons": [{"code": r, "text": REASONS[r]} for r in sorted(rs, key=_ORDER.index)],
         }
         for pid, full, status, _ratio_, rs in found
@@ -104,16 +104,16 @@ def similar_to(*, name: str, scope, phone: str = "", birth_date=None, limit: int
 
 
 def _context(scope, ids) -> dict:
-    """County and programmes for a few matches, so the person deciding can tell them apart."""
+    """County and projects for a few matches, so the person deciding can tell them apart."""
     rows = (
         scope.filter(pk__in=ids)
         .select_related("origin_county")
-        .prefetch_related("enrollments__programme")
+        .prefetch_related("enrollments__project")
     )
     return {
         p.pk: {
             "county": p.origin_county.name if p.origin_county_id else "",
-            "programmes": sorted({e.programme.name for e in p.enrollments.all()}),
+            "projects": sorted({e.project.name for e in p.enrollments.all()}),
         }
         for p in rows
     }

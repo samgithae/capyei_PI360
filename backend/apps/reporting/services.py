@@ -47,7 +47,7 @@ NOT_CAPTURED = [
     "Training completion (completion dates are not reliably imported)",
     "Disability, industry and skills demand (not collected)",
     "Predictive intelligence (needs approved rules and enough history)",
-    "Staff productivity and programme performance (planned next)",
+    "Staff productivity and project performance (planned next)",
 ]
 
 

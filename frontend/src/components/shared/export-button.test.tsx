@@ -207,7 +207,7 @@ describe('ExportButton', () => {
   it('sends the corrections list its state and name filters', async () => {
     permissions = ['exports.identifiable'];
     postFile.mockResolvedValue({ blob: new Blob(['x']), filename: 'a.csv' });
-    show('state=conflict&q=ann&offset=20&programme=p1', 'corrections');
+    show('state=conflict&q=ann&offset=20&project=p1', 'corrections');
     fireEvent.click(screen.getByRole('button', { name: /export/i }));
     await screen.findByLabelText('Phone');
     expect(getFields).toHaveBeenCalledWith('/exports/fields/corrections');

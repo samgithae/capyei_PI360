@@ -1,6 +1,6 @@
 export interface Enrollment {
   id: string;
-  programme: string;
+  project: string;
   cohort: string;
   course: string;
   institution: string;
@@ -12,6 +12,12 @@ export interface Enrollment {
   exit_reason?: string;
 }
 export interface Detail {
+  review?: {
+    state: 'none' | 'needs_review' | 'reviewed';
+    reason: string;
+    reason_label: string;
+    since: string | null;
+  };
   archived: boolean;
   id: string;
   name: string;

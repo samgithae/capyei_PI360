@@ -38,7 +38,7 @@ def grant(admin, user):
         actor=admin,
         user=user,
         permission="exports.identifiable",
-        purpose="Programme reporting",
+        purpose="Project reporting",
         expires_at=timezone.now() + timedelta(days=3),
     )
 

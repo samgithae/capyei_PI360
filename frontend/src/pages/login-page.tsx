@@ -204,7 +204,7 @@ export function LoginPage() {
             <span className="font-semibold text-foreground">
               placement outcomes
             </span>{' '}
-            across programmes and counties, tracked in one place.
+            across projects and counties, tracked in one place.
           </div>
         </div>
         {/* Photos fill the remaining height (no fixed crop) */}

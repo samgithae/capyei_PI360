@@ -56,14 +56,14 @@ export function PromoteExtraPage() {
   const summary = useQuery({
     queryKey: ['import-extra', asked],
     queryFn: () =>
-      api<Summary>(`/imports/extra?programme=${encodeURIComponent(asked)}`),
+      api<Summary>(`/imports/extra?project=${encodeURIComponent(asked)}`),
     enabled: !!asked,
   });
 
   const promote = useMutation({
     mutationFn: () =>
       post<Batch>('/imports/extra/promote', {
-        programme_code: asked,
+        project_code: asked,
         columns: Object.fromEntries(
           Object.entries(mapping).filter(([, f]) => f),
         ),
@@ -98,11 +98,11 @@ export function PromoteExtraPage() {
 
         <Card className="max-w-xl">
           <CardContent className="space-y-3">
-            <h2 className="font-medium">1. Which programme?</h2>
+            <h2 className="font-medium">1. Which project?</h2>
             <p className="text-sm text-muted-foreground">
               Use this when placement columns were kept as extra data while
               loading people, so the file need not be uploaded again. Type the
-              programme code (for example GB).
+              project code (for example GB).
             </p>
             <form
               className="flex gap-2"
@@ -113,7 +113,7 @@ export function PromoteExtraPage() {
               }}
             >
               <Input
-                aria-label="Programme code"
+                aria-label="Project code"
                 className="w-40"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}

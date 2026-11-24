@@ -234,7 +234,7 @@ const ALERT_ICON: Record<string, { icon: ReactNode; tone: Tone }> = {
 
 const GENDER_COLORS = ['#1b84ff', '#f1416c', '#7239ea', '#8c8c9a'];
 
-/** Programme dashboard (T-070). Every number comes from one endpoint and links to the list of
+/** Project dashboard (T-070). Every number comes from one endpoint and links to the list of
  * records it counts; sections the user may not open are left out by the API. */
 export function OverviewPage() {
   const { can } = useAuth();
@@ -275,7 +275,7 @@ export function OverviewPage() {
       <div className="container-fluid space-y-5">
         <PageHeader
           crumbs={[{ label: 'Dashboard' }]}
-          title="Programme dashboard"
+          title="Project dashboard"
           description="Are young people moving from registration and training into work, and where are we losing them? Click any number to see the records."
           actions={
             <div className="flex flex-wrap items-center gap-2">

@@ -17,6 +17,15 @@ import {
 } from '@/components/ui/table';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState, LoadingState } from '@/components/states';
+import {
+  CriticalList,
+  PlacementResolver,
+  ResolutionList,
+  unchosen,
+  type Keep,
+  type Resolution,
+  type Review,
+} from './merge-conflicts';
 
 interface Person {
   id: string;
@@ -26,7 +35,7 @@ interface Person {
   date_of_birth: string | null;
   status: string;
   county: string;
-  programmes: string[];
+  projects: string[];
   cohorts: string[];
   enrollment_numbers: string[];
   phones?: string[];
@@ -39,6 +48,12 @@ interface Candidate {
   note: string;
   a: Person;
   b: Person;
+  pending?: {
+    survivor: string;
+    reason: string;
+    saved_at: string;
+    resolutions: Resolution[];
+  };
 }
 interface MergeRow {
   id: string;
@@ -59,7 +74,7 @@ const ROWS: [string, (p: Person) => string, string?][] = [
   ['Date of birth', (p) => p.date_of_birth ?? '', 'date_of_birth'],
   ['County', (p) => p.county, 'origin_county_id'],
   ['Status', (p) => p.status, 'status'],
-  ['Programmes', (p) => p.programmes.join(', ')],
+  ['Projects', (p) => p.projects.join(', ')],
   ['Cohorts', (p) => p.cohorts.join(', ')],
   ['Enrollment no.', (p) => p.enrollment_numbers.join(', ')],
   ['Phone', (p) => (p.phones ?? []).join(', ')],
@@ -79,14 +94,28 @@ function CandidateCard({
   onDone: () => void;
 }) {
   const [survivor, setSurvivor] = useState<'a' | 'b'>('a');
-  const [take, setTake] = useState<Set<string>>(new Set());
+  const [choices, setChoices] = useState<Record<string, Keep>>({});
   const [reason, setReason] = useState('');
   const other = survivor === 'a' ? c.b : c.a;
+  // What the server would do with this survivor: gaps filled, conflicts to choose, holds.
+  const review = useQuery({
+    queryKey: ['duplicate-review', c.id, c[survivor].id],
+    queryFn: () =>
+      api<Review>(
+        `/participants/duplicates/${c.id}/review?survivor=${c[survivor].id}`,
+      ),
+    enabled: canMerge,
+  });
+  const byField = Object.fromEntries(
+    (review.data?.fields ?? []).map((f) => [f.field, f]),
+  );
+  const open = unchosen(review.data?.fields ?? [], choices);
+  const critical = review.data?.critical ?? [];
   const merge = useMutation({
     mutationFn: () =>
       post(`/participants/duplicates/${c.id}/merge`, {
         survivor: c[survivor].id,
-        fields: Object.fromEntries([...take].map((f) => [f, 'merged'])),
+        fields: choices,
         reason,
       }),
     onSuccess: onDone,
@@ -123,10 +152,10 @@ function CandidateCard({
                         checked={survivor === k}
                         onChange={() => {
                           setSurvivor(k);
-                          setTake(new Set());
+                          setChoices({});
                         }}
                       />
-                      Keep this record
+                      Keep record {k.toUpperCase()}
                     </label>
                   ) : (
                     `Record ${k.toUpperCase()}`
@@ -140,29 +169,20 @@ function CandidateCard({
               const va = get(c.a);
               const vb = get(c.b);
               if (!va && !vb) return null;
-              const differs = va !== vb;
               return (
                 <TableRow key={label}>
                   <TableCell>{label}</TableCell>
                   <TableCell>{va || '-'}</TableCell>
                   <TableCell>
                     {vb || '-'}
-                    {canMerge && differs && field && (
-                      <label className="ml-3 text-xs text-muted-foreground">
-                        <input
-                          type="checkbox"
-                          className="mr-1"
-                          checked={take.has(field)}
-                          onChange={(e) => {
-                            const next = new Set(take);
-                            if (e.target.checked) next.add(field);
-                            else next.delete(field);
-                            setTake(next);
-                          }}
-                        />
-                        {/* the checkbox always refers to the record that is NOT kept */}
-                        use {survivor === 'a' ? 'B' : 'A'}'s value
-                      </label>
+                    {canMerge && field && byField[field] && (
+                      <FieldChoice
+                        name={`${c.id}-${field}`}
+                        f={byField[field]}
+                        choice={choices[field]}
+                        otherLetter={survivor === 'a' ? 'B' : 'A'}
+                        onChoose={(k) => setChoices({ ...choices, [field]: k })}
+                      />
                     )}
                   </TableCell>
                 </TableRow>
@@ -170,6 +190,12 @@ function CandidateCard({
             })}
           </TableBody>
         </Table>
+        {canMerge && <CriticalList conflicts={critical} />}
+        {canMerge && open.length > 0 && (
+          <p className="text-sm">
+            Choose which value to keep for: {open.join(', ')}.
+          </p>
+        )}
         {canMerge ? (
           <div className="flex flex-wrap items-center gap-2">
             <Input
@@ -180,10 +206,15 @@ function CandidateCard({
               className="max-w-md"
             />
             <Button
-              disabled={!reason.trim() || merge.isPending}
+              disabled={
+                !reason.trim() ||
+                merge.isPending ||
+                !review.data ||
+                open.length > 0
+              }
               onClick={() => merge.mutate()}
             >
-              Merge
+              {critical.length ? 'Save merge, pending resolution' : 'Merge'}
             </Button>
             <Button
               variant="outline"
@@ -197,6 +228,149 @@ function CandidateCard({
           <p className="text-sm text-muted-foreground">
             You can review this pair; merging needs the merge permission.
           </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {errorText(error)}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function FieldChoice({
+  name,
+  f,
+  choice,
+  otherLetter,
+  onChoose,
+}: {
+  name: string;
+  f: Review['fields'][number];
+  choice?: Keep;
+  otherLetter: string;
+  onChoose: (k: Keep) => void;
+}) {
+  if (!f.conflict) {
+    return f.keep === 'merged' ? (
+      <span className="ml-3 text-xs text-muted-foreground">
+        fills the gap on the kept record
+      </span>
+    ) : null;
+  }
+  // A real difference: never guessed, the steward picks one side.
+  return (
+    <span className="ml-3 inline-flex gap-3 text-xs">
+      {(
+        [
+          ['survivor', `keep ${otherLetter === 'A' ? 'B' : 'A'}'s value`],
+          ['merged', `use ${otherLetter}'s value`],
+        ] as const
+      ).map(([k, label]) => (
+        <label key={k} className="flex items-center gap-1">
+          <input
+            type="radio"
+            name={name}
+            checked={choice === k}
+            onChange={() => onChoose(k)}
+          />
+          {label}
+        </label>
+      ))}
+    </span>
+  );
+}
+
+/** A merge saved as pending resolution: show what holds it, let an authorised officer resolve
+ * the placement conflict, then complete. Other conflicts are fixed where the hint says. */
+function PendingCard({
+  c,
+  canMerge,
+  canEditPlacements,
+  onDone,
+}: {
+  c: Candidate;
+  canMerge: boolean;
+  canEditPlacements: boolean;
+  onDone: () => void;
+}) {
+  const qc = useQueryClient();
+  const [note, setNote] = useState('');
+  const survivorId = c.pending?.survivor ?? c.a.id;
+  const kept = survivorId === c.a.id ? c.a : c.b;
+  const merged = survivorId === c.a.id ? c.b : c.a;
+  const review = useQuery({
+    queryKey: ['duplicate-review', c.id, survivorId],
+    queryFn: () =>
+      api<Review>(
+        `/participants/duplicates/${c.id}/review?survivor=${survivorId}`,
+      ),
+    enabled: canMerge,
+  });
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['duplicate-review', c.id] });
+    onDone();
+  };
+  const complete = useMutation({
+    mutationFn: () => post(`/participants/duplicates/${c.id}/complete`),
+    onSuccess: refresh,
+  });
+  const dismiss = useMutation({
+    mutationFn: () =>
+      post(`/participants/duplicates/${c.id}/dismiss`, { reason: note }),
+    onSuccess: refresh,
+  });
+  const critical = review.data?.critical ?? [];
+  const placements = critical.find((x) => x.code === 'two_running_placements');
+  const error = complete.error ?? dismiss.error;
+  return (
+    <Card>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="warning">Pending resolution</Badge>
+          <span className="text-sm">
+            Keep <strong>{kept.name}</strong>, merge in{' '}
+            <strong>{merged.name}</strong>. Saved{' '}
+            {c.pending?.saved_at?.slice(0, 10)}. Reason: {c.pending?.reason}
+          </span>
+        </div>
+        <ResolutionList rows={c.pending?.resolutions ?? []} />
+        {review.isPending && canMerge && <LoadingState />}
+        <CriticalList conflicts={critical} />
+        {canMerge && placements && (
+          <PlacementResolver
+            candidateId={c.id}
+            conflict={placements}
+            canEditPlacements={canEditPlacements}
+            onDone={refresh}
+          />
+        )}
+        {canMerge && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              disabled={
+                !review.data || critical.length > 0 || complete.isPending
+              }
+              onClick={() => complete.mutate()}
+            >
+              Complete merge
+            </Button>
+            <Input
+              aria-label="Reason"
+              placeholder="Reason, if they are not the same person"
+              className="max-w-sm"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <Button
+              variant="outline"
+              disabled={!note.trim() || dismiss.isPending}
+              onClick={() => dismiss.mutate()}
+            >
+              Not the same person
+            </Button>
+          </div>
         )}
         {error && (
           <p role="alert" className="text-sm text-destructive">
@@ -278,7 +452,9 @@ function History({ canMerge }: { canMerge: boolean }) {
 export function DuplicatesPage() {
   const { can } = useAuth();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'open' | 'dismissed' | 'history'>('open');
+  const [tab, setTab] = useState<'open' | 'pending' | 'dismissed' | 'history'>(
+    'open',
+  );
   const queue = useQuery({
     queryKey: ['duplicates', tab],
     queryFn: () =>
@@ -314,8 +490,10 @@ export function DuplicatesPage() {
       />
       <p className="text-sm text-muted-foreground">
         Nothing here merges on its own. You decide, and every merge can be
-        undone. The matching rules are proposals until the data-readiness audit
-        confirms them.
+        undone. Where both records hold something only one youth can have (two
+        running placements, say), the merge waits under Waiting on conflicts
+        until it is resolved. The matching rules are proposals until the
+        data-readiness audit confirms them.
       </p>
       {scan.data && (
         <p role="status" className="text-sm">
@@ -327,6 +505,7 @@ export function DuplicatesPage() {
         {(
           [
             ['open', 'To review'],
+            ['pending', 'Waiting on conflicts'],
             ['dismissed', 'Dismissed'],
             ['history', 'Merge history'],
           ] as const
@@ -350,17 +529,33 @@ export function DuplicatesPage() {
           {queue.isPending && <LoadingState />}
           {queue.data?.results.length === 0 && (
             <EmptyState
-              title={tab === 'open' ? 'Nothing to review' : 'Nothing dismissed'}
+              title={
+                tab === 'open'
+                  ? 'Nothing to review'
+                  : tab === 'pending'
+                    ? 'No merge is waiting'
+                    : 'Nothing dismissed'
+              }
             />
           )}
-          {queue.data?.results.map((c) => (
-            <CandidateCard
-              key={c.id}
-              c={c}
-              canMerge={canMerge && tab === 'open'}
-              onDone={refresh}
-            />
-          ))}
+          {queue.data?.results.map((c) =>
+            c.status === 'pending' ? (
+              <PendingCard
+                key={c.id}
+                c={c}
+                canMerge={canMerge}
+                canEditPlacements={can('placements.edit')}
+                onDone={refresh}
+              />
+            ) : (
+              <CandidateCard
+                key={c.id}
+                c={c}
+                canMerge={canMerge && tab === 'open'}
+                onDone={refresh}
+              />
+            ),
+          )}
         </div>
       )}
     </div>

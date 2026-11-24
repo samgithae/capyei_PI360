@@ -71,6 +71,12 @@ MATRIX = {
     "participants/<uuid:pk>/enrollments": {"POST": "participants.edit"},
     "participants/<uuid:pk>/enrollments/<uuid:enrollment_id>": {"PATCH": "participants.edit"},
     "participants/<uuid:pk>/contacts": {"PUT": "participants.edit"},
+    "participants/review/mark": {"POST": "participants.edit"},
+    "participants/<uuid:pk>/review": {
+        "GET": "participants.view",
+        "POST": "participants.edit",
+        "DELETE": "participants.edit",
+    },
     "participants/<uuid:pk>/consent": {"PUT": "participants.edit"},
     "participants/<uuid:pk>/invite": {
         "GET": "participants.invite",
@@ -150,6 +156,14 @@ MATRIX = {
         "POST": "youth.self_service",
         "DELETE": "youth.self_service",
     },
+    "registrations/submit": {"POST": PUBLIC},
+    "registrations/verify": {"POST": PUBLIC},
+    "registrations": {"GET": "duplicates.review"},
+    "registrations/<uuid:pk>": {"DELETE": "config.manage"},
+    "registrations/<uuid:pk>/reject": {"POST": "duplicates.review"},
+    "registrations/<uuid:pk>/matches": {"GET": "duplicates.review"},
+    "registrations/<uuid:pk>/link": {"POST": "duplicates.review"},
+    "registrations/<uuid:pk>/create": {"POST": "participants.edit"},
     "youth/journey": {"GET": "youth.self_service"},
     "youth/notices": {"GET": "youth.self_service", "POST": "youth.self_service"},
     "youth/placement": {"GET": "youth.self_service"},
@@ -177,6 +191,9 @@ MATRIX = {
     "participants/duplicates/scan": {"POST": "duplicates.review"},
     "participants/duplicates/<uuid:pk>/dismiss": {"POST": "duplicates.review"},
     "participants/duplicates/<uuid:pk>/merge": {"POST": "duplicates.merge"},
+    "participants/duplicates/<uuid:pk>/review": {"GET": "duplicates.merge"},
+    "participants/duplicates/<uuid:pk>/complete": {"POST": "duplicates.merge"},
+    "participants/duplicates/<uuid:pk>/resolve": {"POST": "duplicates.merge"},
     "participants/data-quality": {"GET": "dataquality.review"},
     "participants/data-quality/records": {"GET": "dataquality.review"},
     "participants/corrections": {"GET": "dataquality.review"},
@@ -211,6 +228,7 @@ MATRIX = {
     "placements/options": {"GET": "placements.view"},
     "placements/<uuid:pk>": {"GET": "placements.view", "PATCH": "placements.edit"},
     "placements/<uuid:pk>/end": {"POST": "placements.edit"},
+    "placements/<uuid:pk>/change-employer": {"POST": "placements.edit"},
     "placements/<uuid:pk>/verify": {"POST": "placements.edit"},
     "placements/<uuid:pk>/history": {"GET": "placements.view"},
     "followups": {"GET": "placements.view"},
@@ -346,7 +364,7 @@ def concrete(route):
         .replace("<str:kind>", "sectors")
         .replace("<str:key>", "x")
         .replace("<slug:table>", "youth")
-        .replace("<slug:slug>", "programme-scorecard")
+        .replace("<slug:slug>", "project-scorecard")
     )
 
 
@@ -361,6 +379,7 @@ def call(client, method, route):
     return getattr(client, method.lower())(url, {}, content_type="application/json")
 
 
+@pytest.mark.django_db  # flag-gated public routes read the flag table
 @pytest.mark.parametrize("route,method,rule", CASES)
 def test_anonymous(route, method, rule):
     status = call(Client(), method, route).status_code

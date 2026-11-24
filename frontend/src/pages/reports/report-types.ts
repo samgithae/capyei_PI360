@@ -2,7 +2,7 @@
 
 export type FilterKey =
   | 'period'
-  | 'programme'
+  | 'project'
   | 'cohort'
   | 'institution'
   | 'county'
@@ -28,8 +28,8 @@ export interface Option {
 }
 
 export interface FilterOptions {
-  programmes: Option[];
-  cohorts: (Option & { programme_id: string; institution_id: string })[];
+  projects: Option[];
+  cohorts: (Option & { project_id: string; institution_id: string })[];
   institutions: Option[];
   counties: Option[];
   sectors: Option[];
@@ -95,10 +95,10 @@ export const FILTER_LABELS: Record<
   Exclude<FilterKey, 'period'>,
   { label: string; empty: string; options: keyof FilterOptions }
 > = {
-  programme: {
-    label: 'Programme',
-    empty: 'All programmes',
-    options: 'programmes',
+  project: {
+    label: 'Project',
+    empty: 'All projects',
+    options: 'projects',
   },
   cohort: { label: 'Cohort', empty: 'All cohorts', options: 'cohorts' },
   institution: {
@@ -127,7 +127,7 @@ export const FILTER_LABELS: Record<
 export const FILTER_PARAMS = [
   'from',
   'to',
-  'programme',
+  'project',
   'cohort',
   'institution',
   'county',
