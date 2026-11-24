@@ -77,6 +77,10 @@ MATRIX = {
         "POST": "participants.edit",
         "DELETE": "participants.edit",
     },
+    "participants/<uuid:pk>/disability": {
+        "GET": "participants.view",
+        "PUT": "participants.edit",
+    },
     "participants/<uuid:pk>/consent": {"PUT": "participants.edit"},
     "participants/<uuid:pk>/invite": {
         "GET": "participants.invite",

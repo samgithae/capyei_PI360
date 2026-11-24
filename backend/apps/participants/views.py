@@ -5,10 +5,12 @@ import datetime
 import uuid
 
 from django.db import transaction
+from django.http import Http404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -17,7 +19,6 @@ from apps.api.archive import ARCHIVE, BulkArchiveView
 from apps.api.pagination import page_size_of
 from apps.audit import services as audit
 from apps.configuration import services as configuration
-from apps.configuration.flags import FlagGate
 
 from . import corrections, disability, review_flag, services, similar
 from .models import (
@@ -730,6 +731,15 @@ class ResidenceView(APIView):
 class DisabilitySerializer(serializers.Serializer):
     disability = serializers.ChoiceField(choices=Participant.DISABILITY_VALUES)
     description = serializers.CharField(max_length=300, allow_blank=True, required=False)
+
+
+class FlagGate(BasePermission):
+    """With the flag off the route does not exist (404). Put after HasPermission."""
+
+    def has_permission(self, request, view):
+        if not services.flag_enabled(view.required_flag, request.user):
+            raise Http404
+        return True
 
 
 class DisabilityView(APIView):
