@@ -112,6 +112,13 @@ class PlacementEndSerializer(serializers.Serializer):
     )
 
 
+class ExitFeedbackSerializer(serializers.Serializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    comment = serializers.CharField(required=False, allow_blank=True, max_length=1000, default="")
+    assisted = serializers.BooleanField(required=False, default=True)
+    given_on = serializers.DateField(required=False, allow_null=True)
+
+
 class PlacementChangeEmployerSerializer(PlacementFields):
     """End the running placement and start the next one (D-081)."""
 
@@ -262,6 +269,27 @@ class PlacementEndView(APIView):
         except services.Violation as exc:
             return _violation(exc)
         return Response(_detail(request, _get(request, pk)))
+
+
+class PlacementExitFeedbackView(APIView):
+    """NEW-039: one staff-assisted exit feedback per ended placement (D-079)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": PLACEMENTS_EDIT}
+
+    @extend_schema(
+        operation_id="placements_exit_feedback", request=ExitFeedbackSerializer,
+        responses={201: dict, 409: dict},
+    )  # fmt: skip
+    def post(self, request, pk):
+        p = _get(request, pk)
+        s = ExitFeedbackSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            services.record_exit_feedback(actor=request.user, placement=p, **s.validated_data)
+        except services.Violation as exc:
+            return _violation(exc)
+        return Response(_detail(request, _get(request, pk)), status=status.HTTP_201_CREATED)
 
 
 class PlacementChangeEmployerView(APIView):

@@ -232,6 +232,7 @@ MATRIX = {
     "placements/options": {"GET": "placements.view"},
     "placements/<uuid:pk>": {"GET": "placements.view", "PATCH": "placements.edit"},
     "placements/<uuid:pk>/end": {"POST": "placements.edit"},
+    "placements/<uuid:pk>/exit-feedback": {"POST": "placements.edit"},
     "placements/<uuid:pk>/change-employer": {"POST": "placements.edit"},
     "placements/<uuid:pk>/verify": {"POST": "placements.edit"},
     "placements/<uuid:pk>/history": {"GET": "placements.view"},

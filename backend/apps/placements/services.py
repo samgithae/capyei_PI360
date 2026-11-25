@@ -18,7 +18,7 @@ from apps.audit import services as audit
 from apps.configuration import services as configuration
 from apps.configuration.services import normalise
 
-from .models import Placement, PlacementStatusMapping
+from .models import ExitFeedback, Placement, PlacementStatusMapping
 
 PATHWAYS = {code for code, _ in Placement.PATHWAYS}
 
@@ -785,3 +785,49 @@ followup_outcome_lists = _followups.outcome_lists
 followup_unreachable = _followups.mark_unreachable
 followup_update_step = _followups.update_step
 generate_followups = _followups.generate_for
+
+
+# --- exit feedback (NEW-039, NEW-076; D-079) -----------------------------------------------------
+
+
+def with_exit_feedback(placement_ids) -> set:
+    """Which of these episodes already have exit feedback."""
+    return set(
+        ExitFeedback.objects.filter(placement_id__in=placement_ids).values_list(
+            "placement_id", flat=True
+        )
+    )
+
+
+def exit_feedback_of(placement_id):
+    return ExitFeedback.objects.filter(placement_id=placement_id).first()
+
+
+@transaction.atomic
+def record_exit_feedback(
+    *, actor, placement_id, rating, comment="", assisted=True, confidential=True, given_on=None
+) -> ExitFeedback:
+    """One per ended episode. The comment and its text are never written to the audit trail."""
+    p = Placement.objects.select_for_update().get(pk=placement_id)
+    if p.end_date is None:
+        raise PlacementError("Exit feedback can be recorded only after the placement has ended.")
+    if ExitFeedback.objects.filter(placement=p).exists():
+        raise PlacementError("Exit feedback has already been recorded for this placement.")
+    if not isinstance(rating, int) or not 1 <= rating <= 5:
+        raise PlacementError("Give a rating from 1 to 5.")
+    comment = (comment or "").strip()
+    if len(comment) > 1000:
+        raise PlacementError("Keep the comment to 1000 characters.")
+    fb = ExitFeedback.objects.create(
+        placement=p, rating=rating, comment=comment, assisted=assisted,
+        confidential=confidential, given_on=given_on or timezone.localdate(), recorded_by=actor,
+    )  # fmt: skip
+    audit.record(
+        actor=actor,
+        action="placement.exit_feedback_recorded",
+        object_type="placement",
+        object_id=p.pk,
+        after={"rating": rating, "assisted": assisted, "confidential": confidential,
+               "has_comment": bool(comment)},
+    )  # fmt: skip
+    return fb

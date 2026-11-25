@@ -69,6 +69,7 @@ export interface PlacementRow {
   start_date: string | null;
   end_date: string | null;
   exit_reason: string;
+  exit_feedback_given?: boolean;
   current: boolean;
   verified: boolean;
   verified_on: string | null;
@@ -1126,6 +1127,86 @@ export function EndPlacementDialog({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
         />
+      </div>
+    </FormModal>
+  );
+}
+
+/** NEW-039 (D-079): the youth's own view of the job that ended, written down by an officer. One
+ * per placement. It is never shown to the employer one by one; comments are confidential unless
+ * an administrator has changed that default (NEW-076). */
+export function ExitFeedbackDialog({
+  open,
+  onOpenChange,
+  placement,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  placement: PlacementRow;
+}) {
+  const refresh = useRefreshCases();
+  const [rating, setRating] = useState('');
+  const [comment, setComment] = useState('');
+  const [error, setError] = useState('');
+  const save = useMutation({
+    mutationFn: () =>
+      post(`/placements/${placement.id}/exit-feedback`, {
+        rating: Number(rating),
+        comment,
+        assisted: true,
+      }),
+    onSuccess: () => {
+      toast.success('Exit feedback recorded.');
+      refresh();
+      onOpenChange(false);
+    },
+    onError: (e) => setError(errorText(e)),
+  });
+  return (
+    <FormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Exit feedback"
+      description={`${placement.participant}: ${placement.pathway_label}${placement.employer ? ` at ${placement.employer}` : ''}. Ask the youth, then write down what they say. It is recorded once and cannot be edited.`}
+      submitLabel="Save exit feedback"
+      pending={save.isPending}
+      error={error}
+      onSubmit={() => {
+        if (!rating) return setError('Choose a rating from 1 to 5.');
+        setError('');
+        save.mutate();
+      }}
+    >
+      <div className="space-y-1.5">
+        <Label>
+          How was the job overall?
+          <Required />
+        </Label>
+        <SelectField
+          label="Choose a rating"
+          value={rating}
+          options={[
+            { id: '1', name: '1 - Very poor' },
+            { id: '2', name: '2 - Poor' },
+            { id: '3', name: '3 - Fair' },
+            { id: '4', name: '4 - Good' },
+            { id: '5', name: '5 - Very good' },
+          ]}
+          onChange={setRating}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="exit-comment">Comments (optional)</Label>
+        <Textarea
+          id="exit-comment"
+          maxLength={1000}
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">
+          The employer never sees this one by one. Comments are confidential by
+          default.
+        </p>
       </div>
     </FormModal>
   );

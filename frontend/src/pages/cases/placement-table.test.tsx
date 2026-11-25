@@ -220,3 +220,56 @@ describe('Self-employment details', () => {
     expect(screen.getByText(/waiting for CAP-YEI to confirm/i)).toBeTruthy();
   });
 });
+
+describe('Exit feedback (NEW-039)', () => {
+  beforeEach(() => {
+    api.mockReset();
+    post.mockReset();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+  });
+
+  it('is offered only on an ended placement that has none yet', () => {
+    show([
+      row(),
+      row({ id: 'pl2', participant: 'Ended One', end_date: '2026-05-01' }),
+      row({
+        id: 'pl3',
+        participant: 'Ended Two',
+        end_date: '2026-05-01',
+        exit_feedback_given: true,
+      }),
+    ]);
+    expect(
+      screen.getByRole('button', { name: 'Exit feedback for Ended One' }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: 'Exit feedback for Test Person' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Exit feedback for Ended Two' }),
+    ).toBeNull();
+    expect(screen.getByText('Exit feedback recorded')).toBeTruthy();
+  });
+
+  it('asks for a rating before saving and says it is confidential', async () => {
+    show([row({ end_date: '2026-05-01' })]);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Exit feedback for Test Person' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Save exit feedback' }),
+    );
+    expect(
+      await screen.findByText('Choose a rating from 1 to 5.'),
+    ).toBeTruthy();
+    expect(screen.getByText(/never sees this one by one/)).toBeTruthy();
+    expect(post).not.toHaveBeenCalled();
+  });
+});

@@ -70,6 +70,13 @@ REGISTRY = [
         "removes or re-orders a youth.",
     ),
     Setting(
+        "exit.confidential_default", "C", "Exit feedback comments confidential by default",
+        "1 = yes, 0 = no", 1, 0,
+        "Whether a new exit-feedback comment is marked confidential when it is recorded. "
+        "Changing it affects feedback recorded afterwards only. Proposed (NEW-076); not an "
+        "approved CAP-YEI requirement.",
+    ),
+    Setting(
         "employer.window_days", "C", "Period the evidence covers", "days", 180, 30,
         "Referrals sent in this many days are counted.",
     ),

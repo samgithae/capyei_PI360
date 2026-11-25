@@ -10,6 +10,7 @@ urlpatterns = [
     path("placements/options", views.PlacementOptionsView.as_view()),
     path("placements/<uuid:pk>", views.PlacementDetailView.as_view()),
     path("placements/<uuid:pk>/end", views.PlacementEndView.as_view()),
+    path("placements/<uuid:pk>/exit-feedback", views.PlacementExitFeedbackView.as_view()),
     path("placements/<uuid:pk>/change-employer", views.PlacementChangeEmployerView.as_view()),
     path("placements/<uuid:pk>/verify", views.PlacementVerifyView.as_view()),
     path("placements/<uuid:pk>/history", views.PlacementHistoryView.as_view()),

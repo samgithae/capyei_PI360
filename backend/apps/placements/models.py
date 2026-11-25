@@ -305,3 +305,45 @@ class FollowUpAttempt(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValueError("A follow-up attempt is append-only and cannot be deleted.")
+
+
+class ExitFeedback(models.Model):
+    """NEW-039 (D-079): what the youth said about the job when it ended. One per episode, never
+    edited, never shown to an employer one by one. Kept apart from EmployerFeedback so it does not
+    feed the employer indicators until the rating criteria (NEW-026/027) are decided.
+
+    NEW-076: ``confidential`` is copied from the admin default when the feedback is recorded, so
+    changing the default later affects new submissions only. A confidential comment is shown only
+    to holders of placements.view_exit_comments."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    placement = models.OneToOneField(
+        Placement, on_delete=models.PROTECT, related_name="exit_feedback"
+    )
+    rating = models.PositiveSmallIntegerField()
+    comment = models.TextField(blank=True, max_length=1000)
+    assisted = models.BooleanField(default=True)  # an officer wrote it down for the youth
+    confidential = models.BooleanField(default=True)
+    given_on = models.DateField()
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(rating__gte=1, rating__lte=5), name="exit_feedback_rating_1_5"
+            )
+        ]
+
+    def __str__(self):
+        return f"Exit feedback {self.rating}/5"
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValueError("Exit feedback is never edited; it is recorded once.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("Exit feedback cannot be deleted.")

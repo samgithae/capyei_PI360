@@ -14,6 +14,7 @@ import {
 import {
   ChangeEmployerDialog,
   EndPlacementDialog,
+  ExitFeedbackDialog,
   PlacementDialog,
   VerifyPlacementDialog,
   type PlacementRow,
@@ -38,6 +39,7 @@ export function PlacementTable({
   const [end, setEnd] = useState<PlacementRow | null>(null);
   const [change, setChange] = useState<PlacementRow | null>(null);
   const [verify, setVerify] = useState<PlacementRow | null>(null);
+  const [exit, setExit] = useState<PlacementRow | null>(null);
 
   return (
     <>
@@ -123,6 +125,11 @@ export function PlacementTable({
                       ? `Verified${p.verification_source_label ? `: ${p.verification_source_label}` : ''}`
                       : 'Not verified'}
                   </Badge>
+                  {p.exit_feedback_given && (
+                    <Badge variant="secondary" appearance="light">
+                      Exit feedback recorded
+                    </Badge>
+                  )}
                   {p.imported && (
                     <Badge variant="secondary" appearance="light">
                       Imported
@@ -151,6 +158,16 @@ export function PlacementTable({
                         onClick={() => setEnd(p)}
                       >
                         End
+                      </Button>
+                    )}
+                    {p.end_date && !p.exit_feedback_given && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-label={`Exit feedback for ${p.participant}`}
+                        onClick={() => setExit(p)}
+                      >
+                        Exit feedback
                       </Button>
                     )}
                     {p.current && (
@@ -192,6 +209,13 @@ export function PlacementTable({
           open
           onOpenChange={(o) => !o && setEnd(null)}
           placement={end}
+        />
+      )}
+      {exit && (
+        <ExitFeedbackDialog
+          open
+          onOpenChange={(o) => !o && setExit(null)}
+          placement={exit}
         />
       )}
       {change && (

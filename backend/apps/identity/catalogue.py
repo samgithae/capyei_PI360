@@ -72,6 +72,11 @@ CATALOGUE: tuple[Permission, ...] = (
     ),
     Permission("placements.view", "View placements", "Placements"),
     Permission("placements.edit", "Record and edit placements", "Placements"),
+    Permission(
+        "placements.view_exit_comments",
+        "Read confidential exit-feedback comments",
+        "Placements",
+    ),
     Permission("employers.view", "View employers and opportunities", "Employers"),
     Permission("employers.edit", "Edit employers and opportunities", "Employers"),
     Permission(

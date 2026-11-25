@@ -97,7 +97,11 @@ def rows_for(user, placement_list, owners=None) -> list[dict]:
             r["id"]: r["name"]
             for r in placements.outcome_list("employment-types", include_inactive=True)
         }
-    return [_row(p, names, owners, types) for p in placement_list]
+    given = placements.with_exit_feedback([p.pk for p in placement_list])
+    return [
+        {**_row(p, names, owners, types), "exit_feedback_given": p.pk in given}
+        for p in placement_list
+    ]
 
 
 def list_placements(user, *, pathway="", state="", employer_id=None, q="", participant_id=None,
@@ -251,10 +255,14 @@ def detail(user, p, *, can_edit: bool) -> dict:
         "salary_band": (
             placements.outcome_name("salary-bands", p.salary_band_id) if income else ""
         ),
+        "exit_feedback": _exit_feedback(user, p.pk),
         "can": {
             "income": income,
             "edit": can_edit and not row["imported"],
             "end": can_edit and p.end_date is None,
+            "exit_feedback": can_edit
+            and p.end_date is not None
+            and not placements.exit_feedback_of(p.pk),
             "verify": can_edit,
         },
     }
@@ -348,6 +356,31 @@ def end_placement(*, actor, placement, end_date, exit_reason=""):
         placements.end_episode, actor=actor, placement_id=placement.pk, end_date=end_date,
         exit_reason=exit_reason,
     )  # fmt: skip
+
+
+def record_exit_feedback(*, actor, placement, rating, comment="", assisted=True, given_on=None):
+    """NEW-039/076: whether the comment is confidential is decided here from the admin default
+    and stored on the record, so a later change of the default touches new feedback only."""
+    confidential = bool(intelligence.setting("exit.confidential_default"))
+    return _wrap(
+        placements.record_exit_feedback, actor=actor, placement_id=placement.pk, rating=rating,
+        comment=comment, assisted=assisted, confidential=confidential, given_on=given_on,
+    )  # fmt: skip
+
+
+def _exit_feedback(user, placement_id):
+    fb = placements.exit_feedback_of(placement_id)
+    if fb is None:
+        return None
+    hidden = fb.confidential and not has_permission(user, "placements.view_exit_comments")
+    return {
+        "rating": fb.rating,
+        "comment": "" if hidden else fb.comment,
+        "comment_hidden": hidden and bool(fb.comment),
+        "confidential": fb.confidential,
+        "assisted": fb.assisted,
+        "given_on": fb.given_on.isoformat(),
+    }
 
 
 def change_employer(*, actor, placement, employer_id=None, **fields):

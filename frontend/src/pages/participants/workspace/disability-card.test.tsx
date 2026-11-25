@@ -50,7 +50,7 @@ describe('DisabilityCard', () => {
   it('is hidden when the server switch is off (404)', async () => {
     permissions = ['participants.view_disability'];
     const { ApiError } = await import('@/lib/api');
-    api.mockRejectedValue(new ApiError(404));
+    api.mockRejectedValue(new ApiError(404, 'Not found'));
     wrap();
     await vi.waitFor(() => expect(api).toHaveBeenCalled());
     expect(screen.queryByText('Disability')).toBeNull();
