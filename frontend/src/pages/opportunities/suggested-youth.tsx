@@ -44,6 +44,12 @@ interface Suggestions {
   counts?: Record<string, number>;
   suggestions?: Suggestion[];
   truncated?: boolean;
+  employer_quality?: {
+    warning: boolean;
+    reasons: string[];
+    ratings: number;
+    note: string;
+  };
 }
 
 const GROUPS = {
@@ -163,6 +169,20 @@ export function SuggestedYouth({
               ? `${q.data.counts.no_data} of ${q.data.counts.visible} youth have no skills, qualifications or experience recorded, so they are not ranked.`
               : ''}
           </p>
+          {q.data.employer_quality?.warning && (
+            <div
+              role="note"
+              className="rounded-md border border-warning/40 bg-warning/10 p-2 text-sm"
+            >
+              <p className="font-medium">Employer quality warning</p>
+              <p>{q.data.employer_quality.note}</p>
+              <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                {q.data.employer_quality.reasons.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {q.data.requirements === 0 && (
             <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-sm">
               This opportunity has no requirements yet, so there is nothing to

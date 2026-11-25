@@ -396,6 +396,37 @@ def evaluate(code: str, snapshot: dict, today: date) -> dict | None:
 COMPATIBILITY = "compatibility-default"
 
 
+def employer_quality_warning(employer_id, today: date) -> dict:
+    """A plain warning beside suggestions when an employer's recent ratings are poor (NEW-075).
+    Counts only, never a score, and it changes nothing: eligibility and order are untouched and
+    no penalty is applied, because the size of one is still undecided (D-087)."""
+    from datetime import timedelta
+
+    from apps.employers import services as employers
+
+    since = today - timedelta(days=setting("employer.window_days"))
+    r = employers.feedback_ratings(employer_id, since)
+    reasons = []
+    below = setting("employer.warn_below_average")
+    if r["count"] >= setting("employer.warn_min_ratings") and r["total"] < below * r["count"]:
+        reasons.append(
+            f"{r['count']} ratings in the period, with an average below {below} out of 5"
+        )
+    if r["lowest"] == 1:
+        reasons.append("at least one rating of 1 (very poor)")
+    return {
+        "warning": bool(reasons),
+        "reasons": reasons,
+        "ratings": r["count"],
+        "note": (
+            "Recent ratings of this employer are low. Suggestions are not changed by this: "
+            "check the employer's page before referring."
+            if reasons
+            else ""
+        ),
+    }
+
+
 def suggest_youth(opportunity_id, visible_ids, today: date, limit: int = 50) -> dict | None:
     """Rank the youth the caller may see against one opportunity. None when the opportunity
     does not exist. Youth with no recorded capability facts are counted, not ranked. Nothing is
@@ -411,6 +442,15 @@ def suggest_youth(opportunity_id, visible_ids, today: date, limit: int = 50) -> 
         return None
     version = active_version(COMPATIBILITY)
     base = {"opportunity": {"id": opp["id"], "title": opp["title"], "status": opp["status"]}}
+    if not opp["employer"]["active"]:
+        # PI 360 has no "suspended" status (C-4); an Inactive employer simply gets no suggestions.
+        return {
+            **base,
+            "available": False,
+            "reason": f"{opp['employer']['name']} is marked Inactive, so no youth are suggested.",
+        }
+    quality = employer_quality_warning(opp["employer"]["id"], today)
+    base["employer_quality"] = quality
     if version is None:
         return {**base, "available": False, "reason": "No compatibility rule is active yet."}
     referred = referrals.referred_participant_ids(opportunity_id)

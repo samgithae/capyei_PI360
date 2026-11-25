@@ -55,6 +55,39 @@ describe('SuggestedYouth', () => {
     expect(screen.getAllByText('Eligible').length).toBeGreaterThan(0);
   });
 
+  it('shows the employer quality warning without changing the list', async () => {
+    api.mockResolvedValue({
+      available: true,
+      rule: { version: 2 },
+      counts: { eligible: 0, no_data: 0 },
+      truncated: false,
+      suggestions: [],
+      employer_quality: {
+        warning: true,
+        reasons: ['at least one rating of 1 (very poor)'],
+        ratings: 2,
+        note: 'Recent ratings of this employer are low.',
+      },
+    });
+    show();
+    expect(await screen.findByText('Employer quality warning')).toBeTruthy();
+    expect(screen.getByText(/at least one rating of 1/)).toBeTruthy();
+  });
+
+  it('shows no warning when ratings are fine', async () => {
+    api.mockResolvedValue({
+      available: true,
+      rule: { version: 2 },
+      counts: { eligible: 0, no_data: 0 },
+      truncated: false,
+      suggestions: [],
+      employer_quality: { warning: false, reasons: [], ratings: 4, note: '' },
+    });
+    show();
+    expect(await screen.findByText(/From Compatibility rule/)).toBeTruthy();
+    expect(screen.queryByText('Employer quality warning')).toBeNull();
+  });
+
   const two = {
     available: true,
     rule: { version: 2 },

@@ -58,6 +58,18 @@ REGISTRY = [
         "Feedback rated this or higher (out of 5) is counted as positive.",
     ),
     Setting(
+        "employer.warn_min_ratings", "C", "Ratings needed for a quality warning", "ratings", 3, 1,
+        "Beside suggestions, a warning shows when an employer has at least this many ratings in "
+        "the period and their average is below the next setting. Working value from the "
+        "alert rule (B22); a single rating of 1 also triggers it.",
+    ),
+    Setting(
+        "employer.warn_below_average", "C", "Average rating that triggers the warning",
+        "out of 5", 3, 2,
+        "An average below this (with enough ratings) shows the quality warning. It never "
+        "removes or re-orders a youth.",
+    ),
+    Setting(
         "employer.window_days", "C", "Period the evidence covers", "days", 180, 30,
         "Referrals sent in this many days are counted.",
     ),

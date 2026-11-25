@@ -6,7 +6,7 @@ from datetime import date
 from difflib import SequenceMatcher
 
 from django.db import transaction
-from django.db.models import ProtectedError
+from django.db.models import Count, Min, ProtectedError, Sum
 from django.dispatch import Signal
 from django.utils import timezone
 
@@ -292,6 +292,14 @@ def feedback_counts(employer_id, since: date, positive_from: int) -> dict:
     Every entry has a stated source, so all of them count."""
     rows = EmployerFeedback.objects.filter(employer_id=employer_id, given_on__gte=since)
     return {"count": rows.count(), "positive": rows.filter(rating__gte=positive_from).count()}
+
+
+def feedback_ratings(employer_id, since: date) -> dict:
+    """Entries given on or after ``since``: how many, the sum of their ratings and the lowest.
+    Numbers only: nothing a person wrote."""
+    rows = EmployerFeedback.objects.filter(employer_id=employer_id, given_on__gte=since)
+    agg = rows.aggregate(count=Count("pk"), total=Sum("rating"), lowest=Min("rating"))
+    return {"count": agg["count"], "total": agg["total"] or 0, "lowest": agg["lowest"]}
 
 
 def history(employer):
@@ -929,6 +937,11 @@ def compatibility_inputs(opportunity_id):
         "id": str(o.pk),
         "title": o.title,
         "status": o.status,
+        "employer": {
+            "id": str(o.employer_id),
+            "name": o.employer.name,
+            "active": o.employer.status != Employer.INACTIVE,
+        },
         "sector_ids": [str(i) for i in o.sectors.values_list("pk", flat=True)],
         "requirements": rows,
     }
