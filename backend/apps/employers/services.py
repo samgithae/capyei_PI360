@@ -22,7 +22,9 @@ from .models import (
     EmployerContact,
     EmployerCounty,
     EmployerFeedback,
+    EmployerFeedbackScore,
     EmployerSector,
+    FeedbackCriterion,
     Opportunity,
     OpportunityCounty,
     OpportunityRequirement,
@@ -264,14 +266,76 @@ def add_feedback(*, actor, employer, data):
         raise RuleViolation("rating", f"Rate from 1 to {MAX_RATING}.", "invalid_rating")
     if data["given_on"] > timezone.localdate():
         raise RuleViolation("given_on", "The date cannot be in the future.", "future_date")
+    data = dict(data)
+    scores = _clean_scores(data.pop("scores", None) or {})
     row = EmployerFeedback.objects.create(employer=employer, recorded_by=actor, **data)
+    for criterion, score in scores:
+        EmployerFeedbackScore.objects.create(feedback=row, criterion=criterion, score=score)
     audit.record(
         actor=actor, action="employer.feedback_added", object_type="employer",
         object_id=employer.pk,
         after={"feedback": str(row.pk), "party": row.party, "source": row.source,
-               "rating": row.rating},
+               "rating": row.rating, "criteria_scored": len(scores)},
     )  # fmt: skip
     return row
+
+
+def _clean_scores(scores: dict) -> list:
+    """``{criterion code: score}`` to ``[(criterion, score)]``. An unknown or switched-off
+    criterion, or a score outside 1 to 5, is refused."""
+    out = []
+    for code, score in scores.items():
+        criterion = FeedbackCriterion.objects.filter(code=code, active=True).first()
+        if criterion is None:
+            raise RuleViolation("scores", "That criterion is not in use.", "unknown_criterion")
+        if not isinstance(score, int) or isinstance(score, bool) or not 1 <= score <= MAX_RATING:
+            raise RuleViolation(
+                "scores", f"Score {criterion.name} from 1 to {MAX_RATING}.", "invalid_score"
+            )
+        out.append((criterion, score))
+    return out
+
+
+def criteria(active_only=True):
+    rows = FeedbackCriterion.objects.all()
+    return rows.filter(active=True) if active_only else rows
+
+
+def set_review_status(*, actor, employer, feedback, status, reason=""):
+    """Leave an entry out of the counts, or count it again. The reason goes to the audit trail."""
+    if status not in (EmployerFeedback.INCLUDED, EmployerFeedback.EXCLUDED):
+        raise RuleViolation("review_status", "Unknown status.", "invalid_status")
+    if status == EmployerFeedback.EXCLUDED and not reason.strip():
+        raise RuleViolation("reason", "Say why this is being left out.", "reason_required")
+    before = feedback.review_status
+    feedback.review_status = status
+    feedback.save(update_fields=["review_status"])
+    audit.record(
+        actor=actor, action="employer.feedback_review", object_type="employer",
+        object_id=employer.pk, before={"feedback": str(feedback.pk), "review_status": before},
+        after={"feedback": str(feedback.pk), "review_status": status}, reason=reason.strip(),
+    )  # fmt: skip
+    return feedback
+
+
+def criterion_summary(employer_id, since: date) -> list:
+    """Per active criterion: how many scores and their sum, from counted entries only."""
+    rows = (
+        EmployerFeedbackScore.objects.filter(
+            feedback__employer_id=employer_id,
+            feedback__given_on__gte=since,
+            feedback__review_status=EmployerFeedback.INCLUDED,
+            criterion__active=True,
+        )
+        .values("criterion__code", "criterion__name", "criterion__position")
+        .annotate(count=Count("pk"), total=Sum("score"))
+        .order_by("criterion__position", "criterion__name")
+    )
+    return [
+        {"code": r["criterion__code"], "name": r["criterion__name"], "count": r["count"],
+         "total": r["total"] or 0}
+        for r in rows
+    ]  # fmt: skip
 
 
 @transaction.atomic
@@ -290,14 +354,18 @@ def remove_feedback(*, actor, employer, feedback, reason):
 def feedback_counts(employer_id, since: date, positive_from: int) -> dict:
     """Entries given on or after ``since``: how many, and how many rated ``positive_from`` or more.
     Every entry has a stated source, so all of them count."""
-    rows = EmployerFeedback.objects.filter(employer_id=employer_id, given_on__gte=since)
+    rows = EmployerFeedback.objects.filter(
+        employer_id=employer_id, given_on__gte=since, review_status=EmployerFeedback.INCLUDED
+    )
     return {"count": rows.count(), "positive": rows.filter(rating__gte=positive_from).count()}
 
 
 def feedback_ratings(employer_id, since: date) -> dict:
     """Entries given on or after ``since``: how many, the sum of their ratings and the lowest.
     Numbers only: nothing a person wrote."""
-    rows = EmployerFeedback.objects.filter(employer_id=employer_id, given_on__gte=since)
+    rows = EmployerFeedback.objects.filter(
+        employer_id=employer_id, given_on__gte=since, review_status=EmployerFeedback.INCLUDED
+    )
     agg = rows.aggregate(count=Count("pk"), total=Sum("rating"), lowest=Min("rating"))
     return {"count": agg["count"], "total": agg["total"] or 0, "lowest": agg["lowest"]}
 

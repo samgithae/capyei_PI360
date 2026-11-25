@@ -703,6 +703,22 @@ def employer_evidence(employer_id, today: date) -> dict:
         "status": ("shown" if feedback_enough else "insufficient") if f["count"] else "no_data",
     }
 
+    criteria = []
+    for row in employers.criterion_summary(employer_id, since.date()):
+        shown = row["count"] >= setting("employer.min_feedback")
+        criteria.append(
+            {
+                "code": row["code"],
+                "label": row["name"],
+                "source": "Scores logged by officers (each with a stated source)",
+                "count": row["count"],
+                # One average per criterion, never an overall rating (D-027).
+                "average": round(row["total"] / row["count"], 1) if shown else None,
+                "text": f"{row['count']} score{'s' if row['count'] != 1 else ''}",
+                "status": "shown" if shown else "insufficient",
+            }
+        )
+
     indicators = [
         ratio("Referrals answered", c["replied"], c["sent"], "referrals got a reply"),
         ratio("Interviews", c["interview"], c["sent"], "referrals reached an interview"),
@@ -735,6 +751,7 @@ def employer_evidence(employer_id, today: date) -> dict:
             f" in the last {days} days; at least {minimum} are needed before a result is shown."
         ),
         "indicators": indicators,
+        "criteria": criteria,
     }
 
 

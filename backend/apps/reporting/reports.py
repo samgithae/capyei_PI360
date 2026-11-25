@@ -693,9 +693,51 @@ def placement_outcomes(ctx: Ctx, f: Filters) -> dict:
 # --- 3. Equity and reach ----------------------------------------------------------------------
 
 
+SUPPRESSED = "Suppressed"
+
+
+def suppress_small(rows: list[list], threshold: int) -> list[list]:
+    """Hide the numbers of any group smaller than ``threshold`` (``exports.small_cell``). Rows are
+    ``[label, registered, referred, placed, rate]``. A single hidden group could be worked out
+    from the total, so when exactly one is hidden the next smallest is hidden too."""
+    hidden = {i for i, r in enumerate(rows) if r[1] < threshold}
+    if len(hidden) == 1 and len(rows) > 1:
+        hidden.add(min((i for i in range(len(rows)) if i not in hidden), key=lambda i: rows[i][1]))
+    return [
+        [r[0], *([SUPPRESSED] * (len(r) - 1))] if i in hidden else r for i, r in enumerate(rows)
+    ]
+
+
+DISABILITY_GROUPS = [("yes", "Yes"), ("no", "No"), ("not_recorded", "Not recorded")]
+
+
+def _disability_table(ctx: Ctx, ids, referred, placed):
+    """Registered, referred and placed by disability, or ``None`` when the caller may not see it.
+    "Not recorded" is its own group: nobody is assumed to be one or the other."""
+    from apps.intelligence import services as intelligence
+
+    answers = participants.disability_report_values(ctx.user, ids)
+    if answers is None:
+        return None
+    reg, ref, plc = Counter(), Counter(), Counter()
+    for i in ids:
+        k = answers.get(i, "not_recorded")
+        reg[k] += 1
+        ref[k] += i in referred
+        plc[k] += i in placed
+    rows = [_group_row(label, reg[k], ref[k], plc[k]) for k, label in DISABILITY_GROUPS if reg[k]]
+    return _table(
+        "disability",
+        "By disability",
+        ["Disability", "Registered", "Referred", "Placed", "Placement rate (%)"],
+        suppress_small(rows, intelligence.setting("exports.small_cell")),
+    )
+
+
 def equity_and_reach(ctx: Ctx, f: Filters) -> dict:
     ids, _ = _youth_ids(ctx, f, period=True)
     referred, placed = ids & ctx.referred, ids & ctx.placed
+    disability_table = _disability_table(ctx, ids, referred, placed)
 
     def group(keyfn, order):
         reg, ref, plc = Counter(), Counter(), Counter()
@@ -805,6 +847,7 @@ def equity_and_reach(ctx: Ctx, f: Filters) -> dict:
                 ["County", "Registered", "Referred", "Placed", "Placement rate (%)"],
                 [_group_row(k, c_reg[k], c_ref[k], c_plc[k]) for k in c_keys],
             ),
+            *([disability_table] if disability_table else []),
         ],
         "definitions": _defs(
             "Registered youth",
@@ -820,7 +863,15 @@ def equity_and_reach(ctx: Ctx, f: Filters) -> dict:
             ],
         ),
         "notes": [
-            "Disability is not collected yet, so it cannot be reported. It needs a disability field and an import of existing records.",
+            *(
+                [
+                    "Disability is shown only to people allowed to see it. Groups smaller than the "
+                    "small-group limit in Rules are hidden, and 'Not recorded' means nobody has "
+                    "asked, not that the answer is No."
+                ]
+                if disability_table
+                else ["Disability is not shown: it is off, or you do not have access to it."]
+            ),
             "Gender is as recorded on the source sheets; 'Not recorded' means the sheet did not say.",
         ],
     }

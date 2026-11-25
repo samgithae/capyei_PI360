@@ -102,6 +102,15 @@ class EmployerFeedback(models.Model):
     rating = models.PositiveSmallIntegerField()  # 1 (poor) to 5 (very good)
     note = models.CharField(max_length=1000, blank=True)
     given_on = models.DateField()
+    # NEW-026. All additive: rows logged before it keep their defaults and count as before.
+    placement_id = models.UUIDField(null=True, blank=True)  # a plain id, not a cross-app FK
+    GENERAL, PLACEMENT = "general", "placement"
+    KINDS = [(GENERAL, "About the employer"), (PLACEMENT, "About one placement")]
+    kind = models.CharField(max_length=10, choices=KINDS, default=GENERAL)
+    channel = models.CharField(max_length=30, blank=True)
+    INCLUDED, EXCLUDED = "included", "excluded"
+    REVIEW_STATUSES = [(INCLUDED, "Counted"), (EXCLUDED, "Left out of the counts")]
+    review_status = models.CharField(max_length=10, choices=REVIEW_STATUSES, default=INCLUDED)
     recorded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
@@ -117,6 +126,42 @@ class EmployerFeedback(models.Model):
 
     def __str__(self):
         return f"{self.employer_id} {self.rating}/5 ({self.source})"
+
+
+class FeedbackCriterion(models.Model):
+    """One thing an employer is rated on (NEW-026). The list is working data that administrators
+    can change; it is not an approved CAP-YEI list while D-077 is open."""
+
+    code = models.SlugField(max_length=40, unique=True)
+    name = models.CharField(max_length=80)
+    position = models.PositiveSmallIntegerField(default=0)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["position", "name"]
+        verbose_name_plural = "feedback criteria"
+
+    def __str__(self):
+        return self.name
+
+
+class EmployerFeedbackScore(models.Model):
+    """A 1 to 5 score for one criterion within one piece of feedback."""
+
+    feedback = models.ForeignKey(EmployerFeedback, on_delete=models.CASCADE, related_name="scores")
+    criterion = models.ForeignKey(FeedbackCriterion, on_delete=models.PROTECT, related_name="+")
+    score = models.PositiveSmallIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["feedback", "criterion"], name="feedback_score_once"),
+            models.CheckConstraint(
+                condition=models.Q(score__gte=1, score__lte=5), name="feedback_score_1_5"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.criterion_id}: {self.score}"
 
 
 class Opportunity(models.Model):

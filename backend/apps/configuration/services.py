@@ -17,6 +17,7 @@ from apps.audit import services as audit
 from .models import (
     CohortCourse,
     County,
+    Course,
     FeatureFlag,
     ProtectedSetting,
     ReferenceAlias,
@@ -1098,3 +1099,25 @@ def salary_band_for(amount):
         if (b.min_amount is not None or b.max_amount is not None) and b.holds(amount)
     ]
     return _outcome_row("salary-bands", hits[0]) if len(hits) == 1 else None
+
+
+def course_code_clashes() -> list[dict]:
+    """Course codes used under more than one project (NEW-006a). Read-only. Codes and names only:
+    no counts of people, no youth data. The data steward reviews this before course codes are made
+    globally unique (D-071)."""
+    from collections import defaultdict
+
+    seen = defaultdict(list)
+    for course in Course.objects.select_related("project").order_by("code", "project__code"):
+        seen[course.code.strip().upper()].append(course)
+    return [
+        {
+            "code": rows[0].code,
+            "uses": [
+                {"project": c.project.code if c.project else "(none)", "name": c.name} for c in rows
+            ],
+            "same_name": len({c.name_normalised for c in rows}) == 1,
+        }
+        for rows in seen.values()
+        if len(rows) > 1
+    ]

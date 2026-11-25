@@ -30,6 +30,23 @@ class DisabilityError(ValueError):
         self.field = field
 
 
+REPORTED = "participant.disability_reported"
+
+
+def report_values(*, user, ids) -> dict | None:
+    """``{youth id: yes / no / not_recorded}`` for the youth in ``ids``, only for reports (NEW-043).
+
+    ``None`` unless the flag is on for the caller and the caller holds the permission, so a report
+    can leave the breakdown out. One access-log event per report, with no values in it."""
+    from apps.api.access import has_permission
+    from apps.configuration import services as configuration
+
+    if not configuration.is_enabled(FLAG, user) or not has_permission(user, PERMISSION):
+        return None
+    audit.record(actor=user, action=REPORTED, object_type="report", object_id="equity", after=None)
+    return dict(Participant.objects.filter(pk__in=ids).values_list("pk", "disability"))
+
+
 def read(*, actor, p: Participant) -> dict:
     """The stored answer, logged as a read (the value is not in the log)."""
     audit.record(actor=actor, action=VIEWED, object_type="participant", object_id=p.pk, after=None)

@@ -884,3 +884,27 @@ review_history = review_flag.history
 mark_reviewed = review_flag.mark_reviewed
 officer_flag = review_flag.officer_flag
 ReviewError = review_flag.ReviewError
+
+
+def disability_report_values(user, ids) -> dict | None:
+    """Disability answers for a report, or ``None`` when the flag is off or the caller lacks the
+    permission (NEW-043). See ``disability.report_values``."""
+    from . import disability
+
+    return disability.report_values(user=user, ids=ids)
+
+
+def disability_import_report() -> list[dict]:
+    """Imported column names that might hold disability, with row counts only (NEW-042)."""
+    from . import disability_import
+
+    return disability_import.key_report()
+
+
+def disability_import_apply(*, actor, key, yes_words, no_words, approved=False) -> dict:
+    """Copy one approved column's answers; a dry run unless ``approved`` (NEW-042)."""
+    from . import disability_import
+
+    return disability_import.apply_mapping(
+        actor=actor, key=key, yes_words=yes_words, no_words=no_words, approved=approved
+    )

@@ -103,7 +103,16 @@ class Project(Reference):
 
 
 class Course(Reference):
-    project = models.ForeignKey(Project, on_delete=models.PROTECT, related_name="courses")
+    # NEW-006 step 1 (relax). ``project`` can now be empty so a course can stand alone (D-071).
+    # ``legacy_project`` keeps the project every course was created under, whatever happens to
+    # ``project`` later. Codes are still unique per project: global uniqueness waits for the data
+    # steward to review the clash report (``course_code_report``).
+    project = models.ForeignKey(
+        Project, null=True, blank=True, on_delete=models.PROTECT, related_name="courses"
+    )
+    legacy_project = models.ForeignKey(
+        Project, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
     default_sector = models.ForeignKey(
         Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
@@ -111,6 +120,11 @@ class Course(Reference):
 
     class Meta(Reference.Meta):
         constraints = [models.UniqueConstraint(fields=["project", "code"], name="uniq_course_code")]
+
+    def save(self, *args, **kwargs):
+        if self.legacy_project_id is None and self.project_id is not None:
+            self.legacy_project_id = self.project_id
+        super().save(*args, **kwargs)
 
 
 class Cohort(Reference):

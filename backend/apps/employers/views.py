@@ -134,6 +134,12 @@ class FeedbackSerializer(serializers.Serializer):
     rating = serializers.IntegerField(min_value=1, max_value=services.MAX_RATING)
     note = serializers.CharField(max_length=1000, required=False, allow_blank=True, default="")
     given_on = serializers.DateField()
+    kind = serializers.ChoiceField(choices=EmployerFeedback.KINDS, required=False)
+    placement_id = serializers.UUIDField(required=False, allow_null=True)
+    channel = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    # {criterion code: 1 to 5}. The range is checked in the service so the message is the same
+    # for every caller.
+    scores = serializers.DictField(child=serializers.IntegerField(), required=False)
 
 
 class FeedbackRemoveSerializer(serializers.Serializer):
@@ -150,6 +156,10 @@ def _feedback(f):
         "rating": f.rating,
         "note": f.note,
         "given_on": f.given_on.isoformat(),
+        "kind": f.kind,
+        "channel": f.channel,
+        "review_status": f.review_status,
+        "scores": {s.criterion.code: s.score for s in f.scores.all()},
         "recorded_by": (f.recorded_by.get_full_name() or f.recorded_by.get_username())
         if f.recorded_by
         else "",
@@ -344,7 +354,7 @@ class FeedbackListView(APIView):
     @extend_schema(responses={200: dict})
     def get(self, request, pk):
         e = _get(pk)
-        rows = e.feedback.select_related("recorded_by")
+        rows = e.feedback.select_related("recorded_by").prefetch_related("scores__criterion")
         return Response({"results": [_feedback(f) for f in rows]})
 
     @extend_schema(request=FeedbackSerializer, responses={201: dict, 409: dict})
@@ -357,6 +367,49 @@ class FeedbackListView(APIView):
         except services.RuleViolation as exc:
             return _violation(exc)
         return Response(_feedback(f), status=status.HTTP_201_CREATED)
+
+
+class FeedbackCriteriaView(APIView):
+    """The criteria an entry can be scored on (NEW-026)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": VIEW}
+
+    @extend_schema(responses={200: dict})
+    def get(self, request):
+        return Response(
+            {"results": [{"code": c.code, "name": c.name} for c in services.criteria()]}
+        )
+
+
+class FeedbackReviewSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=EmployerFeedback.REVIEW_STATUSES)
+    reason = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+
+
+class FeedbackReviewView(APIView):
+    """Leave an entry out of the counts, or count it again (NEW-026)."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": EDIT}
+
+    @extend_schema(request=FeedbackReviewSerializer, responses={200: dict, 409: dict})
+    def post(self, request, pk, cpk):
+        e = _get(pk)
+        try:
+            f = e.feedback.get(pk=cpk)
+        except EmployerFeedback.DoesNotExist:
+            raise NotFound from None
+        s = FeedbackReviewSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            services.set_review_status(
+                actor=request.user, employer=e, feedback=f,
+                status=s.validated_data["status"], reason=s.validated_data["reason"],
+            )  # fmt: skip
+        except services.RuleViolation as exc:
+            return _violation(exc)
+        return Response(_feedback(f))
 
 
 class FeedbackDetailView(APIView):

@@ -243,6 +243,17 @@ def _recent(u, n=5) -> dict:
     return out
 
 
+def _not_captured(user) -> list[str]:
+    """The gaps list. Once disability is switched on for this user it is no longer a gap, so the
+    line says only what is still missing (NEW-043)."""
+    if not participants.flag_enabled("participants.disability", user):
+        return NOT_CAPTURED
+    return [
+        "Industry and skills demand (not collected)" if line.startswith("Disability,") else line
+        for line in NOT_CAPTURED
+    ]
+
+
 def dashboard(user, *, period="90", today=None) -> dict:
     today = today or date.today()
     days = PERIODS.get(period, 90)
@@ -365,7 +376,7 @@ def dashboard(user, *, period="90", today=None) -> dict:
         "trend": trend,
         "counties": county_rows[:15],
         "alerts": alerts,
-        "not_captured": NOT_CAPTURED,
+        "not_captured": _not_captured(user),
         "metrics": [{"name": n, "meaning": m, "approved": a} for n, m, a in METRICS],
     }
 
