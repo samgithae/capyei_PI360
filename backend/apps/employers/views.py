@@ -8,7 +8,7 @@ from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.api.access import HasPermission
+from apps.api.access import HasPermission, has_permission
 from apps.api.archive import ARCHIVE, BulkArchiveView
 from apps.api.pagination import page_size_of
 from apps.audit import services as audit
@@ -19,11 +19,13 @@ from .models import (
     Employer,
     EmployerContact,
     EmployerFeedback,
+    EmployerReview,
     Opportunity,
     OpportunityRequirement,
 )
 
 VIEW, EDIT = "employers.view", "employers.edit"
+NOTES, REVIEW = "employers.view_feedback_notes", "employers.review"
 
 _refs, _contact, _req = services.refs, services.contact_dict, services.requirement_dict
 _opp_summary, _opp_detail = services.opportunity_summary, services.opportunity_detail
@@ -146,7 +148,7 @@ class FeedbackRemoveSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500)
 
 
-def _feedback(f):
+def _feedback(f, *, notes=True):
     return {
         "id": str(f.pk),
         "party": f.party,
@@ -154,7 +156,8 @@ def _feedback(f):
         "source": f.source,
         "source_label": f.get_source_display(),
         "rating": f.rating,
-        "note": f.note,
+        "note": f.note if notes else "",
+        "note_hidden": bool(f.note) and not notes,
         "given_on": f.given_on.isoformat(),
         "kind": f.kind,
         "channel": f.channel,
@@ -355,7 +358,8 @@ class FeedbackListView(APIView):
     def get(self, request, pk):
         e = _get(pk)
         rows = e.feedback.select_related("recorded_by").prefetch_related("scores__criterion")
-        return Response({"results": [_feedback(f) for f in rows]})
+        notes = has_permission(request.user, NOTES)
+        return Response({"results": [_feedback(f, notes=notes) for f in rows]})
 
     @extend_schema(request=FeedbackSerializer, responses={201: dict, 409: dict})
     def post(self, request, pk):
@@ -807,3 +811,61 @@ class RequirementDetailView(APIView):
         except services.RuleViolation as exc:
             return _violation(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ReviewDecisionSerializer(serializers.Serializer):
+    outcome = serializers.ChoiceField(choices=EmployerReview.OUTCOMES)
+    reason = serializers.CharField(max_length=500)
+
+
+def _review(r):
+    return {
+        "id": str(r.pk),
+        "employer_id": str(r.employer_id),
+        "employer": r.employer.name,
+        "opened_on": r.opened_on.isoformat(),
+        "reasons": [services.REVIEW_REASONS.get(c, c) for c in r.reasons],
+        "ratings_count": r.ratings_count,
+        "status": r.status,
+        "outcome": r.outcome,
+        "outcome_label": r.get_outcome_display() if r.outcome else "",
+        "reason": r.reason,
+        "decided_by": (r.decided_by.get_full_name() or r.decided_by.get_username())
+        if r.decided_by
+        else "",
+        "decided_at": r.decided_at.isoformat() if r.decided_at else None,
+    }
+
+
+class ReviewListView(APIView):
+    """The employer review queue (NEW-028): open first, then the closed history."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"GET": REVIEW}
+
+    @extend_schema(responses={200: dict})
+    def get(self, request):
+        st = request.query_params.get("status")
+        rows = services.reviews(status=st if st in ("open", "closed") else None)
+        return Response({"results": [_review(r) for r in rows[:200]]})
+
+
+class ReviewDecisionView(APIView):
+    """Record Monitor or Ignore, with a reason. It suspends nothing."""
+
+    permission_classes = [HasPermission]
+    required_permission = {"POST": REVIEW}
+
+    @extend_schema(request=ReviewDecisionSerializer, responses={200: dict, 409: dict})
+    def post(self, request, pk):
+        try:
+            review = services.reviews().get(pk=pk)
+        except EmployerReview.DoesNotExist:
+            raise NotFound from None
+        s = ReviewDecisionSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            services.decide_review(actor=request.user, review=review, **s.validated_data)
+        except services.RuleViolation as exc:
+            return _violation(exc)
+        return Response(_review(review))

@@ -25,6 +25,7 @@ import {
   EmployerReferralsPage,
 } from '@/pages/employer/employer-referrals';
 import { EmployerPage } from '@/pages/employers/employer-page';
+import { EmployerReviewsPage } from '@/pages/employers/employer-reviews-page';
 import { EmployersPage } from '@/pages/employers/employers-page';
 import { FollowUpPage } from '@/pages/followups/followup-page';
 import { FollowUpsPage } from '@/pages/followups/followups-page';
@@ -178,6 +179,12 @@ export function AppRoutingSetup() {
             element={<RequirePermission permission="dataquality.review" />}
           >
             <Route path="/data-quality" element={<DataQualityPage />} />
+          </Route>
+          <Route element={<RequirePermission permission="employers.review" />}>
+            <Route
+              path="/employers/reviews"
+              element={<EmployerReviewsPage />}
+            />
           </Route>
           <Route element={<RequirePermission permission="employers.view" />}>
             <Route path="/employers" element={<EmployersPage />} />

@@ -374,3 +374,45 @@ class EmployerAlias(models.Model):
 
     def __str__(self):
         return self.source_name
+
+
+class EmployerReview(models.Model):
+    """A review the nightly check opened because recent ratings of an employer are low (NEW-028).
+
+    It only asks an administrator to look: nothing is suspended and no employer is changed. The
+    outcome is Monitor or Ignore (D-078) and needs a reason. A closed row is never edited, so the
+    rows for one employer are its history; at most one is open at a time."""
+
+    OPEN, CLOSED = "open", "closed"
+    MONITOR, IGNORE = "monitor", "ignore"
+    OUTCOMES = [(MONITOR, "Monitor"), (IGNORE, "Ignore")]
+    # Why it opened. Codes only; the wording lives in services.REVIEW_REASONS.
+    LOW_AVERAGE, VERY_POOR = "low_average", "very_poor"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employer = models.ForeignKey(Employer, on_delete=models.CASCADE, related_name="reviews")
+    opened_on = models.DateField()
+    reasons = models.JSONField(default=list)
+    ratings_count = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=6, default=OPEN)
+    outcome = models.CharField(max_length=7, choices=OUTCOMES, blank=True)
+    reason = models.CharField(max_length=500, blank=True)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="+",
+    )  # fmt: skip
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-opened_on", "-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["employer"],
+                condition=models.Q(status="open"),
+                name="employer_one_open_review",
+            )
+        ]
+
+    def __str__(self):
+        return f"Review of {self.employer_id} opened {self.opened_on}"

@@ -19,6 +19,7 @@ export interface Feedback {
   source_label: string;
   rating: number;
   note: string;
+  note_hidden?: boolean;
   given_on: string;
   recorded_by: string;
   review_status?: 'included' | 'excluded';
@@ -169,6 +170,12 @@ export function EmployerFeedback({ id }: { id: string }) {
                   </span>
                 </div>
                 {f.note && <p>{f.note}</p>}
+                {f.note_hidden && (
+                  <p className="text-muted-foreground">
+                    A written note is recorded. You do not have access to read
+                    it.
+                  </p>
+                )}
                 {f.scores && Object.keys(f.scores).length > 0 && (
                   <p className="text-muted-foreground">
                     {Object.entries(f.scores)

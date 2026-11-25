@@ -406,17 +406,20 @@ def employer_quality_warning(employer_id, today: date) -> dict:
 
     since = today - timedelta(days=setting("employer.window_days"))
     r = employers.feedback_ratings(employer_id, since)
-    reasons = []
+    reasons, codes = [], []
     below = setting("employer.warn_below_average")
     if r["count"] >= setting("employer.warn_min_ratings") and r["total"] < below * r["count"]:
         reasons.append(
             f"{r['count']} ratings in the period, with an average below {below} out of 5"
         )
+        codes.append("low_average")
     if r["lowest"] == 1:
         reasons.append("at least one rating of 1 (very poor)")
+        codes.append("very_poor")
     return {
         "warning": bool(reasons),
         "reasons": reasons,
+        "codes": codes,
         "ratings": r["count"],
         "note": (
             "Recent ratings of this employer are low. Suggestions are not changed by this: "
@@ -425,6 +428,28 @@ def employer_quality_warning(employer_id, today: date) -> dict:
             else ""
         ),
     }
+
+
+def check_employer_reviews(today: date) -> dict:
+    """The nightly check (NEW-028): open a review for each active employer whose recent ratings
+    cross the same limits as the suggestions warning. Does nothing while the setting
+    ``employer.review_alerts`` is 0, so with nothing set up no alert fires. Never suspends or
+    changes an employer; an administrator records Monitor or Ignore (D-078)."""
+    from apps.employers import services as employers
+
+    if not setting("employer.review_alerts"):
+        return {"enabled": False, "checked": 0, "opened": 0}
+    checked = opened = 0
+    for employer_id in employers.active_employer_ids():
+        checked += 1
+        q = employer_quality_warning(employer_id, today)
+        if not q["warning"]:
+            continue
+        if employers.open_review(
+            employer_id=employer_id, reasons=q["codes"], ratings_count=q["ratings"], today=today
+        ):
+            opened += 1
+    return {"enabled": True, "checked": checked, "opened": opened}
 
 
 def suggest_youth(opportunity_id, visible_ids, today: date, limit: int = 50) -> dict | None:

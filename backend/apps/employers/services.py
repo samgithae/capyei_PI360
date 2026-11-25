@@ -23,6 +23,7 @@ from .models import (
     EmployerCounty,
     EmployerFeedback,
     EmployerFeedbackScore,
+    EmployerReview,
     EmployerSector,
     FeedbackCriterion,
     Opportunity,
@@ -1217,3 +1218,72 @@ save_own_requirement = _own.save_own_requirement
 sync_own_skills = _own.sync_own_skills
 update_own_opportunity = _own.update_own_opportunity
 update_own_profile = _own.update_own_profile
+
+
+# --- reviews opened by low ratings (NEW-028, D-078) -------------------------------------------
+
+REVIEW_REASONS = {
+    EmployerReview.LOW_AVERAGE: "Recent ratings average below the set level",
+    EmployerReview.VERY_POOR: "At least one rating of 1 (very poor)",
+}
+
+
+@transaction.atomic
+def open_review(*, employer_id, reasons, ratings_count, today):
+    """Open a review unless one is already open. Returns the new review or None. It changes
+    nothing about the employer: no suspension, no status change."""
+    if (
+        not reasons
+        or EmployerReview.objects.filter(
+            employer_id=employer_id, status=EmployerReview.OPEN
+        ).exists()
+    ):
+        return None
+    review = EmployerReview.objects.create(
+        employer_id=employer_id, opened_on=today, reasons=list(reasons),
+        ratings_count=ratings_count,
+    )  # fmt: skip
+    audit.record(
+        actor=None, action="employer.review_opened", object_type="employer",
+        object_id=employer_id, after={"reasons": list(reasons), "ratings": ratings_count},
+    )  # fmt: skip
+    return review
+
+
+@transaction.atomic
+def decide_review(*, actor, review, outcome, reason):
+    """Close an open review as Monitor or Ignore. A reason is required; a closed review stays."""
+    reason = (reason or "").strip()
+    if review.status != EmployerReview.OPEN:
+        raise RuleViolation("status", "This review is already closed.", "already_closed")
+    if outcome not in (EmployerReview.MONITOR, EmployerReview.IGNORE):
+        raise RuleViolation("outcome", "Choose Monitor or Ignore.", "invalid_outcome")
+    if not reason:
+        raise RuleViolation("reason", "Say why.", "reason_required")
+    review.status = EmployerReview.CLOSED
+    review.outcome, review.reason = outcome, reason
+    review.decided_by, review.decided_at = actor, timezone.now()
+    review.save(update_fields=["status", "outcome", "reason", "decided_by", "decided_at"])
+    audit.record(
+        actor=actor, action="employer.review_decided", object_type="employer",
+        object_id=review.employer_id, before={"status": "open"},
+        after={"status": "closed", "outcome": outcome}, reason=reason,
+    )  # fmt: skip
+    return review
+
+
+def reviews(*, status=None, employer_id=None):
+    qs = EmployerReview.objects.select_related("employer", "decided_by")
+    if status:
+        qs = qs.filter(status=status)
+    if employer_id:
+        qs = qs.filter(employer_id=employer_id)
+    return qs
+
+
+def active_employer_ids():
+    return list(
+        Employer.objects.filter(status=Employer.ACTIVE, archived_at__isnull=True).values_list(
+            "pk", flat=True
+        )
+    )

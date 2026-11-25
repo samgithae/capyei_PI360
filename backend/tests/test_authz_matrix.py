@@ -269,6 +269,8 @@ MATRIX = {
     "employers/<uuid:pk>/feedback/<uuid:cpk>": {"DELETE": "employers.edit"},
     "employers/<uuid:pk>/feedback/<uuid:cpk>/review": {"POST": "employers.edit"},
     "employers/feedback-criteria": {"GET": "employers.view"},
+    "employers/reviews": {"GET": "employers.review"},
+    "employers/reviews/<uuid:pk>/decision": {"POST": "employers.review"},
     "support/queue": {"GET": "participants.view_profile"},
     "reporting/dashboard": {"GET": SIGNED_IN},
     "reporting/drilldown": {"GET": SIGNED_IN},

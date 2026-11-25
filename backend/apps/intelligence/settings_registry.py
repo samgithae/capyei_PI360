@@ -70,6 +70,14 @@ REGISTRY = [
         "removes or re-orders a youth.",
     ),
     Setting(
+        "employer.review_alerts", "C", "Open employer reviews from low ratings",
+        "1 = yes, 0 = no", 0, 0,
+        "While this is 0 no employer review is opened automatically. When set to 1 the nightly "
+        "check opens one for an employer whose recent ratings cross the two warning settings "
+        "above. Off until CAP-YEI confirms the alert rule (D-077). A review only asks "
+        "an administrator to Monitor or Ignore; it never suspends an employer.",
+    ),
+    Setting(
         "exit.confidential_default", "C", "Exit feedback comments confidential by default",
         "1 = yes, 0 = no", 1, 0,
         "Whether a new exit-feedback comment is marked confidential when it is recorded. "

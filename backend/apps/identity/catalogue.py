@@ -80,6 +80,14 @@ CATALOGUE: tuple[Permission, ...] = (
     Permission("employers.view", "View employers and opportunities", "Employers"),
     Permission("employers.edit", "Edit employers and opportunities", "Employers"),
     Permission(
+        "employers.view_feedback_notes",
+        "Read the written notes on employer feedback",
+        "Employers",
+    ),
+    Permission(
+        "employers.review", "See the employer review queue and record its outcomes", "Employers"
+    ),
+    Permission(
         "employers.invite_user", "Invite and manage an employer's portal users", "Employers"
     ),
     Permission("referrals.view", "View referrals", "Referrals"),

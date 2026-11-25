@@ -4,6 +4,7 @@ import {
   Building2,
   CalendarCheck,
   CircleHelp,
+  ClipboardCheck,
   ClipboardList,
   FileUp,
   GitMerge,
@@ -98,6 +99,12 @@ export const MENU_SIDEBAR: MenuConfig = [
     icon: UserPlus,
     path: '/registrations',
     permission: 'duplicates.review',
+  },
+  {
+    title: 'Employer reviews',
+    icon: ClipboardCheck,
+    path: '/employers/reviews',
+    permission: 'employers.review',
   },
   {
     title: 'Data quality',
