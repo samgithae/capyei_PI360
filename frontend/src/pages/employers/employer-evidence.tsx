@@ -14,6 +14,15 @@ export interface Indicator {
   percent: number | null;
   status: 'shown' | 'insufficient' | 'no_data';
 }
+export interface CriterionLine {
+  code: string;
+  label: string;
+  source: string;
+  count: number;
+  average: number | null;
+  text: string;
+  status: 'shown' | 'insufficient' | 'no_data';
+}
 export interface Evidence {
   period: { from: string; to: string; days: number };
   minimum_referrals: number;
@@ -21,6 +30,7 @@ export interface Evidence {
   enough: boolean;
   summary: string;
   indicators: Indicator[];
+  criteria?: CriterionLine[];
 }
 
 const STATUS_TEXT = {
@@ -90,6 +100,36 @@ export function EmployerEvidence({ id }: { id: string }) {
               </li>
             ))}
           </ul>
+          {(q.data.criteria?.length ?? 0) > 0 && (
+            <div>
+              <h4 className="font-medium">Feedback by criterion</h4>
+              <p className="text-xs text-muted-foreground">
+                Each criterion stands alone; there is no overall rating. An
+                average shows only once there are enough scores.
+              </p>
+              <ul className="divide-y">
+                {q.data.criteria?.map((c) => (
+                  <li key={c.code} className="py-2">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-medium">{c.label}</span>
+                      <span className="text-muted-foreground">
+                        Source: {c.source}
+                      </span>
+                    </div>
+                    <p>
+                      {c.status === 'no_data' ? STATUS_TEXT.no_data : c.text}
+                      {c.status === 'insufficient' && (
+                        <span className="text-muted-foreground">
+                          {' '}
+                          · {STATUS_TEXT.insufficient}
+                        </span>
+                      )}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </Section>

@@ -21,6 +21,13 @@ export interface Feedback {
   note: string;
   given_on: string;
   recorded_by: string;
+  review_status?: 'included' | 'excluded';
+  scores?: Record<string, number>;
+}
+
+interface Criterion {
+  code: string;
+  name: string;
 }
 
 const PARTIES = [
@@ -50,6 +57,14 @@ export function EmployerFeedback({ id }: { id: string }) {
     queryFn: () => api<{ results: Feedback[] }>(`/employers/${id}/feedback`),
     enabled: can('employers.view'),
   });
+  const criteria = useQuery({
+    queryKey: ['feedback-criteria'],
+    queryFn: () =>
+      api<{ results: Criterion[] }>('/employers/feedback-criteria'),
+    enabled: can('employers.view'),
+  });
+  const [scores, setScores] = useState<Record<string, string>>({});
+  const [leaving, setLeaving] = useState<Feedback | null>(null);
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<Feedback | null>(null);
   const [party, setParty] = useState('employer');
@@ -72,11 +87,31 @@ export function EmployerFeedback({ id }: { id: string }) {
         rating: Number(rating),
         given_on: givenOn,
         note: note.trim(),
+        scores: Object.fromEntries(
+          Object.entries(scores)
+            .filter(([, v]) => v !== '')
+            .map(([k, v]) => [k, Number(v)]),
+        ),
       }),
     onSuccess: () => {
       toast.success('Feedback recorded');
       setAdding(false);
       setNote('');
+      setScores({});
+      changed();
+    },
+    onError: (e) => setError(errorText(e)),
+  });
+  const review = useMutation({
+    mutationFn: (v: { f: Feedback; status: 'included' | 'excluded' }) =>
+      post(`/employers/${id}/feedback/${v.f.id}/review`, {
+        status: v.status,
+        reason: reason.trim(),
+      }),
+    onSuccess: () => {
+      toast.success('Feedback updated');
+      setLeaving(null);
+      setReason('');
       changed();
     },
     onError: (e) => setError(errorText(e)),
@@ -134,6 +169,35 @@ export function EmployerFeedback({ id }: { id: string }) {
                   </span>
                 </div>
                 {f.note && <p>{f.note}</p>}
+                {f.scores && Object.keys(f.scores).length > 0 && (
+                  <p className="text-muted-foreground">
+                    {Object.entries(f.scores)
+                      .map(
+                        ([code, n]) =>
+                          `${criteria.data?.results.find((c) => c.code === code)?.name ?? code}: ${n}`,
+                      )
+                      .join(' · ')}
+                  </p>
+                )}
+                {f.review_status === 'excluded' && (
+                  <p className="text-warning">Left out of the counts</p>
+                )}
+                {can('employers.edit') && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setError('');
+                      setReason('');
+                      if (f.review_status === 'excluded')
+                        review.mutate({ f, status: 'included' });
+                      else setLeaving(f);
+                    }}
+                  >
+                    {f.review_status === 'excluded'
+                      ? 'Count again'
+                      : 'Leave out of counts'}
+                  </Button>
+                )}
                 {can('employers.edit') && (
                   <Button
                     variant="ghost"
@@ -209,6 +273,35 @@ export function EmployerFeedback({ id }: { id: string }) {
             ))}
           </select>
         </div>
+        {(criteria.data?.results.length ?? 0) > 0 && (
+          <fieldset className="space-y-1.5">
+            <legend className="text-sm font-medium">
+              Scores by criterion (optional, 1 poor to 5 excellent)
+            </legend>
+            {criteria.data?.results.map((c) => (
+              <div key={c.code} className="flex items-center gap-2">
+                <Label htmlFor={`fb-c-${c.code}`} className="flex-1">
+                  {c.name}
+                </Label>
+                <select
+                  id={`fb-c-${c.code}`}
+                  className={selectClass + ' !w-28'}
+                  value={scores[c.code] ?? ''}
+                  onChange={(e) =>
+                    setScores({ ...scores, [c.code]: e.target.value })
+                  }
+                >
+                  <option value="">Not scored</option>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </fieldset>
+        )}
         <div className="space-y-1.5">
           <Label htmlFor="fb-date">Date it was given</Label>
           <Input
@@ -226,6 +319,34 @@ export function EmployerFeedback({ id }: { id: string }) {
             maxLength={1000}
             value={note}
             onChange={(e) => setNote(e.target.value)}
+          />
+        </div>
+      </FormModal>
+
+      <FormModal
+        open={leaving !== null}
+        onOpenChange={(o) => !o && setLeaving(null)}
+        title="Leave out of the counts"
+        description="The entry stays on record but is not counted in the employer's evidence. The reason is kept in the audit log."
+        submitLabel="Leave out"
+        pending={review.isPending}
+        error={error}
+        onSubmit={() => {
+          if (!reason.trim()) {
+            setError('Say why this is being left out.');
+            return;
+          }
+          setError('');
+          if (leaving) review.mutate({ f: leaving, status: 'excluded' });
+        }}
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="fb-leave-reason">Reason</Label>
+          <Input
+            id="fb-leave-reason"
+            value={reason}
+            maxLength={500}
+            onChange={(e) => setReason(e.target.value)}
           />
         </div>
       </FormModal>

@@ -74,3 +74,43 @@ describe('EmployerFeedback', () => {
     });
   });
 });
+
+describe('EmployerFeedback criteria (NEW-026)', () => {
+  beforeEach(() => {
+    api.mockReset();
+    post.mockReset();
+    api.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.endsWith('feedback-criteria')
+          ? { results: [{ code: 'punctuality', name: 'Punctuality' }] }
+          : { results: [{ ...ENTRY, scores: { punctuality: 5 } }] },
+      ),
+    );
+    permissions = ['employers.view', 'employers.edit'];
+    post.mockResolvedValue({});
+  });
+
+  it('shows scores and sends only the criteria that were scored', async () => {
+    show();
+    expect(await screen.findByText(/Punctuality: 5/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Add feedback' }));
+    fireEvent.change(await screen.findByLabelText('Punctuality'), {
+      target: { value: '3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(post.mock.calls[0][1].scores).toEqual({ punctuality: 3 });
+  });
+
+  it('needs a reason to leave an entry out of the counts', async () => {
+    show();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Leave out of counts' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Leave out' }));
+    expect(
+      await screen.findByText('Say why this is being left out.'),
+    ).toBeTruthy();
+    expect(post).not.toHaveBeenCalled();
+  });
+});
