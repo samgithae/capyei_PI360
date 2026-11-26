@@ -713,6 +713,20 @@ def employer_evidence(employer_id, today: date) -> dict:
             else None,
             "status": "shown" if retention_enough else "insufficient",
         }
+    same = {
+        **retention,
+        "label": "Retention with this employer",
+        "text": (
+            f"{r['same_employer']} of {r['checked']} placements checked at {r['point_days']} days"
+            f" were still with this employer (working definition, not yet approved)"
+        )
+        if retention["of"]
+        else retention["text"],
+        "count": r["same_employer"],
+        "percent": round(r["same_employer"] / r["checked"] * 100)
+        if retention_enough and r["checked"]
+        else None,
+    }
 
     f = employers.feedback_counts(employer_id, since.date(), setting("employer.positive_rating"))
     feedback_enough = f["count"] >= setting("employer.min_feedback")
@@ -762,6 +776,7 @@ def employer_evidence(employer_id, today: date) -> dict:
             "status": "shown" if enough and c["replied"] else "insufficient",
         },
         retention,
+        same,
         feedback,
     ]
     return {

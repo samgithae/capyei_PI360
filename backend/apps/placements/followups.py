@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.api.access import has_permission
@@ -301,7 +301,7 @@ def retention_counts(employer_id, since: date, today: date) -> dict:
         )
     )
     if not early:
-        return {"point_days": None, "due": 0, "checked": 0, "retained": 0}
+        return {"point_days": None, "due": 0, "checked": 0, "retained": 0, "same_employer": 0}
     point = max(early)
     due = (
         FollowUp.objects.filter(
@@ -319,6 +319,11 @@ def retention_counts(employer_id, since: date, today: date) -> dict:
         "due": due.count(),
         "checked": checked.count(),
         "retained": checked.filter(still_employed=True).count(),
+        # Working definition (not yet approved): still with this employer. Rows recorded before
+        # the outcome existed count when the youth was still in the placement.
+        "same_employer": checked.filter(
+            Q(outcome="same_employer") | Q(outcome="", still_employed=True)
+        ).count(),
     }
 
 

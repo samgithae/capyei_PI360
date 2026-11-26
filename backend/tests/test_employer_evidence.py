@@ -147,6 +147,27 @@ def test_retention_uses_the_latest_early_step_and_counts_only_checked(
     )
 
 
+def test_retention_shows_same_employer_beside_any_work(
+    employer,
+    make_user,
+    schedule,
+    world,  # noqa: F811
+):
+    services.update_settings(actor=None, values={"employer.min_retention_checks": 3})
+    checkin(world, employer, schedule["90"], employed=True, i=0)  # older row, no outcome
+    f = checkin(world, employer, schedule["90"], employed=True, i=1)
+    f.outcome = "changed_employer"
+    f.save()  # still working, but elsewhere
+    checkin(world, employer, schedule["90"], employed=False, i=2)
+    c = api(make_user("admin", "Administrator"))
+    body = c.get(f"/api/v1/employers/{employer.pk}/evidence").json()
+    by = {i["label"]: i for i in body["indicators"]}
+    assert by["Retention after placement"]["count"] == 2
+    same = by["Retention with this employer"]
+    assert (same["count"], same["of"], same["percent"]) == (1, 3, 33)
+    assert "not yet approved" in same["text"]
+
+
 def test_retention_follows_the_schedule_when_the_point_moves(
     employer,
     make_user,
