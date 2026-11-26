@@ -19,6 +19,7 @@ import { DataCard, useClientPage } from '@/components/data-card';
 import { PageHeader } from '@/components/shared/page-header';
 import { SelectField } from '@/components/shared/select-field';
 import { ErrorState, LoadingState } from '@/components/states';
+import { ProjectAccess, Scope } from './project-access';
 
 interface StaffUser {
   id: number;
@@ -30,6 +31,7 @@ interface StaffUser {
   mfa_enrolled: boolean;
   last_login: string | null;
   roles: { id: number; name: string; active: boolean }[];
+  scopes?: Scope[];
 }
 interface Role {
   id: number;
@@ -54,6 +56,7 @@ export function UsersPage() {
   } | null>(null);
   const [reason, setReason] = useState('');
   const [message, setMessage] = useState('');
+  const [access, setAccess] = useState<StaffUser | null>(null);
 
   const users = useQuery({
     queryKey: ['users', q],
@@ -120,6 +123,7 @@ export function UsersPage() {
             <TableRow className="bg-muted/40">
               <TableHead>Name</TableHead>
               <TableHead>Roles</TableHead>
+              <TableHead>Projects</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>MFA</TableHead>
               {canManage && <TableHead />}
@@ -138,6 +142,10 @@ export function UsersPage() {
                   {u.roles.map((r) => r.name).join(', ') || '—'}
                 </TableCell>
                 <TableCell>
+                  {(u.scopes ?? []).filter((s) => s.kind === 'project')
+                    .length || '—'}
+                </TableCell>
+                <TableCell>
                   <Badge
                     variant={u.is_active ? 'success' : 'destructive'}
                     appearance="light"
@@ -150,6 +158,15 @@ export function UsersPage() {
                 </TableCell>
                 {canManage && (
                   <TableCell>
+                    {can('identity.manage_roles') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAccess(u)}
+                      >
+                        Project access
+                      </Button>
+                    )}
                     {(u.is_active
                       ? (['suspend', 'reset-mfa'] as Action[])
                       : (['reactivate'] as Action[])
@@ -177,6 +194,16 @@ export function UsersPage() {
         <ErrorState error={users.error} onRetry={() => users.refetch()} />
       )}
       {users.isPending && <LoadingState />}
+
+      {access && (
+        <ProjectAccess
+          key={access.id}
+          userId={access.id}
+          username={access.username}
+          scopes={access.scopes ?? []}
+          onClose={() => setAccess(null)}
+        />
+      )}
 
       {pending && (
         <form

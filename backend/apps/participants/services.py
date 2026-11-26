@@ -218,6 +218,18 @@ def import_owner(actor):
     return actor if limited and getattr(actor, "pk", None) else None
 
 
+def import_project_codes(actor) -> set[str] | None:
+    """The project codes this user may import into (NEW-060), upper-cased. ``None`` means no
+    limit: an all-scope role, or a user who is not assigned to specific projects (their other
+    scope, such as their own caseload, still decides what they see)."""
+    from apps.api import access
+
+    ids = access.scope_values(actor, "project")
+    if not ids:
+        return None
+    return {c.upper() for c in configuration.project_codes(ids)}
+
+
 @transaction.atomic
 def import_participant(clean: dict, *, batch_ref: str, owner=None) -> tuple[str, str, dict, dict]:
     """Create or update. Returns (action, participant_id, before, after).
@@ -427,6 +439,7 @@ __all__ = [
     "FilterError",
     "current_age",
     "export_groups",
+    "import_project_codes",
     "export_rows",
     "filtered",
     "DuplicateFailure",

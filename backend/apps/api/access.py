@@ -24,6 +24,8 @@ class AccessBackend(Protocol):
 
     def scope_q(self, user, mapping: dict[str, str]) -> Q: ...
 
+    def scope_values(self, user, kind: str) -> list | None: ...
+
 
 _backend: AccessBackend | None = None
 
@@ -69,6 +71,15 @@ def scope_q(user, mapping: dict[str, str]) -> Q:
     if _backend is None or not getattr(user, "is_authenticated", False):
         return DENY
     return _backend.scope_q(user, mapping)
+
+
+def scope_values(user, kind: str) -> list | None:
+    """The values the user is assigned for one scope kind (e.g. project ids). ``None`` means the
+    scope is not limited by that kind: an all-scope role. An empty list means the kind is not
+    used for this user, so it does not narrow anything."""
+    if _backend is None or not getattr(user, "is_authenticated", False):
+        return []
+    return _backend.scope_values(user, kind)
 
 
 class HasPermission(BasePermission):

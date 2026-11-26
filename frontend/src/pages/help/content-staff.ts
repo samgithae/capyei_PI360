@@ -42,6 +42,24 @@ export const STAFF_GUIDES: Guide[] = [
     updated: '2026-11',
   },
   {
+    slug: 'assign-project-access',
+    title: 'Give a Project officer their projects',
+    summary:
+      'Choose which projects a staff member may see, import into and export from.',
+    group: 'Set up',
+    needs: ['identity.manage_roles'],
+    to: { path: '/administration/users', label: 'Open Staff accounts' },
+    steps: [
+      'Open Administration, then Staff accounts. Give the person the Project officer role when you create the account, or change their role under Roles.',
+      'On their row choose Project access. The panel says how many projects they have now and lists every project with a tick box.',
+      'Tick the projects they work in and choose Save project access. Other limits on the account, such as a cohort or region, are kept.',
+      'A youth enrolled in two projects shows to the officers of both. A youth in no project shows only to organisation-wide roles, and the data steward can list them under Data quality (Not in any project).',
+    ],
+    why: 'A Project officer has the same permissions as a Placement officer but sees only youth enrolled in their projects. With no project assigned they see nobody, so a new account is safe until you assign one. Their imports are limited the same way: a row for another project is held with a clear message. Identifiable export is not part of the role: grant it to a named person under Access grants (C-2 is still a recommendation CAP-YEI has not confirmed). Employers and opportunities stay shared between projects.',
+    related: ['grant-restricted-access'],
+    updated: '2026-11',
+  },
+  {
     slug: 'grant-restricted-access',
     title: 'Grant restricted access',
     summary:
@@ -482,7 +500,7 @@ export const STAFF_GUIDES: Guide[] = [
       'Under Feedback, choose Add feedback to log what an employer or a placed young person told you: who gave it, the source, a 1 to 5 rating, the date and an optional short note. Use Remove, with a reason, for an entry made by mistake. An entry can also carry a 1 to 5 score for each criterion (for example quality of work or punctuality); an entry that was logged wrongly or twice can be left out of the counts, with a reason, instead of being deleted. The written note is shown only to staff who may read feedback notes; others see that a note exists but not its text.',
       'If it says Insufficient evidence, too few referrals (or, for retention, too few completed check-ins) fall in the period to say anything fair yet.',
     ],
-    why: 'Only referrals recorded in PI 360 count, so a quiet employer is not the same as a poor one. Retention after placement counts completed check-ins at the early retention point (the latest early step in Administration, Follow-up schedule; 90 days at first) and shows how many are still waiting to be checked. Employer feedback counts only entries an officer logged with a stated source (call, visit, e-mail or meeting); it shows the percentage rated positive once there are enough entries, and counts only below that. Criterion scores are shown one criterion at a time, each with its count: an average appears only once that criterion has enough scores, and there is never one overall rating. The list of criteria is a working list that administrators can change; CAP-YEI has not approved it yet. The minimum and the lowest rating that counts as positive are set in Rules, Settings.',
+    why: 'Only referrals recorded in PI 360 count, so a quiet employer is not the same as a poor one. Retention after placement counts completed check-ins at the early retention point (the latest early step in Administration, Follow-up schedule; 90 days at first) and shows how many are still waiting to be checked. It is shown twice: still in work with any employer, and still with this employer (a working definition that CAP-YEI has not approved). Employer feedback counts only entries an officer logged with a stated source (call, visit, e-mail or meeting); it shows the percentage rated positive once there are enough entries, and counts only below that. Criterion scores are shown one criterion at a time, each with its count: an average appears only once that criterion has enough scores, and there is never one overall rating. The list of criteria is a working list that administrators can change; CAP-YEI has not approved it yet. The minimum and the lowest rating that counts as positive are set in Rules, Settings.',
     related: ['rule-settings'],
     updated: '2026-11',
   },

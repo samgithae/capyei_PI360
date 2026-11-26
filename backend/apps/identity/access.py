@@ -77,3 +77,12 @@ class IdentityAccess:
         for kind, values in by_kind.items():
             q &= Q(**{f"{mapping[kind]}__in": values})
         return q
+
+    def scope_values(self, user, kind: str) -> list | None:
+        if not user.is_active:
+            return []
+        if _state(user)["all_scope"]:
+            return None
+        return list(
+            ScopeAssignment.objects.filter(user=user, kind=kind).values_list("value", flat=True)
+        )

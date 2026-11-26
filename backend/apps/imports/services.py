@@ -219,6 +219,7 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
     same = ImportBatch.objects.filter(file_hash=file_hash, status__in=LOADED).first()
     seen_keys: dict[str, int] = {}
     plan: dict[tuple, dict] = {}
+    allowed = participants.import_project_codes(actor) if target == "participants" else None
     counts = {"total": len(rows), "create": 0, "update": 0, "held": 0, "skip": 0, "warnings": 0}
     with transaction.atomic():
         batch = ImportBatch.objects.create(
@@ -250,6 +251,16 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
                     )
                 else:
                     seen_keys[checked.source_key] = n
+            if allowed is not None:  # NEW-060: a project officer imports into their projects only
+                code = str(mapped.get("project_code") or "").strip().upper()
+                if code and code not in allowed:
+                    errors.append(
+                        {
+                            "field": "project_code",
+                            "message": f"Project {code} is outside the projects you are "
+                            "assigned to.",
+                        }
+                    )
             youth = checked.clean.get("_youth")
             if youth and target == "placements" and not errors:
                 if f"running|{youth}" in seen_keys:  # D-081: the first running row wins

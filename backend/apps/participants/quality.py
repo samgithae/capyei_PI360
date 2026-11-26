@@ -51,6 +51,7 @@ def _conditions(today) -> dict:
         "no_contact": ~Exists(ParticipantContact.objects.filter(participant=OuterRef("pk"))),
         "no_mis_number": _enrolment(source_enrollment_no=""),
         "dates_reversed": _enrolment(completed_on__lt=F("enrolled_on")),
+        "no_project": ~_enrolment(),
         "single_name": Q(full_name_source__regex=r"^\s*\S+\s*$"),
     }
 
@@ -75,6 +76,12 @@ RULES = [
         "dates_reversed",
         "Completed before enrolled",
         "Correct the enrolment or completion date.",
+    ),
+    Rule(
+        "no_project",
+        "Not in any project",
+        "Enrol the youth in a project. Until then only organisation-wide roles can see them "
+        "(D-085): a Project officer never sees a youth with no project.",
     ),
     Rule("single_name", "Only one name", "Add the family name if the youth has one."),
 ]

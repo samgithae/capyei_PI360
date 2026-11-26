@@ -458,6 +458,19 @@ def _find_course(prog, text):
     return hit
 
 
+def project_codes(project_ids) -> list[str]:
+    """Codes of the projects with these ids (ids come from scope assignments, as strings)."""
+    from .models import Project
+
+    ids = []
+    for i in project_ids:
+        try:
+            ids.append(uuid.UUID(str(i)))
+        except ValueError:
+            continue  # a scope value that is not a project id matches nothing
+    return list(Project.objects.filter(pk__in=ids).values_list("code", flat=True))
+
+
 def resolve_offering(project_code, cohort_code, course_code):
     """Find the active project, cohort and course by code, and the offering joining cohort and
     course. Returns ``(offering_id, project_id, institution_id, errors)`` where errors is a list

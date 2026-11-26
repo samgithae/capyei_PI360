@@ -33,6 +33,19 @@ ADMIN_ALSO = [
     "exports.deidentified",
 ]
 
+PLACEMENT_OFFICER = STAFF_VIEW + [
+    "participants.edit",
+    "placements.edit",
+    "employers.edit",
+    "employers.view_feedback_notes",
+    "imports.run",
+    "imports.commit",
+    "referrals.view",
+    "referrals.edit",
+    "intelligence.view",
+    "reports.view_aggregate",
+]
+
 # Rule versions (T-047). Who approves rules is D-009; until it is answered the administrator
 # both drafts and approves. Split the two permissions across roles to get a second pair of eyes.
 RULES = ["intelligence.manage_rules", "intelligence.approve_rules"]
@@ -98,19 +111,17 @@ DEFAULT_ROLES = [
         "description": "Works a caseload within assigned scope.",
         "scope_mode": "assigned",
         "active": True,
-        "permissions": STAFF_VIEW
-        + [
-            "participants.edit",
-            "placements.edit",
-            "employers.edit",
-            "employers.view_feedback_notes",
-            "imports.run",
-            "imports.commit",
-            "referrals.view",
-            "referrals.edit",
-            "intelligence.view",
-            "reports.view_aggregate",
-        ],
+        "permissions": list(PLACEMENT_OFFICER),
+    },
+    {
+        "name": "Project officer",
+        "description": "A placement officer limited to the projects assigned to them (D-085). "
+        "Sees youth enrolled in those projects, including youth shared with another project. "
+        "No project assigned means no access. Identifiable export is a grant to a named person, "
+        "not part of this role (C-2).",
+        "scope_mode": "assigned",
+        "active": True,
+        "permissions": list(PLACEMENT_OFFICER),
     },
     {
         "name": "Manager",
