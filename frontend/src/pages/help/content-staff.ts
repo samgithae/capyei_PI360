@@ -55,7 +55,7 @@ export const STAFF_GUIDES: Guide[] = [
       'Tick the projects they work in and choose Save project access. Other limits on the account, such as a cohort or region, are kept.',
       'A youth enrolled in two projects shows to the officers of both. A youth in no project shows only to organisation-wide roles, and the data steward can list them under Data quality (Not in any project).',
     ],
-    why: 'A Project officer has the same permissions as a Placement officer but sees only youth enrolled in their projects. With no project assigned they see nobody, so a new account is safe until you assign one. Their imports are limited the same way: a row for another project is held with a clear message. Identifiable export is not part of the role: grant it to a named person under Access grants (C-2 is still a recommendation CAP-YEI has not confirmed). Employers and opportunities stay shared between projects.',
+    why: 'A Project officer has the same permissions as a Placement officer but sees only youth enrolled in their projects. With no project assigned they see nobody, so a new account is safe until you assign one. Their imports (youth and placements) are limited the same way: a row for another project is held with a clear message, checked when the file is uploaded. Identifiable export is not part of the role: grant it to a named person under Access grants (C-2 is still a recommendation CAP-YEI has not confirmed). Employers and opportunities stay shared between projects.',
     related: ['grant-restricted-access'],
     updated: '2026-11',
   },

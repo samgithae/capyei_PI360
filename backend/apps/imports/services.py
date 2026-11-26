@@ -219,7 +219,7 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
     same = ImportBatch.objects.filter(file_hash=file_hash, status__in=LOADED).first()
     seen_keys: dict[str, int] = {}
     plan: dict[tuple, dict] = {}
-    allowed = participants.import_project_codes(actor) if target == "participants" else None
+    allowed = participants.import_project_codes(actor)
     counts = {"total": len(rows), "create": 0, "update": 0, "held": 0, "skip": 0, "warnings": 0}
     with transaction.atomic():
         batch = ImportBatch.objects.create(

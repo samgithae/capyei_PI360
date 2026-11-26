@@ -170,3 +170,21 @@ def test_an_import_row_for_another_project_is_held(world, make_user):  # noqa: F
     # the organisation-wide steward is not limited
     ok = imports.upload(actor=steward, template=tpl, file_name="g.csv", data=rows.encode())
     assert not any("outside the projects" in e["message"] for r in ok.rows.all() for e in r.errors)
+
+
+def test_a_placement_row_for_another_project_is_held(world, make_user):  # noqa: F811
+    a = officer(make_user, "ann", world["progs"][0])
+    steward = make_user("sam", "Data steward")
+    tpl = imports.create_template(
+        actor=steward,
+        source="iso-pl",
+        target="placements",
+        columns={
+            "Prog": "project_code", "EnrolNo": "enrollment_no", "Status": "placement_status",
+        },
+    )  # fmt: skip
+    data = b"Prog,EnrolNo,Status\nP2,X-1,Placed\n"
+    batch = imports.upload(actor=a, template=tpl, file_name="p.csv", data=data)
+    row = batch.rows.get()
+    assert any("outside the projects" in e["message"] for e in row.errors)
+    assert row.outcome == "held"
