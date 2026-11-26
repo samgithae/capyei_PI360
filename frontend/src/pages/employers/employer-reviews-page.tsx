@@ -90,7 +90,9 @@ export function EmployerReviewsPage() {
         ))}
       </div>
       {list.isLoading && <LoadingState />}
-      {list.isError && <ErrorState />}
+      {list.isError && (
+        <ErrorState error={list.error} onRetry={() => void list.refetch()} />
+      )}
       {list.data && list.data.results.length === 0 && (
         <EmptyState
           title={tab === 'open' ? 'No open reviews' : 'No decisions yet'}

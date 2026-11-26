@@ -31,7 +31,7 @@ function Brand({ full = false }: { full?: boolean }) {
   return (
     <Link
       to="/"
-      aria-label={`${generalSettings.appName}, home`}
+      aria-label={`${full ? generalSettings.appName : 'PI 360'}, home`}
       className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-md pe-1 font-semibold text-mono"
     >
       <img

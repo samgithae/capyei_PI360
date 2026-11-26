@@ -185,6 +185,25 @@ def inspect(*, file_name, data: bytes, target="participants") -> dict:
 # --- upload / dry run ------------------------------------------------------
 
 
+def _out_of_scope(allowed, code) -> dict | None:
+    """NEW-060: the error for a row naming a project outside the importer's projects, else None."""
+    code = str(code or "").strip().upper()
+    if allowed is None or not code or code in allowed:
+        return None
+    return {
+        "field": "project_code",
+        "message": f"Project {code} is outside the projects you are assigned to.",
+    }
+
+
+def _row_project(batch, row) -> str:
+    """The project code a stored row names: its mapped column, else the batch default."""
+    for header, field in batch.template.columns.items():
+        if field == "project_code" and str(row.raw.get(header, "") or "").strip():
+            return row.raw[header]
+    return (batch.defaults or {}).get("project_code", "")
+
+
 def _row_hash(raw: dict) -> str:
     return hashlib.sha256(json.dumps(raw, sort_keys=True).encode()).hexdigest()
 
@@ -251,16 +270,8 @@ def upload(*, actor, template, file_name, data: bytes, defaults=None) -> ImportB
                     )
                 else:
                     seen_keys[checked.source_key] = n
-            if allowed is not None:  # NEW-060: a project officer imports into their projects only
-                code = str(mapped.get("project_code") or "").strip().upper()
-                if code and code not in allowed:
-                    errors.append(
-                        {
-                            "field": "project_code",
-                            "message": f"Project {code} is outside the projects you are "
-                            "assigned to.",
-                        }
-                    )
+            if problem := _out_of_scope(allowed, mapped.get("project_code")):
+                errors.append(problem)  # NEW-060: a project officer imports into their projects
             youth = checked.clean.get("_youth")
             if youth and target == "placements" and not errors:
                 if f"running|{youth}" in seen_keys:  # D-081: the first running row wins
@@ -413,6 +424,7 @@ def commit(*, actor, batch) -> ImportBatch:
         committed=False, outcome__in=[ImportRow.CREATE, ImportRow.UPDATE]
     ).order_by("row_no")
     owner = participants.import_owner(actor)
+    allowed = participants.import_project_codes(actor)  # NEW-060, checked again at commit
     try:
         while True:
             chunk = list(todo[:CHUNK_SIZE])
@@ -420,6 +432,13 @@ def commit(*, actor, batch) -> ImportBatch:
                 break
             with transaction.atomic():
                 for row in chunk:
+                    problem = _out_of_scope(allowed, _row_project(batch, row))
+                    if problem:  # the committer's projects differ from the uploader's
+                        batch.counts[row.outcome] -= 1
+                        row.outcome, row.errors = ImportRow.HELD, [*row.errors, problem]
+                        row.save(update_fields=["outcome", "errors"])
+                        batch.counts["held"] += 1
+                        continue
                     if batch.template.target == "placements":
                         try:
                             pid, before, after = placement_rows.commit_row(
@@ -775,10 +794,13 @@ def recheck(*, actor, batch) -> ImportBatch:
             "status",
         )
     moved = 0
+    allowed = participants.import_project_codes(actor)
     for row in batch.rows.filter(outcome=ImportRow.HELD):
         checked = placement_rows.check_row(row.clean)
         row.errors, row.warnings, row.clean = checked.errors, checked.warnings, checked.clean
-        if not checked.errors:
+        if problem := _out_of_scope(allowed, _row_project(batch, row)):
+            row.errors = [*row.errors, problem]  # a recheck must not release an out-of-scope row
+        if not row.errors:
             row.outcome = ImportRow.SKIP if checked.clean.get("_skip") else ImportRow.CREATE
             moved += 1
         row.save(update_fields=["errors", "warnings", "clean", "outcome"])

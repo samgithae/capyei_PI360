@@ -188,3 +188,47 @@ def test_a_placement_row_for_another_project_is_held(world, make_user):  # noqa:
     row = batch.rows.get()
     assert any("outside the projects" in e["message"] for e in row.errors)
     assert row.outcome == "held"
+
+
+def test_commit_holds_a_row_outside_the_committers_projects(world, make_user):  # noqa: F811
+    """The upload check is not the only one: the committer's projects are checked again."""
+    a = officer(make_user, "ann", world["progs"][0])
+    steward = make_user("sam", "Data steward")
+    tpl = imports.create_template(
+        actor=steward,
+        source="iso-commit",
+        columns={
+            "Name": "full_name", "Prog": "project_code", "Cohort": "cohort_code",
+            "Course": "course_code", "EnrolNo": "enrollment_no",
+        },
+    )  # fmt: skip
+    rows = "Name,Prog,Cohort,Course,EnrolNo\nTest In,P1,K1,C1,J-1\nTest Out,P2,K2,C1,J-2\n"
+    batch = imports.upload(actor=steward, template=tpl, file_name="c.csv", data=rows.encode())
+    assert batch.counts["held"] == 0  # the steward is not limited, so both rows are ready
+    imports.approve(actor=steward, batch=batch, create_reference=True)
+    done = imports.commit(actor=a, batch=batch)
+    by_no = {r.row_no: r for r in done.rows.all()}
+    assert by_no[1].committed and not by_no[2].committed
+    assert by_no[2].outcome == "held"
+    assert any("outside the projects" in e["message"] for e in by_no[2].errors)
+    assert done.counts["held"] == 1 and done.counts["create"] == 1
+
+
+def test_recheck_does_not_release_a_row_outside_the_officers_projects(world, make_user):  # noqa: F811
+    a = officer(make_user, "ann", world["progs"][0])
+    steward = make_user("sam", "Data steward")
+    tpl = imports.create_template(
+        actor=steward,
+        source="iso-recheck",
+        target="placements",
+        columns={
+            "Prog": "project_code", "EnrolNo": "enrollment_no", "Status": "placement_status",
+        },
+    )  # fmt: skip
+    batch = imports.upload(
+        actor=a, template=tpl, file_name="r.csv", data=b"Prog,EnrolNo,Status\nP2,X-1,Placed\n"
+    )
+    imports.recheck(actor=a, batch=batch)
+    row = batch.rows.get()
+    assert row.outcome == "held"
+    assert any("outside the projects" in e["message"] for e in row.errors)

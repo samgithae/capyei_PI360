@@ -55,7 +55,7 @@ export const STAFF_GUIDES: Guide[] = [
       'Tick the projects they work in and choose Save project access. Other limits on the account, such as a cohort or region, are kept.',
       'A youth enrolled in two projects shows to the officers of both. A youth in no project shows only to organisation-wide roles, and the data steward can list them under Data quality (Not in any project).',
     ],
-    why: 'A Project officer has the same permissions as a Placement officer but sees only youth enrolled in their projects. With no project assigned they see nobody, so a new account is safe until you assign one. Their imports (youth and placements) are limited the same way: a row for another project is held with a clear message, checked when the file is uploaded. Identifiable export is not part of the role: grant it to a named person under Access grants (C-2 is still a recommendation CAP-YEI has not confirmed). Employers and opportunities stay shared between projects.',
+    why: 'A Project officer has the same permissions as a Placement officer but sees only youth enrolled in their projects. With no project assigned they see nobody, so a new account is safe until you assign one. Their imports (youth and placements) are limited the same way: a row for another project is held with a clear message, checked when the file is uploaded and again when it is loaded. Identifiable export is not part of the role: grant it to a named person under Access grants (C-2 is still a recommendation CAP-YEI has not confirmed). Employers and opportunities stay shared between projects.',
     related: ['grant-restricted-access'],
     updated: '2026-11',
   },
@@ -485,6 +485,7 @@ export const STAFF_GUIDES: Guide[] = [
       'A decided review is never edited. If the ratings are still low later, a new review is opened and the old one stays in the history.',
     ],
     why: 'A review only asks someone to look. Neither Monitor nor Ignore suspends an employer or changes who is suggested for their jobs. Reviews are opened by a nightly check that is switched off until an administrator sets Open employer reviews from low ratings to 1 in Rules, Settings; the limits it uses are the same two warning settings as the suggestions warning. Those values are working values, not approved by CAP-YEI (D-077 is still open). Employers never see ratings, notes or reviews.',
+    updated: '2026-11',
   },
   {
     slug: 'employer-evidence',
