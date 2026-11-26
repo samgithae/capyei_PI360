@@ -437,6 +437,11 @@ export function CompleteDialog({
             />
             Already added on the Placements page: link it instead
           </label>
+          <p className="text-xs text-muted-foreground">
+            {alreadyRecorded
+              ? 'The work already on the Placements page is linked to this check-in. Nothing new is created.'
+              : `Saving creates a new placement for this ${outcome === 'self_employed' ? 'business' : 'job'}, linked to the earlier one. The earlier placement is kept in the history, not overwritten.`}
+          </p>
           {!alreadyRecorded && (
             <>
               <div className="grid gap-3 sm:grid-cols-2">

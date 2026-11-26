@@ -467,6 +467,7 @@ The answers are recorded in `docs/capyei-decision-register.md` §0; the analysis
 - **Priority:** High · **Complexity:** Medium · **Estimate:** 2 d.
 - **Acceptance criteria:** A job change counts in "any work" but not in "same employer". Both definitions are shown on screen.
 - **Tests:** Table-driven tests on synthetic chains.
+- **Status check 26 Nov 2026:** already built before this check (not logged at the time). The Retention report has a table and chart at 3, 6 and 12 months on first placements, split into same employer, another employer, self-employed and not working, with both "Same employer (%)" and "In work, any employer (%)" shown, and table-driven tests in `tests/test_reports.py`. A percentage shows only at `employer.min_retention_checks`. Not changed: the per-employer retention line (`retention_counts`) still counts any employed outcome as retained. D-080 and D-089 are not approved, so the definitions stay labelled working values.
 
 ### PI360-NEW-038: Follow-up UI
 - **Description:** Outcome form with conditional fields for a new employer or a reason for leaving.
@@ -479,6 +480,7 @@ The answers are recorded in `docs/capyei-decision-register.md` §0; the analysis
   - The confirmation explains that a new episode will be created.
   - Works on mobile.
 - **Tests:** Component tests; Playwright run.
+- **Status check 26 Nov 2026:** the outcome form (four outcomes, reason, date left, new job or business, link an existing placement) and the recorded outcome display were already built. Added 26 Nov 2026: the form now says a new placement linked to the earlier one will be created (or that an existing one is linked), a component test for it, and a backend rollback test (a failed change leaves the follow-up, the old placement and the placement count unchanged). **Not done:** a Playwright run and a mobile check.
 
 ## Epic G: Exit feedback
 

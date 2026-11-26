@@ -266,6 +266,45 @@ describe('FollowUpPage outcome (NEW-034)', () => {
     ).toBeTruthy();
   });
 
+  it('explains that a changed employer creates a new, linked placement', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    api.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.endsWith('/history')
+          ? []
+          : path.endsWith('/options')
+            ? {
+                methods: [],
+                sources: [],
+                outcomes: [
+                  {
+                    value: 'changed_employer',
+                    label: 'Working for another employer',
+                  },
+                ],
+                leaving_reasons: [],
+              }
+            : detail,
+      ),
+    );
+    open();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Record the response' }),
+    );
+    fireEvent.click(await screen.findByText('Choose outcome'));
+    fireEvent.click(await screen.findByText('Working for another employer'));
+    expect(
+      await screen.findByText(/creates a new placement for this job/),
+    ).toBeTruthy();
+  });
+
   it('shows the recorded outcome, reason and observations', async () => {
     api.mockImplementation((path: string) =>
       Promise.resolve(

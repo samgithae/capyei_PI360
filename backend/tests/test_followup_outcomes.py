@@ -181,6 +181,22 @@ def test_changed_employer_starts_a_linked_episode(started):
     assert d["still_employed"] is True
 
 
+def test_a_failed_change_leaves_everything_as_it_was(started):
+    """The follow-up, the old placement and the placement count all roll back together."""
+    c, pid, fid = started
+    before = Placement.objects.count()
+    bad = {"start_date": ago(3), "employer_name_source": "Beta Ltd", "designation": "Clerk",
+           "employment_type_id": "00000000-0000-0000-0000-000000000000"}  # fmt: skip
+    r = complete(
+        c, fid, outcome="changed_employer", left_on=ago(4), new_job=bad,
+        leaving_reason_id=reason("OTHER-OPPORTUNITY"),
+    )  # fmt: skip
+    assert r.status_code in (400, 409), r.content
+    assert Placement.objects.count() == before
+    assert Placement.objects.get(pk=pid).end_date is None
+    assert FollowUp.objects.get(pk=fid).status == FollowUp.OPEN
+
+
 def test_self_employment_is_its_own_outcome(started):
     c, _, fid = started
     job = {"start_date": ago(3), "employer_name_source": "Own kiosk", "pathway": "self_employment"}
